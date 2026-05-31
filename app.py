@@ -241,7 +241,7 @@ with tab0:
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_entrada), "Tipo": "Entrada", "Descrição": f"Atendimento: {servico_selecionado}", "Valor": preco_final}])
                     st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
-                    st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_html=True)
+                    st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
             st.markdown('</div>', unsafe_html=True)
@@ -261,7 +261,7 @@ with tab0:
                 if descricao_saida and valor_saida > 0:
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_saida), "Tipo": "Saída", "Descrição": descricao_saida, "Valor": -valor_saida}])
                     st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
-                    st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_html=True)
+                    st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             st.markdown('</div>', unsafe_html=True)
             
@@ -283,7 +283,7 @@ with tab0:
                     if nome_devedor:
                         nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_pendencia), "Tipo": "Pendência", "Descrição": f"Fiado de: {nome_devedor} ({servico_pendente})", "Valor": preco_final_p}])
                         st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
-                        st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_html=True)
+                        st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_allow_html=True)
                         st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
             st.markdown('</div>', unsafe_html=True)
@@ -301,13 +301,12 @@ with tab0:
                 opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": idx for idx, row in df_pendencias.iterrows()}
                 pendencia_selecionada = st.selectbox("Selecione o cliente:", list(opcoes_pendentes.keys()), key="f_pago_sel")
                 if st.button("Dar Baixa", type="primary", key="f_pago_save", use_container_width=True):
-                    # CORRIGIDO: usando opcoes_pendentes (com 'e') que foi definido acima
                     idx_alterar = opcoes_pendentes[pendencia_selecionada]
                     df_fluxo_caixa.at[idx_alterar, 'Tipo'] = 'Entrada'
                     df_fluxo_caixa.at[idx_alterar, 'Data'] = pd.to_datetime(datetime.now(TZ).date())
                     df_fluxo_caixa.at[idx_alterar, 'Descrição'] = df_fluxo_caixa.at[idx_alterar, 'Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
                     salvar_fluxo(df_fluxo_caixa)
-                    st.markdown('<div class="confirmacao-dourada">✅ Baixa de fiado registrada com sucesso!</div>', unsafe_html=True)
+                    st.markdown('<div class="confirmacao-dourada">✅ Baixa de fiado registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Nenhum fiado em aberto.")
             st.markdown('</div>', unsafe_html=True)
@@ -326,7 +325,7 @@ with tab0:
 
 with st.sidebar:
     st.header("⚙️ Configurações")
-    nome_salao = st.session_state.usuario_logado.replace("_", " ").title()
+    nome_salao = st.session_state.usuario_logado.replace("_", " ").title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     st.markdown("---")
     servicos = carregar_servicos()
@@ -342,7 +341,7 @@ with st.sidebar:
             servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
         del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
-    st.markdown("<br><br>", unsafe_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False; st.rerun()
 
@@ -362,4 +361,5 @@ with tab2:
                 if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
                 elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
                 return ['background-color: #fff3cd; color: #856404'] * 4
-            st.dataframe(df_vis.style.apply(color
+            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
