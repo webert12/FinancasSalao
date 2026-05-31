@@ -84,19 +84,31 @@ def salvar_servicos(servicos):
     servicos_file, _ = obter_nomes_arquivos()
     with open(servicos_file, "w") as f: json.dump(servicos, f, indent=4)
 
-def carregar_fluxo():
-    _, fluxo_file = obter_nomes_arquivos()
-    if os.path.exists(fluxo_file):
-        try:
-            df = pd.read_csv(fluxo_file)
-            df['Data'] = pd.to_datetime(df['Data'])
-            return df
-        except Exception: return pd.DataFrame(columns=["Data", "Tipo", "Descrição", "Valor"])
-    return pd.DataFrame(columns=["Data", "Tipo", "Descrição", "Valor"])
+def carregar_fluxo_db(username):
+    # Busca apenas os registros desse usuário específico
+    response = supabase.table("fluxo_caixa")\
+        .select("*")\
+        .eq("username", username)\
+        .execute()
+    
+    data = response.data
+    if not data:
+        return pd.DataFrame(columns=["data_transacao", "tipo", "descricao", "valor"])
+    
+    df = pd.DataFrame(data)
+    # Renomear para manter compatibilidade com seu código antigo
+    df = df.rename(columns={"data_transacao": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
+    return df
 
-def salvar_fluxo(df):
-    _, fluxo_file = obter_nomes_arquivos()
-    df.to_csv(fluxo_file, index=False)
+def salvar_fluxo_db(username, tipo, descricao, valor):
+    # Insere um novo registro no banco
+    supabase.table("fluxo_caixa").insert({
+        "username": username,
+        "tipo": tipo,
+        "descricao": descricao,
+        "valor": float(valor)
+    }).execute()
+
 
 # --- CONTROLE DE SESSÃO E LOGIN ---
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
