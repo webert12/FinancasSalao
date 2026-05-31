@@ -6,6 +6,14 @@ import os
 import json
 import time
 import hashlib
+from supabase import create_client, Client
+
+# Pegue estes valores no painel do seu projeto Supabase
+SUPABASE_URL = "sb_publishable_4nvVYxgtdT6hmvbgUTnf3A_WNsCIQKG"
+SUPABASE_KEY = "https://hdiawdyunpogxpqeijfh.supabase.co"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 # --- CONFIGURAÇÃO DE SEGURANÇA E FUSO ---
 SALT = "salao_fio_caixa_2026_security" # Sal para aumentar a complexidade da criptografia
