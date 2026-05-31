@@ -5,14 +5,20 @@ from zoneinfo import ZoneInfo
 import os
 import json
 import time
+import hashlib
 
-# --- CONFIGURAÇÃO DE FUSO HORÁRIO ---
+# --- CONFIGURAÇÃO DE SEGURANÇA E FUSO ---
+SALT = "salao_fio_caixa_2026_security" # Sal para aumentar a complexidade da criptografia
 TZ = ZoneInfo("America/Sao_Paulo")
+
+def hash_password(password):
+    """Transforma senha em hash seguro."""
+    return hashlib.sha256((password + SALT).encode()).hexdigest()
 
 # Configuração da página
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
-# --- ESTILIZAÇÃO CSS PROFISSIONAL E CORREÇÕES VISUAIS ---
+# --- ESTILIZAÇÃO CSS ---
 st.markdown("""
 <style>
     body, .stApp { background-color: #121212; color: white; }
@@ -31,8 +37,6 @@ st.markdown("""
     }
     div[data-testid="stColumn"]:has(.is-action-card) button:hover { background-color: #2a2e35 !important; border-color: #d4af37 !important; transform: translateY(-2px) !important; box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; }
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
-    div[data-testid="stNumberInputContainer"] > div { display: flex !important; align-items: center !important; justify-content: center !important; }
-    div[data-testid="stNumberInputContainer"] button { display: flex !important; align-items: center !important; justify-content: center !important; height: 40px !important; width: 40px !important; }
     .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -42,18 +46,17 @@ if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo
 
 USUARIOS_FILE = "usuarios.json"
 ADMIN_MESTRE_USER = "admin"
-ADMIN_MESTRE_PASS = "master2026"
+# Senha admin original: master2026
+ADMIN_MESTRE_HASH = hash_password("master2026") 
 
 # --- FUNÇÕES DE GERENCIAMENTO DE ARQUIVOS ---
 def carregar_usuarios():
     vencimento_padrao = (datetime.now(TZ) + timedelta(days=30)).strftime("%Y-%m-%d")
     if os.path.exists(USUARIOS_FILE):
         with open(USUARIOS_FILE, "r") as f:
-            dados = json.load(f)
-        return dados
+            return json.load(f)
     return {
-        "salao_central": {"senha": "admin123", "tipo": "Cliente", "vencimento": vencimento_padrao, "status": "Ativo"},
-        "barbearia_vanguard": {"senha": "corte2026", "tipo": "Teste", "vencimento": (datetime.now(TZ) + timedelta(days=7)).strftime("%Y-%m-%d"), "status": "Ativo"}
+        "salao_central": {"senha": hash_password("admin123"), "tipo": "Cliente", "vencimento": vencimento_padrao, "status": "Ativo"},
     }
 
 def salvar_usuarios(usuarios):
@@ -101,12 +104,14 @@ if not st.session_state.autenticado:
         usuario_input = st.text_input("Usuário do Salão ou ADM:").strip().lower()
         senha_input = st.text_input("Senha:", type="password")
         if st.form_submit_button("Entrar no Sistema"):
-            if usuario_input == ADMIN_MESTRE_USER and senha_input == ADMIN_MESTRE_PASS:
+            # Verifica Admin
+            if usuario_input == ADMIN_MESTRE_USER and hash_password(senha_input) == ADMIN_MESTRE_HASH:
                 st.session_state.autenticado = True
                 st.session_state.usuario_logado = "Administrador"
                 st.session_state.eh_admin = True
                 st.rerun()
-            elif usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == senha_input:
+            # Verifica Clientes
+            elif usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                 dados_user = usuarios_cadastrados[usuario_input]
                 data_vencimento = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
                 if datetime.now(TZ).date() > data_vencimento or dados_user.get("status") == "Suspenso":
@@ -135,7 +140,7 @@ if st.session_state.eh_admin:
             if st.form_submit_button("Salvar Salão"):
                 if novo_usuario and nova_senha:
                     vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
-                    usuarios_cadastrados[novo_usuario] = {"senha": nova_senha, "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"}
+                    usuarios_cadastrados[novo_usuario] = {"senha": hash_password(nova_senha), "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"}
                     salvar_usuarios(usuarios_cadastrados); st.success("Salão configurado!"); st.rerun()
 
     with tab_ger:
@@ -146,13 +151,15 @@ if st.session_state.eh_admin:
             dados = usuarios_cadastrados[salao_sel]
             
             with st.expander("📝 Editar Informações", expanded=True):
-                e_senha = st.text_input("Nova Senha:", value=dados['senha'])
+                # Campo de senha vazio para não exibir hash, preenche apenas se mudar
+                e_senha_nova = st.text_input("Nova Senha (deixe em branco para manter a atual):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
                 e_venc = st.date_input("Data de Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d"))
                 e_status = st.selectbox("Status:", ["Ativo", "Suspenso"], index=0 if dados['status'] == "Ativo" else 1)
                 
                 if st.button("Salvar Edição"):
-                    usuarios_cadastrados[salao_sel] = {"senha": e_senha, "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status}
+                    senha_final = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
+                    usuarios_cadastrados[salao_sel] = {"senha": senha_final, "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status}
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Dados atualizados!")
                     st.rerun()
@@ -171,7 +178,7 @@ if st.session_state.eh_admin:
             st.session_state.autenticado = False; st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO CLIENTE ---
+# --- INTERFACE 2: PAINEL DO CLIENTE (MANTIDO) ---
 df_fluxo_caixa = st.session_state.fluxo_caixa.copy()
 if not df_fluxo_caixa.empty:
     df_fluxo_caixa['Data'] = pd.to_datetime(df_fluxo_caixa['Data'])
