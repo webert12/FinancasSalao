@@ -7,18 +7,28 @@ import json
 import time
 import hashlib
 
-# --- CONFIGURAÇÃO DE SEGURANÇA E FUSO ---
-SALT = "salao_fio_caixa_2026_security" # Sal para aumentar a complexidade da criptografia
+# --- CONFIGURAÇÃO ---
+SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
+USUARIOS_FILE = "usuarios.json"
+ADMIN_CONFIG_FILE = "admin_config.json"
 
 def hash_password(password):
-    """Transforma senha em hash seguro."""
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# Configuração da página
+def carregar_admin_hash():
+    if os.path.exists(ADMIN_CONFIG_FILE):
+        with open(ADMIN_CONFIG_FILE, "r") as f:
+            return json.load(f).get("hash")
+    return None
+
+def salvar_admin_hash(password):
+    with open(ADMIN_CONFIG_FILE, "w") as f:
+        json.dump({"hash": hash_password(password)}, f)
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
-# --- ESTILIZAÇÃO CSS ---
 st.markdown("""
 <style>
     body, .stApp { background-color: #121212; color: white; }
@@ -44,26 +54,20 @@ st.markdown("""
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
 
-USUARIOS_FILE = "usuarios.json"
-ADMIN_MESTRE_USER = "admin"
-# Senha admin original: master2026
-ADMIN_MESTRE_HASH = hash_password("master2026") 
-
-# --- FUNÇÕES DE GERENCIAMENTO DE ARQUIVOS ---
+# --- FUNÇÕES ---
 def carregar_usuarios():
     vencimento_padrao = (datetime.now(TZ) + timedelta(days=30)).strftime("%Y-%m-%d")
     if os.path.exists(USUARIOS_FILE):
         with open(USUARIOS_FILE, "r") as f:
-            return json.load(f)
-    return {
-        "salao_central": {"senha": hash_password("admin123"), "tipo": "Cliente", "vencimento": vencimento_padrao, "status": "Ativo"},
-    }
+            try: return json.load(f)
+            except: return {}
+    return {}
 
 def salvar_usuarios(usuarios):
     with open(USUARIOS_FILE, "w") as f: json.dump(usuarios, f, indent=4)
 
 def obter_nomes_arquivos():
-    usuario = st.session_state.usuario_logado
+    usuario = st.session_state.usuario_logado if st.session_state.usuario_logado else "padrao"
     return f"servicos_{usuario}.json", f"fluxo_caixa_{usuario}.csv"
 
 def carregar_servicos():
@@ -95,9 +99,22 @@ if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 
+# Verificação do Admin
+admin_hash = carregar_admin_hash()
 usuarios_cadastrados = carregar_usuarios()
 
 if not st.session_state.autenticado:
+    if not admin_hash:
+        st.title("⚠️ Configuração Inicial")
+        st.write("Bem-vindo! Como é o primeiro acesso, defina a senha do Administrador:")
+        with st.form("primeiro_acesso"):
+            nova_adm_pass = st.text_input("Definir senha de ADMIN:", type="password")
+            if st.form_submit_button("Criar Acesso"):
+                salvar_admin_hash(nova_adm_pass)
+                st.success("Administrador criado! Reiniciando...")
+                st.rerun()
+        st.stop()
+
     st.title("✂️ Sistema de Gestão - Login")
     st.markdown("---")
     with st.form("form_login"):
@@ -105,7 +122,7 @@ if not st.session_state.autenticado:
         senha_input = st.text_input("Senha:", type="password")
         if st.form_submit_button("Entrar no Sistema"):
             # Verifica Admin
-            if usuario_input == ADMIN_MESTRE_USER and hash_password(senha_input) == ADMIN_MESTRE_HASH:
+            if usuario_input == "admin" and hash_password(senha_input) == admin_hash:
                 st.session_state.autenticado = True
                 st.session_state.usuario_logado = "Administrador"
                 st.session_state.eh_admin = True
@@ -151,7 +168,6 @@ if st.session_state.eh_admin:
             dados = usuarios_cadastrados[salao_sel]
             
             with st.expander("📝 Editar Informações", expanded=True):
-                # Campo de senha vazio para não exibir hash, preenche apenas se mudar
                 e_senha_nova = st.text_input("Nova Senha (deixe em branco para manter a atual):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
                 e_venc = st.date_input("Data de Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d"))
@@ -178,8 +194,8 @@ if st.session_state.eh_admin:
             st.session_state.autenticado = False; st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO CLIENTE (MANTIDO) ---
-df_fluxo_caixa = st.session_state.fluxo_caixa.copy()
+# --- INTERFACE 2: PAINEL DO CLIENTE ---
+df_fluxo_caixa = carregar_fluxo() 
 if not df_fluxo_caixa.empty:
     df_fluxo_caixa['Data'] = pd.to_datetime(df_fluxo_caixa['Data'])
     hoje = pd.Timestamp(datetime.now(TZ).date())
@@ -207,7 +223,7 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio&Caixa</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio&Caixa</span></div>', unsafe_html=True)
     st.markdown('<div class="fast-actions-header"><span class="fast-actions-title">Ações rápidas</span><div class="fast-actions-line"></div></div>', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
@@ -219,13 +235,14 @@ with tab0:
         if st.session_state.formulario_ativo == 'new_atendimento':
             st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**📥 Novo Atendimento**")
-            if list(st.session_state.servicos.keys()):
-                servico_selecionado = st.selectbox("Serviço realizado:", list(st.session_state.servicos.keys()), key="f_atend_serv")
-                preco_final = st.number_input("Valor Cobrado (R$):", value=float(st.session_state.servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
+            servicos = carregar_servicos()
+            if list(servicos.keys()):
+                servico_selecionado = st.selectbox("Serviço realizado:", list(servicos.keys()), key="f_atend_serv")
+                preco_final = st.number_input("Valor Cobrado (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
                 data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_entrada), "Tipo": "Entrada", "Descrição": f"Atendimento: {servico_selecionado}", "Valor": preco_final}])
-                    st.session_state.fluxo_caixa = pd.concat([st.session_state.fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
+                    st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
                     st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
@@ -245,7 +262,7 @@ with tab0:
             if st.button("Confirmar", type="primary", key="f_venda_save", use_container_width=True):
                 if descricao_saida and valor_saida > 0:
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_saida), "Tipo": "Saída", "Descrição": descricao_saida, "Valor": -valor_saida}])
-                    st.session_state.fluxo_caixa = pd.concat([st.session_state.fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
+                    st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
                     st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -258,15 +275,16 @@ with tab0:
         if st.session_state.formulario_ativo == 'new_receber':
             st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**⏳ Registrar Fiado**")
-            if list(st.session_state.servicos.keys()):
+            servicos = carregar_servicos()
+            if list(servicos.keys()):
                 nome_devedor = st.text_input("Nome do Cliente:", key="f_fiado_nome")
-                servico_pendente = st.selectbox("Serviço:", list(st.session_state.servicos.keys()), key="f_fiado_serv")
-                preco_final_p = st.number_input("Valor (R$):", value=float(st.session_state.servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
+                servico_pendente = st.selectbox("Serviço:", list(servicos.keys()), key="f_fiado_serv")
+                preco_final_p = st.number_input("Valor (R$):", value=float(servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
                 data_pendencia = st.date_input("Data:", datetime.now(TZ).date(), key="f_fiado_dt")
                 if st.button("Salvar", type="primary", key="f_fiado_save", use_container_width=True):
                     if nome_devedor:
                         nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_pendencia), "Tipo": "Pendência", "Descrição": f"Fiado de: {nome_devedor} ({servico_pendente})", "Valor": preco_final_p}])
-                        st.session_state.fluxo_caixa = pd.concat([st.session_state.fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
+                        st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
                         st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_allow_html=True)
                         st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
@@ -285,11 +303,11 @@ with tab0:
                 opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": idx for idx, row in df_pendencias.iterrows()}
                 pendencia_selecionada = st.selectbox("Selecione o cliente:", list(opcoes_pendentes.keys()), key="f_pago_sel")
                 if st.button("Dar Baixa", type="primary", key="f_pago_save", use_container_width=True):
-                    idx_alterar = opcoes_pendentes[pendencia_selecionada]
-                    st.session_state.fluxo_caixa.at[idx_alterar, 'Tipo'] = 'Entrada'
-                    st.session_state.fluxo_caixa.at[idx_alterar, 'Data'] = pd.to_datetime(datetime.now(TZ).date())
-                    st.session_state.fluxo_caixa.at[idx_alterar, 'Descrição'] = st.session_state.fluxo_caixa.at[idx_alterar, 'Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
-                    salvar_fluxo(st.session_state.fluxo_caixa)
+                    idx_alterar = opcoes_pendencias[pendencia_selecionada]
+                    df_fluxo_caixa.at[idx_alterar, 'Tipo'] = 'Entrada'
+                    df_fluxo_caixa.at[idx_alterar, 'Data'] = pd.to_datetime(datetime.now(TZ).date())
+                    df_fluxo_caixa.at[idx_alterar, 'Descrição'] = df_fluxo_caixa.at[idx_alterar, 'Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
+                    salvar_fluxo(df_fluxo_caixa)
                     st.markdown('<div class="confirmacao-dourada">✅ Baixa de fiado registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Nenhum fiado em aberto.")
@@ -312,18 +330,19 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.replace("_", " ").title()
     st.title(f"✂️ {nome_salao}")
     st.markdown("---")
-    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(st.session_state.servicos.keys())
+    servicos = carregar_servicos()
+    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
     servico_sel = st.selectbox("Escolha um serviço para gerenciar:", opcoes_gerenciamento)
     nome_padrao = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_padrao = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(st.session_state.servicos[servico_sel])
+    preco_padrao = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
     novo_servico = st.text_input("Nome do Serviço:", value=nome_padrao, key=f"side_nome_din_{servico_sel}")
     novo_preco = st.number_input("Preço Cobrado (R$):", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
-            if servico_sel != "➕ Cadastrar Novo Serviço" and servico_sel != novo_servico: del st.session_state.servicos[servico_sel]
-            st.session_state.servicos[novo_servico] = novo_preco; salvar_servicos(st.session_state.servicos); st.rerun()
+            if servico_sel != "➕ Cadastrar Novo Serviço" and servico_sel != novo_servico: del servicos[servico_sel]
+            servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
-        del st.session_state.servicos[servico_sel]; salvar_servicos(st.session_state.servicos); st.rerun()
+        del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
     st.markdown("<br><br>", unsafe_allow_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False; st.rerun()
