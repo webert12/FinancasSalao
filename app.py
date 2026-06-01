@@ -51,7 +51,7 @@ st.markdown("""
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
     .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
 </style>
-""", unsafe_allow_html=True)
+""", unsafe_html=True)
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -221,7 +221,8 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio&Caixa</span></div>', unsafe_html=True)
+    # CORREÇÃO EFETUADA ABAIXO (Fio &amp; Caixa)
+    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio &amp; Caixa</span></div>', unsafe_html=True)
     st.markdown('<div class="fast-actions-header"><span class="fast-actions-title">Ações rápidas</span><div class="fast-actions-line"></div></div>', unsafe_html=True)
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
@@ -241,7 +242,7 @@ with tab0:
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_entrada), "Tipo": "Entrada", "Descrição": f"Atendimento: {servico_selecionado}", "Valor": preco_final}])
                     st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
-                    st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
             st.markdown('</div>', unsafe_html=True)
@@ -261,7 +262,7 @@ with tab0:
                 if descricao_saida and valor_saida > 0:
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_saida), "Tipo": "Saída", "Descrição": descricao_saida, "Valor": -valor_saida}])
                     st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
-                    st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             st.markdown('</div>', unsafe_html=True)
             
@@ -283,7 +284,7 @@ with tab0:
                     if nome_devedor:
                         nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_pendencia), "Tipo": "Pendência", "Descrição": f"Fiado de: {nome_devedor} ({servico_pendente})", "Valor": preco_final_p}])
                         st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
-                        st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_allow_html=True)
+                        st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_html=True)
                         st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
             st.markdown('</div>', unsafe_html=True)
@@ -306,7 +307,7 @@ with tab0:
                     df_fluxo_caixa.at[idx_alterar, 'Data'] = pd.to_datetime(datetime.now(TZ).date())
                     df_fluxo_caixa.at[idx_alterar, 'Descrição'] = df_fluxo_caixa.at[idx_alterar, 'Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
                     salvar_fluxo(df_fluxo_caixa)
-                    st.markdown('<div class="confirmacao-dourada">✅ Baixa de fiado registrada com sucesso!</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="confirmacao-dourada">✅ Baixa de fiado registrada com sucesso!</div>', unsafe_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Nenhum fiado em aberto.")
             st.markdown('</div>', unsafe_html=True)
@@ -341,7 +342,7 @@ with st.sidebar:
             servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
         del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False; st.rerun()
 
@@ -349,17 +350,4 @@ with tab2:
     st.subheader("📜 Histórico de Transações Completas")
     if not df_fluxo_caixa.empty:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-        mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
-        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-        if not df_exibicao.empty:
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            df_vis = df_vis.drop(columns=['Mês/Ano'])
-            def colorir(row):
-                if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
-                elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
-                return ['background-color: #fff3cd; color: #856404'] * 4
-            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
+        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime
