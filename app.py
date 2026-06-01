@@ -6,6 +6,15 @@ import os
 import json
 import time
 import hashlib
+import base64
+from io import BytesIO
+
+# Novas bibliotecas para Criptografia e Geração de PDF profissional
+from cryptography.fernet import Fernet
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 # --- CONFIGURAÇÃO ---
 SALT = "salao_fio_caixa_2026_security"
@@ -13,20 +22,35 @@ TZ = ZoneInfo("America/Sao_Paulo")
 USUARIOS_FILE = "usuarios.json"
 ADMIN_CONFIG_FILE = "admin_config.json"
 
+# Configuração da chave de criptografia AES baseada no seu SALT original
+FERNET_KEY = base64.urlsafe_b64encode(hashlib.sha256(SALT.encode()).digest())
+fernet = Fernet(FERNET_KEY)
+
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-def carregar_admin_hash():
+def criptografar_dados(dados_dict):
+    dados_json = json.dumps(dados_dict)
+    return fernet.encrypt(dados_json.encode()).decode()
+
+def descriptografar_dados(dados_cripto_str):
+    try:
+        return json.loads(fernet.decrypt(dados_cripto_str.encode()).decode())
+    except:
+        return {}
+
+def carregar_admin_hashes():
     if os.path.exists(ADMIN_CONFIG_FILE):
         try:
             with open(ADMIN_CONFIG_FILE, "r") as f:
-                return json.load(f).get("hash")
-        except: return None
-    return None
+                config = json.load(f)
+                return config.get("hash1"), config.get("hash2")
+        except: return None, None
+    return None, None
 
-def salvar_admin_hash(password):
+def salvar_admin_hashes(password1, password2):
     with open(ADMIN_CONFIG_FILE, "w") as f:
-        json.dump({"hash": hash_password(password)}, f)
+        json.dump({"hash1": hash_password(password1), "hash2": hash_password(password2)}, f)
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
@@ -58,17 +82,24 @@ if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
+if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 
 # --- FUNÇÕES ---
 def carregar_usuarios():
     if os.path.exists(USUARIOS_FILE):
         try:
-            with open(USUARIOS_FILE, "r") as f: return json.load(f)
+            with open(USUARIOS_FILE, "r") as f:
+                conteudo = f.read().strip()
+                if not conteudo: return {}
+                if conteudo.startswith("{"): # Legado sem criptografia
+                    return json.loads(conteudo)
+                return descriptografar_dados(conteudo)
         except: return {}
     return {}
 
 def salvar_usuarios(usuarios):
-    with open(USUARIOS_FILE, "w") as f: json.dump(usuarios, f, indent=4)
+    with open(USUARIOS_FILE, "w") as f:
+        f.write(criptografar_dados(usuarios))
 
 def obter_nomes_arquivos():
     usuario = st.session_state.usuario_logado if st.session_state.usuario_logado else "padrao"
@@ -100,29 +131,96 @@ def salvar_fluxo(df):
     _, fluxo_file = obter_nomes_arquivos()
     df.to_csv(fluxo_file, index=False)
 
+def gerar_pdf_contabilidade(df, mes_ref):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#d4af37"), spaceAfter=15
+    )
+    story.append(Paragraph(f"Fio&Caixa - Relatório para Contabilidade ({mes_ref})", title_style))
+    story.append(Spacer(1, 10))
+    
+    table_data = [["Data", "Tipo", "Descrição", "Valor"]]
+    for _, row in df.iterrows():
+        dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
+        table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
+        
+    t = Table(table_data, colWidths=[75, 60, 265, 80])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#22252a")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#d4af37")),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('ALIGN', (3,0), (3,-1), 'RIGHT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+    ]))
+    story.append(t)
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 # --- CONTROLE DE SESSÃO E LOGIN ---
-admin_hash = carregar_admin_hash()
+admin_hash1, admin_hash2 = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
 
 if not st.session_state.autenticado:
-    if not admin_hash:
-        st.title("⚠️ Configuração Inicial")
-        st.write("Defina a senha do Administrador:")
+    if not admin_hash1 or not admin_hash2:
+        st.title("⚠️ Configuração Inicial de Segurança")
+        st.write("Defina as DUAS senhas obrigatórias do Administrador:")
         with st.form("primeiro_acesso"):
-            nova_adm_pass = st.text_input("Definir senha de ADMIN:", type="password")
-            if st.form_submit_button("Criar Acesso"):
-                salvar_admin_hash(nova_adm_pass)
-                st.success("Administrador criado! Reiniciando...")
-                st.rerun()
+            nova_adm_pass1 = st.text_input("Definir Senha PRINCIPAL de ADMIN:", type="password")
+            nova_adm_pass2 = st.text_input("Definir Senha SECUNDÁRIA de ADMIN:", type="password")
+            if st.form_submit_button("Criar Acesso Seguro"):
+                if nova_adm_pass1 and nova_adm_pass2:
+                    salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2)
+                    st.success("Administrador configurado com dupla senha! Reiniciando...")
+                    st.rerun()
+                else: st.error("Você precisa preencher ambas as senhas.")
+        st.stop()
+
+    # Fluxo Especial de Recuperação de Senha Integrado e Criptografado
+    if st.session_state.recuperando_senha:
+        st.title("🔑 Recuperação de Senha Segura")
+        st.write("Insira suas credenciais válidas para redefinir e criptografar a nova senha:")
+        with st.form("form_recuperacao"):
+            user_recup = st.text_input("Seu Usuário do Salão:").strip().lower()
+            email_recup = st.text_input("Seu E-mail Cadastrado:").strip().lower()
+            nova_senha_recup = st.text_input("Nova Senha de Acesso:", type="password")
+            conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
+            
+            c_rec1, c_rec2 = st.columns(2)
+            with c_rec1:
+                if st.form_submit_button("Atualizar e Criptografar", type="primary"):
+                    if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
+                        if nova_senha_recup == conf_senha_recup:
+                            if nova_senha_recup:
+                                usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
+                                salvar_usuarios(usuarios_cadastrados)
+                                st.success("✅ Senha redefinida e salva com criptografia militar na raiz do sistema!")
+                                st.session_state.recuperando_senha = False
+                                time.sleep(1.5); st.rerun()
+                            else: st.error("A senha não pode ser vazia.")
+                        else: st.error("As senhas informadas não coincidem.")
+                    else: st.error("Usuário ou e-mail incorretos ou não localizados.")
+            with c_rec2:
+                if st.form_submit_button("Cancelar e Voltar"):
+                    st.session_state.recuperando_senha = False; st.rerun()
         st.stop()
 
     st.title("✂️ Sistema de Gestão - Login")
     st.markdown("---")
     with st.form("form_login"):
         usuario_input = st.text_input("Usuário do Salão ou ADM:").strip().lower()
-        senha_input = st.text_input("Senha:", type="password")
+        senha_input = st.text_input("Senha / Senha Principal:", type="password")
+        senha2_input = st.text_input("Senha Secundária (Exclusivo para ADMIN):", type="password")
         if st.form_submit_button("Entrar no Sistema"):
-            if usuario_input == "admin" and hash_password(senha_input) == admin_hash:
+            if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
                 st.session_state.autenticado = True
                 st.session_state.usuario_logado = "Administrador"
                 st.session_state.eh_admin = True
@@ -137,7 +235,10 @@ if not st.session_state.autenticado:
                 st.session_state.usuario_logado = usuario_input
                 st.session_state.eh_admin = False
                 st.rerun()
-            else: st.error("Usuário ou senha incorretos.")
+            else: st.error("Credenciais inválidas ou incorretas.")
+            
+    if st.button("Esqueci minha senha ❯"):
+        st.session_state.recuperando_senha = True; st.rerun()
     st.stop()
 
 # --- INTERFACE 1: ADMINISTRADOR MESTRE ---
@@ -148,14 +249,22 @@ if st.session_state.eh_admin:
     with tab_cad:
         with st.form("form_cadastro_cliente"):
             novo_usuario = st.text_input("Usuário do Salão:").strip().lower()
+            novo_email = st.text_input("E-mail de Recuperação:").strip().lower()
             nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
             tipo_conta = st.selectbox("Tipo de Conta:", ["Teste", "Cliente"])
             dias_validade = st.number_input("Dias de Validade:", min_value=1, value=30)
             if st.form_submit_button("Salvar Salão"):
-                if novo_usuario and nova_senha:
+                if novo_usuario and nova_senha and novo_email:
                     vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
-                    usuarios_cadastrados[novo_usuario] = {"senha": hash_password(nova_senha), "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"}
-                    salvar_usuarios(usuarios_cadastrados); st.success("Salão configurado!"); st.rerun()
+                    usuarios_cadastrados[novo_usuario] = {
+                        "senha": hash_password(nova_senha), 
+                        "email": novo_email,
+                        "tipo": tipo_conta, 
+                        "vencimento": vencimento_calculado, 
+                        "status": "Ativo"
+                    }
+                    salvar_usuarios(usuarios_cadastrados); st.success("Salão configurado com criptografia!"); st.rerun()
+                else: st.error("Preencha Usuário, E-mail e Senha.")
 
     with tab_ger:
         usuarios_cadastrados = carregar_usuarios()
@@ -165,6 +274,7 @@ if st.session_state.eh_admin:
             dados = usuarios_cadastrados[salao_sel]
             
             with st.expander("📝 Editar Informações", expanded=True):
+                e_email = st.text_input("E-mail do Cliente:", value=dados.get("email", ""))
                 e_senha_nova = st.text_input("Nova Senha (deixe em branco para manter a atual):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
                 e_venc = st.date_input("Data de Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d"))
@@ -172,9 +282,15 @@ if st.session_state.eh_admin:
                 
                 if st.button("Salvar Edição"):
                     senha_final = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
-                    usuarios_cadastrados[salao_sel] = {"senha": senha_final, "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status}
+                    usuarios_cadastrados[salao_sel] = {
+                        "senha": senha_final, 
+                        "email": e_email.strip().lower(),
+                        "tipo": e_tipo, 
+                        "vencimento": e_venc.strftime("%Y-%m-%d"), 
+                        "status": e_status
+                    }
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Dados updated!")
+                    st.success("Dados atualizados com criptografia!")
                     st.rerun()
 
             st.markdown("---")
@@ -240,7 +356,8 @@ with tab0:
                 data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_entrada), "Tipo": "Entrada", "Descrição": f"Atendimento: {servico_selecionado}", "Valor": preco_final}])
-                    st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
+                    df_atualizado = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True)
+                    salvar_fluxo(df_atualizado)
                     st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
@@ -260,10 +377,11 @@ with tab0:
             if st.button("Confirmar", type="primary", key="f_venda_save", use_container_width=True):
                 if descricao_saida and valor_saida > 0:
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_saida), "Tipo": "Saída", "Descrição": descricao_saida, "Valor": -valor_saida}])
-                    st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
+                    df_atualizado = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True)
+                    salvar_fluxo(df_atualizado)
                     st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_html=True)
             
     with col_c:
         st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
@@ -282,7 +400,8 @@ with tab0:
                 if st.button("Salvar", type="primary", key="f_fiado_save", use_container_width=True):
                     if nome_devedor:
                         nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_pendencia), "Tipo": "Pendência", "Descrição": f"Fiado de: {nome_devedor} ({servico_pendente})", "Valor": preco_final_p}])
-                        st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
+                        df_atualizado = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True)
+                        salvar_fluxo(df_atualizado)
                         st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_allow_html=True)
                         st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
@@ -353,6 +472,35 @@ with tab2:
         meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
         mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
         df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+        
+        # Módulo de Contabilidade integrado para Exportação Mensal (CSV e PDF)
+        if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
+            st.markdown("### 📥 Exportar Mês para Contabilidade")
+            col_down1, col_down2 = st.columns(2)
+            
+            with col_down1:
+                # Geração dinâmica do CSV estruturado
+                csv_file = df_exibicao.to_csv(index=False).encode('utf-8-sig')
+                st.download_button(
+                    label="📄 Baixar Planilha em CSV",
+                    data=csv_file,
+                    file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+                
+            with col_down2:
+                # Geração sob demanda do PDF com Relatório Timbrado profissional
+                pdf_file = gerar_pdf_contabilidade(df_exibicao, mes_escolhido)
+                st.download_button(
+                    label="📕 Baixar Documento em PDF",
+                    data=pdf_file,
+                    file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            st.markdown("---")
+            
         if not df_exibicao.empty:
             df_vis = df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
