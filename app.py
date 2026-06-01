@@ -341,4 +341,25 @@ with st.sidebar:
             servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
         del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
-    st.markdown("
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    if st.button("🚪 Sair do Sistema", use_container_width=True):
+        st.session_state.autenticado = False; st.rerun()
+
+with tab2:
+    st.subheader("📜 Histórico de Transações Completas")
+    if not df_fluxo_caixa.empty:
+        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
+        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
+        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+        mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
+        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+        if not df_exibicao.empty:
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
+            df_vis = df_vis.drop(columns=['Mês/Ano'])
+            def colorir(row):
+                if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
+                elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
+                return ['background-color: #fff3cd; color: #856404'] * 4
+            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
