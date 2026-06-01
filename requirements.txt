@@ -1,1 +1,3 @@
 tzdata
+cryptography
+reportlab 
