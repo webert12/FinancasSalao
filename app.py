@@ -66,26 +66,44 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* REMOVER APENAS O LADO DIREITO DO TOPO (GitHub, Lápis/Status, Menu 3 pontos, Deploy) */
-    div[data-testid="stHeaderActionElements"],
-    header[data-testid="stHeader"] div[role="status"],
-    div[data-testid="stStatusWidget"],
-    .stDeployButton,
-    #MainMenu, footer {
+    /* REMOVER COMPLETAMENTE A BARRA SUPERIOR NATAL (GitHub, Lápis, Deploy, Menu, Espaço em Branco) */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        height: 0px !important;
+        min-height: 0px !important;
+    }
+    header[data-testid="stHeader"] * {
         display: none !important;
-        visibility: hidden !important;
     }
     
-    /* GARANTIR QUE O BOTÃO DO MENU LATERAL (HAMBÚRGUER) APAREÇA DESTACADO EM DOURADO */
+    /* REPOSICIONAR O BOTÃO DO MENU LATERAL (LOGO ACIMA DO DASHBOARD) */
     button[data-testid="stSidebarCollapseButton"] {
-        color: #d4af37 !important;
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        display: inline-flex !important;
+        display: flex !important;
         visibility: visible !important;
-        border: 1px solid rgba(214, 175, 55, 0.3) !important;
+        position: relative !important;
+        top: 10px !important;
+        left: 0px !important;
+        margin-bottom: 20px !important;
+        z-index: 99999 !important;
+        color: #d4af37 !important;
+        background-color: #1e222b !important;
+        border: 2px solid #d4af37 !important;
+        border-radius: 6px !important;
+        padding: 5px 15px !important;
+    }
+    button[data-testid="stSidebarCollapseButton"] * {
+        display: block !important;
+        fill: #d4af37 !important;
+        color: #d4af37 !important;
     }
     button[data-testid="stSidebarCollapseButton"]:hover {
         background-color: #d4af37 !important;
+        color: #121212 !important;
+    }
+    button[data-testid="stSidebarCollapseButton"]:hover * {
+        fill: #121212 !important;
         color: #121212 !important;
     }
     
@@ -107,7 +125,7 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Estilização de alto contraste para as Caixas de Preencher (Inputs) */
+    /* CENTRALIZAÇÃO E CORREÇÃO DO BOTÃO + E - DO NUMBER INPUT E CAIXAS DE TEXTO */
     div[data-testid="stTextInput"] input, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stSelectbox"] [data-testid="stSelectboxInput"],
@@ -118,8 +136,24 @@ st.markdown("""
         border-radius: 6px !important;
         padding: 10px !important;
         font-size: 1rem !important;
+        text-align: center !important; /* Centraliza o texto digitado */
     }
     
+    /* Alinhamento simétrico dos botões internos (+/-) do seletor numérico */
+    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    div[data-testid="stNumberInput"] button {
+        background-color: #22252a !important;
+        color: #d4af37 !important;
+        border: 1px solid #4f5b66 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
     /* Efeito de foco nas caixas de texto */
     div[data-testid="stTextInput"] input:focus, 
     div[data-testid="stNumberInput"] input:focus,
@@ -128,7 +162,7 @@ st.markdown("""
         box-shadow: 0 0 5px rgba(212, 175, 55, 0.5) !important;
     }
     
-    /* Customização dos títulos dos campos (Labels) */
+    /* Customização e centralização dos títulos dos campos (Labels) */
     div[data-testid="stTextInput"] label p, 
     div[data-testid="stNumberInput"] label p,
     div[data-testid="stSelectbox"] label p,
@@ -137,9 +171,11 @@ st.markdown("""
         color: #e0e0e0 !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
+        text-align: center !important;
+        width: 100% !important;
     }
     
-    /* Botões padrão do sistema (Login, Esqueci Senha, Salvar, etc) com borda dourada */
+    /* Botões padrão do sistema com borda dourada */
     div.stButton > button:not(.is-action-card button),
     div[data-testid="stFormSubmitButton"] button {
         background-color: #1e222b !important;
@@ -609,39 +645,4 @@ with tab2:
         mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
         df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
         
-        # Módulo de Contabilidade para Exportação Mensal (CSV e PDF)
-        if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
-            st.markdown("### 📥 Exportar Mês para Contabilidade")
-            col_down1, col_down2 = st.columns(2)
-            
-            with col_down1:
-                csv_file = df_exibicao.to_csv(index=False).encode('utf-8-sig')
-                st.download_button(
-                    label="📄 Baixar Planilha em CSV",
-                    data=csv_file,
-                    file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-                
-            with col_down2:
-                pdf_file = gerar_pdf_contabilidade(df_exibicao, mes_escolhido)
-                st.download_button(
-                    label="📕 Baixar Documento em PDF",
-                    data=pdf_file,
-                    file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-            st.markdown("---")
-            
-        if not df_exibicao.empty:
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            df_vis = df_vis.drop(columns=['Mês/Ano'])
-            def colorir(row):
-                if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
-                elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
-                return ['background-color: #fff3cd; color: #856404'] * 4
-            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
+        # Módulo de Contabilidade para Exportação Mens
