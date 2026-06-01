@@ -115,6 +115,53 @@ st.markdown("""
     .block-container {
         padding-top: 6.5rem !important;
     }
+
+    /* CORREÇÃO DEFINITIVA DOS BOTÕES + E - NO CELULAR */
+
+div[data-testid="stNumberInput"] {
+    width: 100% !important;
+}
+
+div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+    background-color: #1e222b !important;
+    border: 2px solid #4f5b66 !important;
+    border-radius: 8px !important;
+    min-height: 52px !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: stretch !important;
+}
+
+div[data-testid="stNumberInput"] input {
+    background-color: #1e222b !important;
+    color: #ffffff !important;
+    border: none !important;
+    text-align: center !important;
+    font-size: 18px !important;
+    width: 100% !important;
+}
+
+div[data-testid="stNumberInput"] button {
+    min-width: 52px !important;
+    width: 52px !important;
+    height: 52px !important;
+    background-color: #22252a !important;
+    border-left: 1px solid #4f5b66 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stNumberInput"] button svg {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    fill: #d4af37 !important;
+}
     
     /* CONFIGURAÇÃO E CORREÇÃO DO MENU LATERAL INTERNO */
     section[data-testid="stSidebar"] {
