@@ -174,7 +174,7 @@ if st.session_state.eh_admin:
                     senha_final = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
                     usuarios_cadastrados[salao_sel] = {"senha": senha_final, "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status}
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Dados atualizados!")
+                    st.success("Dados updated!")
                     st.rerun()
 
             st.markdown("---")
@@ -226,12 +226,12 @@ with tab0:
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
     with col_a:
-        st.markdown('<div class="is-action-card"></div>', unsafe_html=True)
+        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("✂️ Novo atendimento  ❯", key="btn_atend", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_atendimento' else 'new_atendimento'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_atendimento':
-            st.markdown('<div class="embedded-form-container">', unsafe_html=True)
+            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**📥 Novo Atendimento**")
             servicos = carregar_servicos()
             if list(servicos.keys()):
@@ -244,15 +244,15 @@ with tab0:
                     st.markdown('<div class="confirmacao-dourada">✅ Atendimento registrado com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
-            st.markdown('</div>', unsafe_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
     with col_b:
-        st.markdown('<div class="is-action-card"></div>', unsafe_html=True)
+        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("🛍️ Nova despesa  ❯", key="btn_venda", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_venda' else 'new_venda'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_venda':
-            st.markdown('<div class="embedded-form-container">', unsafe_html=True)
+            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**📤 Registrar Despesa**")
             descricao_saida = st.text_input("Descrição (Ex: Luz, Aluguel):", key="f_venda_desc")
             valor_saida = st.number_input("Valor pago (R$):", min_value=0.0, step=5.0, key="f_venda_val")
@@ -263,15 +263,15 @@ with tab0:
                     st.session_state.fluxo_caixa = pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True); salvar_fluxo(st.session_state.fluxo_caixa)
                     st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
-            st.markdown('</div>', unsafe_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
     with col_c:
-        st.markdown('<div class="is-action-card"></div>', unsafe_html=True)
+        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("💰 Marcar fiado  ❯", key="btn_receber", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_receber' else 'new_receber'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_receber':
-            st.markdown('<div class="embedded-form-container">', unsafe_html=True)
+            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**⏳ Registrar Fiado**")
             servicos = carregar_servicos()
             if list(servicos.keys()):
@@ -286,15 +286,15 @@ with tab0:
                         st.markdown('<div class="confirmacao-dourada">✅ Corte fiado pendente registrado!</div>', unsafe_allow_html=True)
                         st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Cadastre serviços na barra lateral.")
-            st.markdown('</div>', unsafe_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
     with col_d:
-        st.markdown('<div class="is-action-card"></div>', unsafe_html=True)
+        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("💸 Receber fiado  ❯", key="btn_pagar", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_pagar':
-            st.markdown('<div class="embedded-form-container">', unsafe_html=True)
+            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**✅ Receber Fiado**")
             df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
             if not df_pendencias.empty:
@@ -309,19 +309,19 @@ with tab0:
                     st.markdown('<div class="confirmacao-dourada">✅ Baixa de fiado registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
             else: st.info("Nenhum fiado em aberto.")
-            st.markdown('</div>', unsafe_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
     with col_e:
-        st.markdown('<div class="is-action-card"></div>', unsafe_html=True)
+        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("📊 Ver relatórios  ❯", key="btn_relatorios", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'view_relatorios' else 'view_relatorios'
             st.rerun()
         if st.session_state.formulario_ativo == 'view_relatorios':
-            st.markdown('<div class="embedded-form-container">', unsafe_html=True)
+            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             st.write("**📊 Resumo Rápido**")
             st.metric("Líquido Diário", f"R$ {lucro_dia:.2f}")
             st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
-            st.markdown('</div>', unsafe_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("⚙️ Configurações")
@@ -341,25 +341,4 @@ with st.sidebar:
             servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
         del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
-    st.markdown("<br><br>", unsafe_html=True)
-    if st.button("🚪 Sair do Sistema", use_container_width=True):
-        st.session_state.autenticado = False; st.rerun()
-
-with tab2:
-    st.subheader("📜 Histórico de Transações Completas")
-    if not df_fluxo_caixa.empty:
-        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-        mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
-        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-        if not df_exibicao.empty:
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            df_vis = df_vis.drop(columns=['Mês/Ano'])
-            def colorir(row):
-                if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
-                elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
-                return ['background-color: #fff3cd; color: #856404'] * 4
-            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
+    st.markdown("
