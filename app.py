@@ -221,8 +221,8 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    # CORREÇÃO EFETUADA ABAIXO (Fio &amp; Caixa)
-    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio &amp; Caixa</span></div>', unsafe_html=True)
+    # CORREÇÃO: Usando Markdown nativo para evitar erro de parse de HTML
+    st.markdown("### Fio e Caixa")
     st.markdown('<div class="fast-actions-header"><span class="fast-actions-title">Ações rápidas</span><div class="fast-actions-line"></div></div>', unsafe_html=True)
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
@@ -350,4 +350,17 @@ with tab2:
     st.subheader("📜 Histórico de Transações Completas")
     if not df_fluxo_caixa.empty:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime
+        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
+        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+        mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
+        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+        if not df_exibicao.empty:
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
+            df_vis = df_vis.drop(columns=['Mês/Ano'])
+            def colorir(row):
+                if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
+                elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
+                return ['background-color: #fff3cd; color: #856404'] * 4
+            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
