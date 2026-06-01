@@ -66,27 +66,26 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* REMOVER APENAS ELEMENTOS INDESEJADOS DO TOPO (GitHub, Lápis, Deploy, 3 pontos) */
+    /* 1. REMOVER COMPLETAMENTE OS ÍCONES NATIVOS DO TOPO (Share, GitHub, Lápis, etc) */
     div[data-testid="stHeaderActionElements"],
+    header[data-testid="stHeader"] a,
     header[data-testid="stHeader"] div[role="status"],
-    div[data-testid="stStatusWidget"],
     .stDeployButton,
     #MainMenu, footer {
         display: none !important;
         visibility: hidden !important;
     }
-    
-    /* Tornar o fundo do header invisível para sumir com a faixa branca/cinza superior */
     header[data-testid="stHeader"] {
         background-color: transparent !important;
         box-shadow: none !important;
+        border: none !important;
     }
     
-    /* FORÇAR O BOTÃO DO MENU LATERAL A FICAR ABAIXADO, ACIMA DO DASHBOARD E 100% VISÍVEL */
+    /* 2. BAIXAR O BOTÃO DO MENU LATERAL PARA FICAR LOGO ACIMA DO DASHBOARD */
     button[data-testid="stSidebarCollapseButton"] {
-        position: fixed !important;
-        top: 55px !important;  /* Posicionado perfeitamente acima da área de trabalho */
-        left: 20px !important;
+        position: absolute !important;
+        top: 65px !important;  /* Desce o botão para cima do conteúdo principal */
+        left: 15px !important;
         z-index: 999999 !important;
         display: inline-flex !important;
         visibility: visible !important;
@@ -94,14 +93,14 @@ st.markdown("""
         background-color: #1e222b !important;
         border: 2px solid #d4af37 !important;
         border-radius: 6px !important;
-        padding: 6px 14px !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.4) !important;
+        padding: 5px 12px !important;
+        box-shadow: 0px 4px 8px rgba(0,0,0,0.5) !important;
     }
     button[data-testid="stSidebarCollapseButton"] svg {
         fill: #d4af37 !important;
         color: #d4af37 !important;
-        width: 20px !important;
-        height: 20px !important;
+        width: 18px !important;
+        height: 18px !important;
     }
     button[data-testid="stSidebarCollapseButton"]:hover {
         background-color: #d4af37 !important;
@@ -112,29 +111,67 @@ st.markdown("""
         color: #121212 !important;
     }
     
-    /* Dar um recuo no topo do app para o conteúdo não bater no botão flutuante */
+    /* Recuo controlado no topo do app para acomodar o botão flutuante */
     .block-container {
-        padding-top: 5.5rem !important;
+        padding-top: 6.5rem !important;
     }
     
-    /* CORREÇÃO DO MENU LATERAL */
+    /* CONFIGURAÇÃO E CORREÇÃO DO MENU LATERAL INTERNO */
     section[data-testid="stSidebar"] {
         background-color: #1a1d21 !important;
         border-right: 2px solid #d4af37 !important;
     }
-    section[data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-    section[data-testid="stSidebar"] h1, 
-    section[data-testid="stSidebar"] h2, 
-    section[data-testid="stSidebar"] h3,
-    section[data-testid="stSidebar"] h4 {
-        color: #d4af37 !important;
-    }
+    section[data-testid="stSidebar"] * { color: #ffffff !important; }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, 
+    section[data-testid="stSidebar"] h3 { color: #d4af37 !important; }
     
-    /* AJUSTE DOS INPUTS NORMAIS (TEXTO, DATA E SELEÇÃO) */
+    /* 3. REESTRUTURAÇÃO COMPLETA DO ST.NUMBER_INPUT (Zera fundos brancos e alinha botões) */
+    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+        background-color: #1e222b !important;
+        border: 2px solid #4f5b66 !important;
+        border-radius: 6px !important;
+        height: 46px !important;
+        padding: 0px !important;
+        overflow: hidden !important;
+    }
+    div[data-testid="stNumberInput"] input {
+        background-color: #1e222b !important;
+        color: #ffffff !important;
+        border: none !important;
+        height: 100% !important;
+        padding: 0px !important;
+        text-align: center !important;
+        font-size: 1.05rem !important;
+    }
+    div[data-testid="stNumberInput"] button {
+        height: 100% !important;
+        width: 45px !important;
+        min-width: 45px !important;
+        background-color: #22252a !important;
+        color: #d4af37 !important;
+        border: none !important;
+        border-left: 1px solid #4f5b66 !important;
+        margin: 0px !important;
+        padding: 0px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stNumberInput"] button svg {
+        fill: #d4af37 !important;
+        width: 14px !important;
+        height: 14px !important;
+    }
+    div[data-testid="stNumberInput"] button:hover {
+        background-color: #d4af37 !important;
+    }
+    div[data-testid="stNumberInput"] button:hover svg {
+        fill: #121212 !important;
+    }
+
+    /* AJUSTE DOS OUTROS INPUTS (TEXTO, SELEÇÃO E DATA) */
     div[data-testid="stTextInput"] input, 
-    div[data-testid="stSelectbox"] [data-testid="stSelectboxInput"],
+    div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
     div[data-testid="stDateInput"] input {
         background-color: #1e222b !important;
         color: #ffffff !important;
@@ -145,78 +182,39 @@ st.markdown("""
         text-align: center !important;
     }
     
-    /* CORREÇÃO CIRÚRGICA DO SELETOR NUMÉRICO (Evita cortes nos botões + e -) */
-    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+    /* Correção do preenchimento e visibilidade dos textos internos do Selectbox */
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
         background-color: #1e222b !important;
-        border: 2px solid #4f5b66 !important;
         border-radius: 6px !important;
-        height: 45px !important;
-        overflow: hidden !important;
-    }
-    div[data-testid="stNumberInput"] input {
-        background-color: transparent !important;
-        color: #ffffff !important;
-        border: none !important;
-        height: 100% !important;
-        padding: 0px !important;
-        text-align: center !important;
-        font-size: 1rem !important;
-    }
-    div[data-testid="stNumberInput"] button {
-        height: 100% !important;
-        min-width: 40px !important;
-        background-color: #22252a !important;
-        color: #d4af37 !important;
-        border: none !important;
-        border-left: 1px solid #4f5b66 !important;
-        border-right: 1px solid #4f5b66 !important;
-        margin: 0 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    div[data-testid="stNumberInput"] button:hover {
-        background-color: #d4af37 !important;
-        color: #121212 !important;
     }
     
-    /* Efeito de foco geral */
-    div[data-testid="stTextInput"] input:focus, 
-    div[data-testid="stDateInput"] input:focus {
-        border-color: #d4af37 !important;
-        box-shadow: 0 0 5px rgba(212, 175, 55, 0.5) !important;
-    }
-    
-    /* Centralização dos Labels (Títulos dos campos) */
+    /* Centralização perfeita das labels dos campos */
     div[data-testid="stTextInput"] label p, 
     div[data-testid="stNumberInput"] label p,
     div[data-testid="stSelectbox"] label p,
-    div[data-testid="stDateInput"] label p,
-    div[data-testid="stRadio"] label p {
+    div[data-testid="stDateInput"] label p {
         color: #e0e0e0 !important;
         font-weight: 600 !important;
-        font-size: 0.95rem !important;
         text-align: center !important;
         width: 100% !important;
     }
     
-    /* Botões do formulário */
+    /* Correção visual dos botões de Enviar/Confirmar (Evita botões brancos vazios) */
     div.stButton > button:not(.is-action-card button),
     div[data-testid="stFormSubmitButton"] button {
         background-color: #1e222b !important;
         color: #ffffff !important;
-        border: 1px solid #d4af37 !important;
+        border: 2px solid #d4af37 !important;
         border-radius: 6px !important;
-        padding: 8px 16px !important;
+        padding: 10px 20px !important;
         font-weight: bold !important;
-        transition: all 0.2s ease !important;
         width: 100% !important;
+        transition: all 0.2s ease !important;
     }
     div.stButton > button:not(.is-action-card button):hover,
     div[data-testid="stFormSubmitButton"] button:hover {
         background-color: #d4af37 !important;
         color: #121212 !important;
-        border-color: #d4af37 !important;
     }
 
     button[data-baseweb="tab"] p { color: #ffffff !important; }
@@ -235,11 +233,9 @@ st.markdown("""
         border-radius: 8px !important; padding: 18px 15px !important; min-height: 75px !important;
         width: 100% !important; display: flex !important; align-items: center !important;
         justify-content: flex-start !important; gap: 10px !important; transition: all 0.2s ease-in-out !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important; cursor: pointer !important;
     }
     div[data-testid="stColumn"]:has(.is-action-card) button:hover { 
-        background-color: #2a2e35 !important; border-color: #d4af37 !important; transform: translateY(-2px) !important; 
-        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; color: white !important;
+        background-color: #2a2e35 !important; border-color: #d4af37 !important;
     }
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
     .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
