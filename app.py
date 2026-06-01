@@ -66,12 +66,27 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* REMOVER ELEMENTOS DA PARTE SUPERIOR (GitHub, Lápis, Menu de Opções, Deploy, etc.) */
-    header[data-testid="stHeader"] [data-testid="stHeaderActionElements"],
+    /* REMOVER APENAS O LADO DIREITO DO TOPO (GitHub, Lápis/Status, Menu 3 pontos, Deploy) */
+    div[data-testid="stHeaderActionElements"],
     header[data-testid="stHeader"] div[role="status"],
-    #MainMenu, footer, .stDeployButton {
+    div[data-testid="stStatusWidget"],
+    .stDeployButton,
+    #MainMenu, footer {
         display: none !important;
         visibility: hidden !important;
+    }
+    
+    /* GARANTIR QUE O BOTÃO DO MENU LATERAL (HAMBÚRGUER) APAREÇA DESTACADO EM DOURADO */
+    button[data-testid="stSidebarCollapseButton"] {
+        color: #d4af37 !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        display: inline-flex !important;
+        visibility: visible !important;
+        border: 1px solid rgba(214, 175, 55, 0.3) !important;
+    }
+    button[data-testid="stSidebarCollapseButton"]:hover {
+        background-color: #d4af37 !important;
+        color: #121212 !important;
     }
     
     /* CORREÇÃO DO MENU LATERAL: Aplica alto contraste e corrige a visibilidade */
