@@ -9,7 +9,7 @@ import hashlib
 import base64
 from io import BytesIO
 
-# Novas bibliotecas para Criptografia e Geração de PDF profissional
+# Bibliotecas para Criptografia e Geração de PDF profissional
 from cryptography.fernet import Fernet
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -22,7 +22,7 @@ TZ = ZoneInfo("America/Sao_Paulo")
 USUARIOS_FILE = "usuarios.json"
 ADMIN_CONFIG_FILE = "admin_config.json"
 
-# Configuração da chave de criptografia AES baseada no seu SALT original
+# Configuração da chave de criptografia AES baseada no SALT
 FERNET_KEY = base64.urlsafe_b64encode(hashlib.sha256(SALT.encode()).digest())
 fernet = Fernet(FERNET_KEY)
 
@@ -55,15 +55,76 @@ def salvar_admin_hashes(password1, password2):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
+# Injeção de CSS customizado avançado para garantir 100% de visibilidade e contraste
 st.markdown("""
 <style>
-    body, .stApp { background-color: #121212; color: white; }
+    /* Configuração do fundo geral do App */
+    body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
+    
+    /* Forçar a cor de TODOS os textos, parágrafos e rótulos padrão para branco/claro */
+    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
+        color: #ffffff !important;
+    }
+    
+    /* Estilização de alto contraste para as Caixas de Preencher (Inputs) */
+    div[data-testid="stTextInput"] input, 
+    div[data-testid="stNumberInput"] input, 
+    div[data-testid="stSelectbox"] [data-testid="stSelectboxInput"],
+    div[data-testid="stDateInput"] input {
+        background-color: #1e222b !important;
+        color: #ffffff !important;
+        border: 2px solid #4f5b66 !important;
+        border-radius: 6px !important;
+        padding: 10px !important;
+        font-size: 1rem !important;
+    }
+    
+    /* Efeito de foco nas caixas de texto */
+    div[data-testid="stTextInput"] input:focus, 
+    div[data-testid="stNumberInput"] input:focus,
+    div[data-testid="stDateInput"] input:focus {
+        border-color: #d4af37 !important;
+        box-shadow: 0 0 5px rgba(212, 175, 55, 0.5) !important;
+    }
+    
+    /* Customização dos títulos dos campos (Labels) */
+    div[data-testid="stTextInput"] label p, 
+    div[data-testid="stNumberInput"] label p,
+    div[data-testid="stSelectbox"] label p,
+    div[data-testid="stDateInput"] label p,
+    div[data-testid="stRadio"] label p {
+        color: #e0e0e0 !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+    }
+    
+    /* Botões padrão do sistema (Login, Esqueci Senha, Salvar, etc) com borda dourada */
+    div.stButton > button:not(.is-action-card button) {
+        background-color: #1e222b !important;
+        color: #ffffff !important;
+        border: 1px solid #d4af37 !important;
+        border-radius: 6px !important;
+        padding: 8px 16px !important;
+        font-weight: bold !important;
+        transition: all 0.2s ease !important;
+        width: 100% !important;
+    }
+    
+    div.stButton > button:not(.is-action-card button):hover {
+        background-color: #d4af37 !important;
+        color: #121212 !important;
+        border-color: #d4af37 !important;
+    }
+
+    /* Estilização estrutural do Painel de Ações Rápidas */
     .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
     .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
     .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
     .fast-actions-title { color: white; font-weight: bold; font-size: 1rem; margin-right: 10px; }
     .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
     .is-action-card { display: none; }
+    
+    /* Cards de ação do salão */
     div[data-testid="stColumn"]:has(.is-action-card) button {
         background-color: #22252a !important; color: white !important; border: 1px solid #333 !important;
         border-radius: 8px !important; padding: 18px 15px !important; min-height: 75px !important;
@@ -71,7 +132,10 @@ st.markdown("""
         justify-content: flex-start !important; gap: 10px !important; transition: all 0.2s ease-in-out !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important; cursor: pointer !important;
     }
-    div[data-testid="stColumn"]:has(.is-action-card) button:hover { background-color: #2a2e35 !important; border-color: #d4af37 !important; transform: translateY(-2px) !important; box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; }
+    div[data-testid="stColumn"]:has(.is-action-card) button:hover { 
+        background-color: #2a2e35 !important; border-color: #d4af37 !important; transform: translateY(-2px) !important; 
+        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; color: white !important;
+    }
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
     .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
 </style>
@@ -91,7 +155,7 @@ def carregar_usuarios():
             with open(USUARIOS_FILE, "r") as f:
                 conteudo = f.read().strip()
                 if not conteudo: return {}
-                if conteudo.startswith("{"): # Legado sem criptografia
+                if conteudo.startswith("{"): 
                     return json.loads(conteudo)
                 return descriptografar_dados(conteudo)
         except: return {}
@@ -184,7 +248,7 @@ if not st.session_state.autenticado:
                 else: st.error("Você precisa preencher ambas as senhas.")
         st.stop()
 
-    # Fluxo Especial de Recuperação de Senha Integrado e Criptografado
+    # Tela de Recuperação de Senha
     if st.session_state.recuperando_senha:
         st.title("🔑 Recuperação de Senha Segura")
         st.write("Insira suas credenciais válidas para redefinir e criptografar a nova senha:")
@@ -202,7 +266,7 @@ if not st.session_state.autenticado:
                             if nova_senha_recup:
                                 usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
                                 salvar_usuarios(usuarios_cadastrados)
-                                st.success("✅ Senha redefinida e salva com criptografia militar na raiz do sistema!")
+                                st.success("✅ Senha redefinida e criptografada com sucesso!")
                                 st.session_state.recuperando_senha = False
                                 time.sleep(1.5); st.rerun()
                             else: st.error("A senha não pode ser vazia.")
@@ -213,30 +277,45 @@ if not st.session_state.autenticado:
                     st.session_state.recuperando_senha = False; st.rerun()
         st.stop()
 
+    # --- TELA DE LOGIN FORMATADA E DINÂMICA ---
     st.title("✂️ Sistema de Gestão - Login")
     st.markdown("---")
+    
+    # Seletor posicionado fora do formulário para causar o recarregamento dinâmico do layout
+    tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
+    
     with st.form("form_login"):
-        usuario_input = st.text_input("Usuário do Salão ou ADM:").strip().lower()
-        senha_input = st.text_input("Senha / Senha Principal:", type="password")
-        senha2_input = st.text_input("Senha Secundária (Exclusivo para ADMIN):", type="password")
-        if st.form_submit_button("Entrar no Sistema"):
-            if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
-                st.session_state.autenticado = True
-                st.session_state.usuario_logado = "Administrador"
-                st.session_state.eh_admin = True
-                st.rerun()
-            elif usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
-                dados_user = usuarios_cadastrados[usuario_input]
-                data_vencimento = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
-                if datetime.now(TZ).date() > data_vencimento or dados_user.get("status") == "Suspenso":
-                    st.error("❌ ACESSO BLOQUEADO! Licença vencida.")
-                    st.stop()
-                st.session_state.autenticado = True
-                st.session_state.usuario_logado = usuario_input
-                st.session_state.eh_admin = False
-                st.rerun()
-            else: st.error("Credenciais inválidas ou incorretas.")
+        usuario_input = st.text_input("Usuário do Salão:" if tipo_acesso == "Usuário / Salão" else "Usuário Master ADM:").strip().lower()
+        senha_input = st.text_input("Senha:" if tipo_acesso == "Usuário / Salão" else "Senha Principal:", type="password")
+        
+        # A senha secundária só é injetada na tela se o usuário marcar que quer logar como Administrador
+        if tipo_acesso == "Administrador Mestre":
+            senha2_input = st.text_input("Senha Secundária Obrigatória:", type="password")
+        else:
+            senha2_input = ""
             
+        if st.form_submit_button("Entrar no Sistema"):
+            if tipo_acesso == "Administrador Mestre":
+                if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
+                    st.session_state.autenticado = True
+                    st.session_state.usuario_logado = "Administrador"
+                    st.session_state.eh_admin = True
+                    st.rerun()
+                else: st.error("Credenciais de Administrador incorretas.")
+            else:
+                if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
+                    dados_user = usuarios_cadastrados[usuario_input]
+                    data_vencimento = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
+                    if datetime.now(TZ).date() > data_vencimento or dados_user.get("status") == "Suspenso":
+                        st.error("❌ ACESSO BLOQUEADO! Licença vencida.")
+                        st.stop()
+                    st.session_state.autenticado = True
+                    st.session_state.usuario_logado = usuario_input
+                    st.session_state.eh_admin = False
+                    st.rerun()
+                else: st.error("Usuário ou senha incorretos.")
+            
+    # Botão de esqueci minha senha intuitivo e visível logo abaixo do formulário principal
     if st.button("Esqueci minha senha ❯"):
         st.session_state.recuperando_senha = True; st.rerun()
     st.stop()
@@ -381,7 +460,7 @@ with tab0:
                     salvar_fluxo(df_atualizado)
                     st.markdown('<div class="confirmacao-dourada">✅ Despesa registrada com sucesso!</div>', unsafe_allow_html=True)
                     st.session_state.formulario_ativo = 'none'; time.sleep(1.2); st.rerun()
-            st.markdown('</div>', unsafe_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
     with col_c:
         st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
@@ -473,13 +552,12 @@ with tab2:
         mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
         df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
         
-        # Módulo de Contabilidade integrado para Exportação Mensal (CSV e PDF)
+        # Módulo de Contabilidade para Exportação Mensal (CSV e PDF)
         if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
             st.markdown("### 📥 Exportar Mês para Contabilidade")
             col_down1, col_down2 = st.columns(2)
             
             with col_down1:
-                # Geração dinâmica do CSV estruturado
                 csv_file = df_exibicao.to_csv(index=False).encode('utf-8-sig')
                 st.download_button(
                     label="📄 Baixar Planilha em CSV",
@@ -490,7 +568,6 @@ with tab2:
                 )
                 
             with col_down2:
-                # Geração sob demanda do PDF com Relatório Timbrado profissional
                 pdf_file = gerar_pdf_contabilidade(df_exibicao, mes_escolhido)
                 st.download_button(
                     label="📕 Baixar Documento em PDF",
