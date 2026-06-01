@@ -122,15 +122,10 @@ div[data-testid="stNumberInput"] {
     width: 100% !important;
 }
 
-div[data-testid="stNumberInput"] div[data-baseweb="input"] {
-    background-color: #1e222b !important;
-    border: 2px solid #4f5b66 !important;
-    border-radius: 8px !important;
-    min-height: 52px !important;
-    height: auto !important;
+div[data-testid="stNumberInput"] div[data-baseweb="input"]{
     overflow: visible !important;
-    display: flex !important;
-    align-items: stretch !important;
+    height: 56px !important;
+    min-height: 56px !important;
 }
 
 div[data-testid="stNumberInput"] input {
@@ -142,25 +137,20 @@ div[data-testid="stNumberInput"] input {
     width: 100% !important;
 }
 
-div[data-testid="stNumberInput"] button {
-    min-width: 52px !important;
-    width: 52px !important;
-    height: 52px !important;
-    background-color: #22252a !important;
-    border-left: 1px solid #4f5b66 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: visible !important;
+div[data-testid="stNumberInput"] button{
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 56px !important;
+    min-height: 56px !important;
     padding: 0 !important;
+    overflow: visible !important;
 }
 
-div[data-testid="stNumberInput"] button svg {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    fill: #d4af37 !important;
+div[data-testid="stNumberInput"] button svg{
+    width: 24px !important;
+    height: 24px !important;
+    display: block !important;
+}
 }
     
     /* CONFIGURAÇÃO E CORREÇÃO DO MENU LATERAL INTERNO */
