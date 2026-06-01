@@ -66,6 +66,32 @@ st.markdown("""
         color: #ffffff !important;
     }
     
+    /* REMOVER ELEMENTOS DA PARTE SUPERIOR (GitHub, Lápis, Menu de Opções, Deploy, etc.) */
+    header[data-testid="stHeader"] [data-testid="stHeaderActionElements"],
+    header[data-testid="stHeader"] div[role="status"],
+    #MainMenu, footer, .stDeployButton {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* CORREÇÃO DO MENU LATERAL: Aplica alto contraste e corrige a visibilidade */
+    section[data-testid="stSidebar"] {
+        background-color: #1a1d21 !important;
+        border-right: 2px solid #d4af37 !important;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] h1, 
+    section[data-testid="stSidebar"] h2, 
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] h4 {
+        color: #d4af37 !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stSelectbox"] span {
+        color: #ffffff !important;
+    }
+    
     /* Estilização de alto contraste para as Caixas de Preencher (Inputs) */
     div[data-testid="stTextInput"] input, 
     div[data-testid="stNumberInput"] input, 
@@ -98,7 +124,7 @@ st.markdown("""
         font-size: 0.95rem !important;
     }
     
-    /* CORREÇÃO DO BOTÃO INVISÍVEL: Aplica o estilo dourado/escuro tanto em botões comuns quanto nos de formulário (Login) */
+    /* Botões padrão do sistema (Login, Esqueci Senha, Salvar, etc) com borda dourada */
     div.stButton > button:not(.is-action-card button),
     div[data-testid="stFormSubmitButton"] button {
         background-color: #1e222b !important;
@@ -118,7 +144,7 @@ st.markdown("""
         border-color: #d4af37 !important;
     }
 
-    /* CORREÇÃO PÓS-LOGIN: Garante visibilidade dos textos das Abas (Tabs) */
+    /* Garante visibilidade dos textos das Abas (Tabs) */
     button[data-baseweb="tab"] p {
         color: #ffffff !important;
     }
@@ -127,7 +153,7 @@ st.markdown("""
         font-weight: bold !important;
     }
 
-    /* CORREÇÃO PÓS-LOGIN: Garante visibilidade dos blocos de Métrica */
+    /* Garante visibilidade dos blocos de Métrica */
     div[data-testid="stMetricValue"] {
         color: #ffffff !important;
     }
@@ -385,7 +411,7 @@ if st.session_state.eh_admin:
                         "status": e_status
                     }
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Dados atualizados com criptografia!")
+                    st.success("Dados updated com criptografia!")
                     st.rerun()
 
             st.markdown("---")
