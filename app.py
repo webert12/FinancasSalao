@@ -221,8 +221,8 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio&Caixa</span></div>', unsafe_html=True)
-    st.markdown('<div class="fast-actions-header"><span class="fast-actions-title">Ações rápidas</span><div class="fast-actions-line"></div></div>', unsafe_html=True)
+    st.markdown('<div class="sim-header"><span class="sim-header-title">Fio&Caixa</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="fast-actions-header"><span class="fast-actions-title">Ações rápidas</span><div class="fast-actions-line"></div></div>', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
     with col_a:
@@ -341,7 +341,7 @@ with st.sidebar:
             servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
         del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False; st.rerun()
 
