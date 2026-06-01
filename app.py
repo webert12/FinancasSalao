@@ -66,48 +66,58 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* REMOVER COMPLETAMENTE A BARRA SUPERIOR NATAL (GitHub, Lápis, Deploy, Menu, Espaço em Branco) */
-    header[data-testid="stHeader"] {
-        background: transparent !important;
-        box-shadow: none !important;
-        border: none !important;
-        height: 0px !important;
-        min-height: 0px !important;
-    }
-    header[data-testid="stHeader"] * {
+    /* REMOVER APENAS ELEMENTOS INDESEJADOS DO TOPO (GitHub, Lápis, Deploy, 3 pontos) */
+    div[data-testid="stHeaderActionElements"],
+    header[data-testid="stHeader"] div[role="status"],
+    div[data-testid="stStatusWidget"],
+    .stDeployButton,
+    #MainMenu, footer {
         display: none !important;
+        visibility: hidden !important;
     }
     
-    /* REPOSICIONAR O BOTÃO DO MENU LATERAL (LOGO ACIMA DO DASHBOARD) */
+    /* Tornar o fundo do header invisível para sumir com a faixa branca/cinza superior */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+    
+    /* FORÇAR O BOTÃO DO MENU LATERAL A FICAR ABAIXADO, ACIMA DO DASHBOARD E 100% VISÍVEL */
     button[data-testid="stSidebarCollapseButton"] {
-        display: flex !important;
+        position: fixed !important;
+        top: 55px !important;  /* Posicionado perfeitamente acima da área de trabalho */
+        left: 20px !important;
+        z-index: 999999 !important;
+        display: inline-flex !important;
         visibility: visible !important;
-        position: relative !important;
-        top: 10px !important;
-        left: 0px !important;
-        margin-bottom: 20px !important;
-        z-index: 99999 !important;
         color: #d4af37 !important;
         background-color: #1e222b !important;
         border: 2px solid #d4af37 !important;
         border-radius: 6px !important;
-        padding: 5px 15px !important;
+        padding: 6px 14px !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.4) !important;
     }
-    button[data-testid="stSidebarCollapseButton"] * {
-        display: block !important;
+    button[data-testid="stSidebarCollapseButton"] svg {
         fill: #d4af37 !important;
         color: #d4af37 !important;
+        width: 20px !important;
+        height: 20px !important;
     }
     button[data-testid="stSidebarCollapseButton"]:hover {
         background-color: #d4af37 !important;
         color: #121212 !important;
     }
-    button[data-testid="stSidebarCollapseButton"]:hover * {
+    button[data-testid="stSidebarCollapseButton"]:hover svg {
         fill: #121212 !important;
         color: #121212 !important;
     }
     
-    /* CORREÇÃO DO MENU LATERAL: Aplica alto contraste e corrige a visibilidade */
+    /* Dar um recuo no topo do app para o conteúdo não bater no botão flutuante */
+    .block-container {
+        padding-top: 5.5rem !important;
+    }
+    
+    /* CORREÇÃO DO MENU LATERAL */
     section[data-testid="stSidebar"] {
         background-color: #1a1d21 !important;
         border-right: 2px solid #d4af37 !important;
@@ -121,13 +131,9 @@ st.markdown("""
     section[data-testid="stSidebar"] h4 {
         color: #d4af37 !important;
     }
-    section[data-testid="stSidebar"] div[data-testid="stSelectbox"] span {
-        color: #ffffff !important;
-    }
     
-    /* CENTRALIZAÇÃO E CORREÇÃO DO BOTÃO + E - DO NUMBER INPUT E CAIXAS DE TEXTO */
+    /* AJUSTE DOS INPUTS NORMAIS (TEXTO, DATA E SELEÇÃO) */
     div[data-testid="stTextInput"] input, 
-    div[data-testid="stNumberInput"] input, 
     div[data-testid="stSelectbox"] [data-testid="stSelectboxInput"],
     div[data-testid="stDateInput"] input {
         background-color: #1e222b !important;
@@ -136,33 +142,52 @@ st.markdown("""
         border-radius: 6px !important;
         padding: 10px !important;
         font-size: 1rem !important;
-        text-align: center !important; /* Centraliza o texto digitado */
+        text-align: center !important;
     }
     
-    /* Alinhamento simétrico dos botões internos (+/-) do seletor numérico */
+    /* CORREÇÃO CIRÚRGICA DO SELETOR NUMÉRICO (Evita cortes nos botões + e -) */
     div[data-testid="stNumberInput"] div[data-baseweb="input"] {
-        align-items: center !important;
-        justify-content: center !important;
+        background-color: #1e222b !important;
+        border: 2px solid #4f5b66 !important;
+        border-radius: 6px !important;
+        height: 45px !important;
+        overflow: hidden !important;
     }
-    
+    div[data-testid="stNumberInput"] input {
+        background-color: transparent !important;
+        color: #ffffff !important;
+        border: none !important;
+        height: 100% !important;
+        padding: 0px !important;
+        text-align: center !important;
+        font-size: 1rem !important;
+    }
     div[data-testid="stNumberInput"] button {
+        height: 100% !important;
+        min-width: 40px !important;
         background-color: #22252a !important;
         color: #d4af37 !important;
-        border: 1px solid #4f5b66 !important;
-        display: flex !important;
+        border: none !important;
+        border-left: 1px solid #4f5b66 !important;
+        border-right: 1px solid #4f5b66 !important;
+        margin: 0 !important;
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
-
-    /* Efeito de foco nas caixas de texto */
+    div[data-testid="stNumberInput"] button:hover {
+        background-color: #d4af37 !important;
+        color: #121212 !important;
+    }
+    
+    /* Efeito de foco geral */
     div[data-testid="stTextInput"] input:focus, 
-    div[data-testid="stNumberInput"] input:focus,
     div[data-testid="stDateInput"] input:focus {
         border-color: #d4af37 !important;
         box-shadow: 0 0 5px rgba(212, 175, 55, 0.5) !important;
     }
     
-    /* Customização e centralização dos títulos dos campos (Labels) */
+    /* Centralização dos Labels (Títulos dos campos) */
     div[data-testid="stTextInput"] label p, 
     div[data-testid="stNumberInput"] label p,
     div[data-testid="stSelectbox"] label p,
@@ -175,7 +200,7 @@ st.markdown("""
         width: 100% !important;
     }
     
-    /* Botões padrão do sistema com borda dourada */
+    /* Botões do formulário */
     div.stButton > button:not(.is-action-card button),
     div[data-testid="stFormSubmitButton"] button {
         background-color: #1e222b !important;
@@ -187,7 +212,6 @@ st.markdown("""
         transition: all 0.2s ease !important;
         width: 100% !important;
     }
-    
     div.stButton > button:not(.is-action-card button):hover,
     div[data-testid="stFormSubmitButton"] button:hover {
         background-color: #d4af37 !important;
@@ -195,21 +219,10 @@ st.markdown("""
         border-color: #d4af37 !important;
     }
 
-    /* Garante visibilidade dos textos das Abas (Tabs) */
-    button[data-baseweb="tab"] p {
-        color: #ffffff !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] p {
-        color: #d4af37 !important;
-        font-weight: bold !important;
-    }
+    button[data-baseweb="tab"] p { color: #ffffff !important; }
+    button[data-baseweb="tab"][aria-selected="true"] p { color: #d4af37 !important; font-weight: bold !important; }
+    div[data-testid="stMetricValue"] { color: #ffffff !important; }
 
-    /* Garante visibilidade dos blocos de Métrica */
-    div[data-testid="stMetricValue"] {
-        color: #ffffff !important;
-    }
-
-    /* Estilização estrutural do Painel de Ações Rápidas */
     .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
     .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
     .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
@@ -217,7 +230,6 @@ st.markdown("""
     .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
     .is-action-card { display: none; }
     
-    /* Cards de ação do salão */
     div[data-testid="stColumn"]:has(.is-action-card) button {
         background-color: #22252a !important; color: white !important; border: 1px solid #333 !important;
         border-radius: 8px !important; padding: 18px 15px !important; min-height: 75px !important;
@@ -341,7 +353,6 @@ if not st.session_state.autenticado:
                 else: st.error("Você precisa preencher ambas as senhas.")
         st.stop()
 
-    # Tela de Recuperação de Senha
     if st.session_state.recuperando_senha:
         st.title("🔑 Recuperação de Senha Segura")
         st.write("Insira suas credenciais válidas para redefinir e criptografar a nova senha:")
@@ -370,18 +381,14 @@ if not st.session_state.autenticado:
                     st.session_state.recuperando_senha = False; st.rerun()
         st.stop()
 
-    # --- TELA DE LOGIN FORMATADA E DINÂMICA ---
     st.title("✂️ Sistema de Gestão - Login")
     st.markdown("---")
     
-    # Seletor posicionado fora do formulário para causar o recarregamento dinâmico do layout
     tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
     
     with st.form("form_login"):
         usuario_input = st.text_input("Usuário do Salão:" if tipo_acesso == "Usuário / Salão" else "Usuário Master ADM:").strip().lower()
         senha_input = st.text_input("Senha:" if tipo_acesso == "Usuário / Salão" else "Senha Principal:", type="password")
-        
-        # A senha secundária só é injetada na tela se o usuário marcar que quer logar como Administrador
         if tipo_acesso == "Administrador Mestre":
             senha2_input = st.text_input("Senha Secundária Obrigatória:", type="password")
         else:
@@ -408,7 +415,6 @@ if not st.session_state.autenticado:
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos.")
             
-    # Botão de esqueci minha senha intuitivo e visível logo abaixo do formulário principal
     if st.button("Esqueci minha senha ❯"):
         st.session_state.recuperando_senha = True; st.rerun()
     st.stop()
@@ -626,23 +632,4 @@ with st.sidebar:
     preco_padrao = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
     novo_servico = st.text_input("Nome do Serviço:", value=nome_padrao, key=f"side_nome_din_{servico_sel}")
     novo_preco = st.number_input("Preço Cobrado (R$):", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
-    if st.button("Salvar Alteração", type="primary", use_container_width=True):
-        if novo_servico:
-            if servico_sel != "➕ Cadastrar Novo Serviço" and servico_sel != novo_servico: del servicos[servico_sel]
-            servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
-    if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
-        del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    if st.button("🚪 Sair do Sistema", use_container_width=True):
-        st.session_state.autenticado = False; st.rerun()
-
-with tab2:
-    st.subheader("📜 Histórico de Transações Completas")
-    if not df_fluxo_caixa.empty:
-        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-        mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
-        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-        
-        # Módulo de Contabilidade para Exportação Mens
+    if st.button("Salvar Alteração", type="
