@@ -632,4 +632,57 @@ with st.sidebar:
     preco_padrao = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
     novo_servico = st.text_input("Nome do Serviço:", value=nome_padrao, key=f"side_nome_din_{servico_sel}")
     novo_preco = st.number_input("Preço Cobrado (R$):", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
-    if st.button("Salvar Alteração", type="
+    if st.button("Salvar Alteração", type="primary", use_container_width=True):
+        if novo_servico:
+            if servico_sel != "➕ Cadastrar Novo Serviço" and servico_sel != novo_servico: del servicos[servico_sel]
+            servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
+    if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço do Catálogo", use_container_width=True):
+        del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    if st.button("🚪 Sair do Sistema", use_container_width=True):
+        st.session_state.autenticado = False; st.rerun()
+
+with tab2:
+    st.subheader("📜 Histórico de Transações Completas")
+    if not df_fluxo_caixa.empty:
+        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
+        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
+        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+        mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
+        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+        
+        if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
+            st.markdown("### 📥 Exportar Mês para Contabilidade")
+            col_down1, col_down2 = st.columns(2)
+            
+            with col_down1:
+                csv_file = df_exibicao.to_csv(index=False).encode('utf-8-sig')
+                st.download_button(
+                    label="📄 Baixar Planilha em CSV",
+                    data=csv_file,
+                    file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+                
+            with col_down2:
+                pdf_file = gerar_pdf_contabilidade(df_exibicao, mes_escolhido)
+                st.download_button(
+                    label="📕 Baixar Documento em PDF",
+                    data=pdf_file,
+                    file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            st.markdown("---")
+            
+        if not df_exibicao.empty:
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
+            df_vis = df_vis.drop(columns=['Mês/Ano'])
+            def colorir(row):
+                if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
+                elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
+                return ['background-color: #fff3cd; color: #856404'] * 4
+            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+    else: st.info("Nenhuma movimentação financeira registrada até o momento.")
