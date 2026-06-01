@@ -125,49 +125,62 @@ st.markdown("""
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, 
     section[data-testid="stSidebar"] h3 { color: #d4af37 !important; }
     
-    /* 3. REESTRUTURAÇÃO COMPLETA DO ST.NUMBER_INPUT (Zera fundos brancos e alinha botões) */
-    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
-        background-color: #1e222b !important;
-        border: 2px solid #4f5b66 !important;
-        border-radius: 6px !important;
-        height: 46px !important;
-        padding: 0px !important;
-        overflow: hidden !important;
-    }
-    div[data-testid="stNumberInput"] input {
-        background-color: #1e222b !important;
-        color: #ffffff !important;
-        border: none !important;
-        height: 100% !important;
-        padding: 0px !important;
-        text-align: center !important;
-        font-size: 1.05rem !important;
-    }
-    div[data-testid="stNumberInput"] button {
-        height: 100% !important;
-        width: 45px !important;
-        min-width: 45px !important;
-        background-color: #22252a !important;
-        color: #d4af37 !important;
-        border: none !important;
-        border-left: 1px solid #4f5b66 !important;
-        margin: 0px !important;
-        padding: 0px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    div[data-testid="stNumberInput"] button svg {
-        fill: #d4af37 !important;
-        width: 14px !important;
-        height: 14px !important;
-    }
-    div[data-testid="stNumberInput"] button:hover {
-        background-color: #d4af37 !important;
-    }
-    div[data-testid="stNumberInput"] button:hover svg {
-        fill: #121212 !important;
-    }
+   /* 3. REESTRUTURAÇÃO COMPLETA DO ST.NUMBER_INPUT (CORRIGIDO) */
+
+div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+    background-color: #1e222b !important;
+    border: 2px solid #4f5b66 !important;
+    border-radius: 6px !important;
+    min-height: 46px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+
+    display: flex !important;
+    align-items: center !important;
+}
+
+div[data-testid="stNumberInput"] input {
+    background-color: #1e222b !important;
+    color: #ffffff !important;
+    border: none !important;
+    height: 100% !important;
+    text-align: center !important;
+    font-size: 1.05rem !important;
+}
+
+div[data-testid="stNumberInput"] button {
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+
+    background-color: #22252a !important;
+    color: #d4af37 !important;
+
+    border: none !important;
+    margin: auto !important;
+    padding: 0 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    border-radius: 4px !important;
+}
+
+div[data-testid="stNumberInput"] button svg {
+    width: 12px !important;
+    height: 12px !important;
+    fill: #d4af37 !important;
+    display: block !important;
+}
+
+div[data-testid="stNumberInput"] button:hover {
+    background-color: #d4af37 !important;
+}
+
+div[data-testid="stNumberInput"] button:hover svg {
+    fill: #121212 !important;
+}
 
     /* AJUSTE DOS OUTROS INPUTS (TEXTO, SELEÇÃO E DATA) */
     div[data-testid="stTextInput"] input, 
