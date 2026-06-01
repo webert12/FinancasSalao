@@ -55,14 +55,11 @@ def salvar_admin_hashes(password1, password2):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
-# Injeção de CSS customizado avançado - CORREÇÃO ABSOLUTA DE CONTRASTE E VISIBILIDADE
+# Injeção de CSS customizado avançado para garantir 100% de visibilidade e contraste
 st.markdown("""
 <style>
     /* Configuração do fundo geral do App */
-    body, .stApp { 
-        background-color: #121212 !important; 
-        color: #ffffff !important; 
-    }
+    body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
     
     /* Forçar a cor de TODOS os textos, parágrafos e rótulos padrão para branco/claro */
     .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
@@ -101,59 +98,37 @@ st.markdown("""
         font-size: 0.95rem !important;
     }
     
-    /* CORREÇÃO DO ERRO DO BOTÃO INVISÍVEL: Força estilo escuro/dourado em TODOS os botões do sistema */
-    button, 
-    .stButton button, 
-    div[data-testid="stFormSubmitButton"] button,
-    div[data-testid="stFormSubmitButton"] > button {
+    /* CORREÇÃO DO BOTÃO INVISÍVEL: Aplica o estilo dourado/escuro tanto em botões comuns quanto nos de formulário (Login) */
+    div.stButton > button:not(.is-action-card button),
+    div[data-testid="stFormSubmitButton"] button {
         background-color: #1e222b !important;
         color: #ffffff !important;
-        border: 2px solid #d4af37 !important;
+        border: 1px solid #d4af37 !important;
         border-radius: 6px !important;
-        padding: 10px 16px !important;
+        padding: 8px 16px !important;
         font-weight: bold !important;
-        min-height: 42px !important;
+        transition: all 0.2s ease !important;
         width: 100% !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
-        text-shadow: none !important;
     }
     
-    /* Efeito hover para os botões padrão */
-    button:hover, 
-    .stButton button:hover, 
+    div.stButton > button:not(.is-action-card button):hover,
     div[data-testid="stFormSubmitButton"] button:hover {
         background-color: #d4af37 !important;
         color: #121212 !important;
         border-color: #d4af37 !important;
-        cursor: pointer;
     }
 
-    /* Correção de visibilidade para as Abas (Tabs) pós-login */
-    button[data-baseweb="tab"] {
+    /* CORREÇÃO PÓS-LOGIN: Garante visibilidade dos textos das Abas (Tabs) */
+    button[data-baseweb="tab"] p {
         color: #ffffff !important;
-        font-size: 1rem !important;
     }
-    button[data-baseweb="tab"][aria-selected="true"] {
+    button[data-baseweb="tab"][aria-selected="true"] p {
         color: #d4af37 !important;
-        border-bottom-color: #d4af37 !important;
         font-weight: bold !important;
     }
 
-    /* Correção de visibilidade para os blocos de Métrica */
+    /* CORREÇÃO PÓS-LOGIN: Garante visibilidade dos blocos de Métrica */
     div[data-testid="stMetricValue"] {
-        color: #ffffff !important;
-        font-weight: bold !important;
-    }
-    div[data-testid="stMetricLabel"] p {
-        color: #d4af37 !important;
-    }
-
-    /* Correção de visibilidade para o Menu Lateral (Sidebar) */
-    section[data-testid="stSidebar"] {
-        background-color: #1a1d21 !important;
-        border-right: 1px solid #333333;
-    }
-    section[data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
 
@@ -165,30 +140,18 @@ st.markdown("""
     .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
     .is-action-card { display: none; }
     
-    /* Customização específica para manter os 5 Cards de ação rápidos intactos */
+    /* Cards de ação do salão */
     div[data-testid="stColumn"]:has(.is-action-card) button {
-        background-color: #22252a !important; 
-        color: white !important; 
-        border: 1px solid #333 !important;
-        border-radius: 8px !important; 
-        padding: 18px 15px !important; 
-        min-height: 75px !important;
-        width: 100% !important; 
-        display: flex !important; 
-        align-items: center !important;
-        justify-content: flex-start !important; 
-        gap: 10px !important; 
-        transition: all 0.2s ease-in-out !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important;
+        background-color: #22252a !important; color: white !important; border: 1px solid #333 !important;
+        border-radius: 8px !important; padding: 18px 15px !important; min-height: 75px !important;
+        width: 100% !important; display: flex !important; align-items: center !important;
+        justify-content: flex-start !important; gap: 10px !important; transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important; cursor: pointer !important;
     }
     div[data-testid="stColumn"]:has(.is-action-card) button:hover { 
-        background-color: #2a2e35 !important; 
-        border-color: #d4af37 !important; 
-        transform: translateY(-2px) !important; 
-        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; 
-        color: white !important;
+        background-color: #2a2e35 !important; border-color: #d4af37 !important; transform: translateY(-2px) !important; 
+        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; color: white !important;
     }
-    
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
     .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
 </style>
@@ -334,12 +297,14 @@ if not st.session_state.autenticado:
     st.title("✂️ Sistema de Gestão - Login")
     st.markdown("---")
     
+    # Seletor posicionado fora do formulário para causar o recarregamento dinâmico do layout
     tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
     
     with st.form("form_login"):
         usuario_input = st.text_input("Usuário do Salão:" if tipo_acesso == "Usuário / Salão" else "Usuário Master ADM:").strip().lower()
         senha_input = st.text_input("Senha:" if tipo_acesso == "Usuário / Salão" else "Senha Principal:", type="password")
         
+        # A senha secundária só é injetada na tela se o usuário marcar que quer logar como Administrador
         if tipo_acesso == "Administrador Mestre":
             senha2_input = st.text_input("Senha Secundária Obrigatória:", type="password")
         else:
@@ -366,6 +331,7 @@ if not st.session_state.autenticado:
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos.")
             
+    # Botão de esqueci minha senha intuitivo e visível logo abaixo do formulário principal
     if st.button("Esqueci minha senha ❯"):
         st.session_state.recuperando_senha = True; st.rerun()
     st.stop()
@@ -419,7 +385,7 @@ if st.session_state.eh_admin:
                         "status": e_status
                     }
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Dados updated com criptografia!")
+                    st.success("Dados atualizados com criptografia!")
                     st.rerun()
 
             st.markdown("---")
@@ -602,6 +568,7 @@ with tab2:
         mes_escolhido = st.selectbox("📅 Escolha o mês de referência:", ["Ver Tudo"] + meses)
         df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
         
+        # Módulo de Contabilidade para Exportação Mensal (CSV e PDF)
         if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
             st.markdown("### 📥 Exportar Mês para Contabilidade")
             col_down1, col_down2 = st.columns(2)
