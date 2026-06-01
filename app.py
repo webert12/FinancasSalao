@@ -5,34 +5,44 @@ from zoneinfo import ZoneInfo
 import hashlib
 from supabase import create_client, Client
 
-# --- CONFIGURAÇÃO SUPABASE ---
+# --- CONFIGURAÇÃO ---
+SALT = "salao_fio_caixa_2026_security"
+TZ = ZoneInfo("America/Sao_Paulo")
+
+# --- CONEXÃO SUPABASE ---
 @st.cache_resource
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 supabase = init_supabase()
 
-# --- CONFIGURAÇÕES ---
-SALT = "salao_fio_caixa_2026_security"
-TZ = ZoneInfo("America/Sao_Paulo")
-
+# --- FUNÇÕES DE SEGURANÇA E DADOS (Adaptadas para Supabase) ---
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# --- FUNÇÕES DE BANCO DE DADOS (Substituindo JSON/CSV) ---
-
 def carregar_usuarios():
-    # Retorna dicionário formatado como o sistema espera
+    # Busca do Supabase
     response = supabase.table("perfis_salao").select("*").execute()
     usuarios = {}
     for item in response.data:
         usuarios[item["username"]] = {
-            "senha": item["password_hash"],
-            "tipo": item.get("tipo", "Cliente"),
-            "vencimento": item["expiry_date"],
-            "status": item["status"]
+            "senha": item["password_hash"], 
+            "vencimento": item["expiry_date"], 
+            "status": item["status"],
+            "tipo": item.get("tipo", "Cliente")
         }
     return usuarios
+
+def salvar_usuarios(usuarios):
+    # Atualiza ou insere usuários (simplificado para admin)
+    for user, data in usuarios.items():
+        supabase.table("perfis_salao").upsert({
+            "username": user,
+            "password_hash": data["senha"],
+            "expiry_date": data["vencimento"],
+            "status": data["status"],
+            "tipo": data["tipo"]
+        }).execute()
 
 def carregar_servicos():
     username = st.session_state.usuario_logado
@@ -43,7 +53,7 @@ def carregar_servicos():
 
 def salvar_servicos(servicos):
     username = st.session_state.usuario_logado
-    # Deleta antigos e insere novos (simplificado)
+    # Deleta e recria para atualizar
     supabase.table("servicos").delete().eq("username", username).execute()
     rows = [{"username": username, "nome_servico": k, "preco": v} for k, v in servicos.items()]
     supabase.table("servicos").insert(rows).execute()
@@ -53,23 +63,21 @@ def carregar_fluxo():
     response = supabase.table("fluxo_caixa").select("*").eq("username", username).execute()
     if not response.data:
         return pd.DataFrame(columns=["Data", "Tipo", "Descrição", "Valor"])
-    
     df = pd.DataFrame(response.data)
+    # Mapeamento para o formato do seu app
     df = df.rename(columns={"data_transacao": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
     df['Data'] = pd.to_datetime(df['Data'])
     return df
 
 def salvar_fluxo(df):
-    # Nota: Em produção, o ideal é salvar linha a linha. 
-    # Aqui, para manter compatibilidade, inserimos o último registro ou atualizamos.
-    # O seu código original adicionava uma linha por vez. Vamos garantir isso:
-    ultima_linha = df.iloc[-1]
+    # Salva a última linha inserida no banco
+    ultima = df.iloc[-1]
     supabase.table("fluxo_caixa").insert({
         "username": st.session_state.usuario_logado,
-        "data_transacao": ultima_linha['Data'].isoformat(),
-        "tipo": ultima_linha['Tipo'],
-        "descricao": ultima_linha['Descrição'],
-        "valor": float(ultima_linha['Valor'])
+        "data_transacao": ultima['Data'].isoformat(),
+        "tipo": ultima['Tipo'],
+        "descricao": ultima['Descrição'],
+        "valor": float(ultima['Valor'])
     }).execute()
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -80,9 +88,6 @@ st.markdown("""
     body, .stApp { background-color: #121212; color: white; }
     .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
     .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
-    .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
-    .fast-actions-title { color: white; font-weight: bold; font-size: 1rem; margin-right: 10px; }
-    .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
     .is-action-card { display: none; }
     div[data-testid="stColumn"]:has(.is-action-card) button {
         background-color: #22252a !important; color: white !important; border: 1px solid #333 !important;
@@ -91,7 +96,6 @@ st.markdown("""
         justify-content: flex-start !important; gap: 10px !important; transition: all 0.2s ease-in-out !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important; cursor: pointer !important;
     }
-    div[data-testid="stColumn"]:has(.is-action-card) button:hover { background-color: #2a2e35 !important; border-color: #d4af37 !important; transform: translateY(-2px) !important; box-shadow: 0 6px 12px rgba(212, 175, 55, 0.1) !important; }
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
     .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
 </style>
@@ -108,43 +112,41 @@ if not st.session_state.autenticado:
         usuario_input = st.text_input("Usuário:").strip().lower()
         senha_input = st.text_input("Senha:", type="password")
         if st.form_submit_button("Entrar"):
-            # Lógica ADMIN
-            if usuario_input == "admin":
-                # Verificação simplificada de admin (você pode colocar no banco se quiser)
-                if hash_password(senha_input) == hash_password("master2026"): 
-                    st.session_state.update({'autenticado': True, 'usuario_logado': "Administrador", 'eh_admin': True})
-                    st.rerun()
-            
-            # Lógica CLIENTE (Banco de Dados)
-            usuarios_cadastrados = carregar_usuarios()
-            if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
-                dados = usuarios_cadastrados[usuario_input]
-                if datetime.now(TZ).date() > datetime.strptime(dados["vencimento"], "%Y-%m-%d").date() or dados.get("status") == "Suspenso":
-                    st.error("❌ Acesso Bloqueado: Licença vencida.")
-                else:
-                    st.session_state.update({'autenticado': True, 'usuario_logado': usuario_input, 'eh_admin': False})
-                    st.rerun()
-            else: st.error("Usuário ou senha incorretos.")
+            # Admin Master (Hardcoded ou banco)
+            if usuario_input == "admin" and hash_password(senha_input) == hash_password("master2026"):
+                st.session_state.update({'autenticado': True, 'usuario_logado': "Administrador", 'eh_admin': True})
+                st.rerun()
+            else:
+                usuarios_cadastrados = carregar_usuarios()
+                if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
+                    dados = usuarios_cadastrados[usuario_input]
+                    if datetime.now(TZ).date() > datetime.strptime(dados["vencimento"], "%Y-%m-%d").date() or dados.get("status") == "Suspenso":
+                        st.error("❌ Acesso Bloqueado: Licença vencida.")
+                    else:
+                        st.session_state.update({'autenticado': True, 'usuario_logado': usuario_input, 'eh_admin': False})
+                        st.rerun()
+                else: st.error("Usuário ou senha incorretos.")
     st.stop()
 
 # --- INTERFACE ADMINISTRADOR ---
 if st.session_state.get('eh_admin', False):
     st.title("👑 Central do Administrador")
     tab_cad, tab_ger = st.tabs(["➕ Cadastrar/Renovar", "⚙️ Gerenciar Salões"])
+    usuarios_cadastrados = carregar_usuarios()
+    
     with tab_cad:
         with st.form("form_cadastro_cliente"):
             novo_usuario = st.text_input("Usuário do Salão:").strip().lower()
             nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
             dias_validade = st.number_input("Dias de Validade:", min_value=1, value=30)
             if st.form_submit_button("Salvar Salão"):
-                # Insere no Supabase
-                supabase.table("perfis_salao").insert({
-                    "username": novo_usuario,
-                    "password_hash": hash_password(nova_senha),
-                    "expiry_date": (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d"),
-                    "status": "Ativo"
-                }).execute()
-                st.success("Salão configurado!"); st.rerun()
+                usuarios_cadastrados[novo_usuario] = {
+                    "senha": hash_password(nova_senha), 
+                    "vencimento": (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d"), 
+                    "status": "Ativo",
+                    "tipo": "Cliente"
+                }
+                salvar_usuarios(usuarios_cadastrados); st.success("Salão configurado!"); st.rerun()
     with tab_ger:
         if st.button("🚪 Sair do Modo ADM"): st.session_state.autenticado = False; st.rerun()
     st.stop()
@@ -153,11 +155,10 @@ if st.session_state.get('eh_admin', False):
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 
-# Lógica de Dash
+hoje = pd.Timestamp(datetime.now(TZ).date())
 if not df_fluxo_caixa.empty:
-    hoje = pd.Timestamp(datetime.now(TZ).date())
-    df_diario = df_fluxo_caixa[df_fluxo_caixa['Data'].dt.date == hoje.date()]
-    lucro_dia = df_diario['Valor'].sum()
+    df_fluxo_caixa['Data'] = pd.to_datetime(df_fluxo_caixa['Data'])
+    lucro_dia = df_fluxo_caixa[df_fluxo_caixa['Data'].dt.date == hoje.date()]['Valor'].sum()
 else:
     lucro_dia = 0
 
