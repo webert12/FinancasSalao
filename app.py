@@ -63,7 +63,6 @@ if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
     st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets do Streamlit Cloud.")
-    st.info("Por favor, adicione a linha DB_URL = '...' nas configurações (Secrets) do painel do Streamlit.")
     st.stop()
 
 # Inicialização da Engine de Banco de Dados
@@ -77,6 +76,56 @@ except Exception as e:
     st.error(f"Erro crítico ao instanciar o motor do banco de dados: {e}")
     st.stop()
 
+# --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
+def inicializar_banco():
+    with engine.begin() as conn:
+        # Criação da tabela administrativa
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS admin_config (
+                id INT PRIMARY KEY,
+                hash1 TEXT NOT NULL,
+                hash2 TEXT NOT NULL
+            );
+        """))
+        # Criação da tabela de usuários/salões
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id TEXT PRIMARY KEY,
+                senha TEXT NOT NULL,
+                email TEXT,
+                tipo TEXT,
+                vencimento TEXT,
+                status TEXT
+            );
+        """))
+        # Criação da tabela de catálogos de serviços
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS servicos (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                nome TEXT NOT NULL,
+                preco NUMERIC NOT NULL
+            );
+        """))
+        # Criação da tabela de fluxo de caixa
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS fluxo_caixa (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                tipo TEXT NOT NULL,
+                descricao TEXT NOT NULL,
+                valor NUMERIC NOT NULL
+            );
+        """))
+
+# Executa a estruturação do banco de dados antes de carregar a interface
+try:
+    inicializar_banco()
+except Exception as e:
+    st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
+    st.stop()
+
 # --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT) ---
 
 def carregar_admin_hashes():
@@ -86,11 +135,7 @@ def carregar_admin_hashes():
             if result:
                 return result[0], result[1]
     except Exception as e:
-        # Se o erro for apenas que a tabela não existe (banco novo), permite criar.
-        # Qualquer outro erro (como falha de conexão/senha) vai travar e exibir o motivo real.
-        if "relation" in str(e) and "does not exist" in str(e):
-            return None, None
-        st.error(f"❌ Erro de Conexão com o Banco de Dados Supabase: {e}")
+        st.error(f"❌ Erro ao ler hashes administrativos: {e}")
         st.stop()
     return None, None
 
