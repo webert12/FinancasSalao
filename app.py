@@ -8,8 +8,8 @@ import time
 import hashlib
 from io import BytesIO
 
-# Biblioteca do Supabase
-from supabase import create_client, Client
+# Bibliotecas de Conexão Direta SQL
+from sqlalchemy import create_engine, text
 
 # Relatórios e Segurança
 from reportlab.lib.pagesizes import letter
@@ -27,223 +27,160 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
-# --- INJEÇÃO DE CSS CUSTOMIZADO COORDENADO (OTIMIZADO PARA MOBILE) ---
+# --- INJEÇÃO DE CSS CUSTOMIZADO (OTIMIZADO PARA MOBILE) ---
 st.markdown("""
 <style>
-    /* Fundo escuro universal */
     body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
     .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
         color: #ffffff !important;
     }
-    
-    /* Esconder completamente a barra superior do Streamlit */
-    [data-testid="stHeader"], header {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0px !important;
-    }
-    
-    /* Ajuste do espaçamento do topo sem a barra */
+    [data-testid="stHeader"], header { display: none !important; visibility: hidden !important; height: 0px !important; }
     .block-container { padding-top: 2rem !important; }
+    button[data-testid="stSidebarCollapseButton"] { color: #d4af37 !important; background-color: #1e222b !important; border: 2px solid #d4af37 !important; border-radius: 6px !important; }
     
-    /* Botão de abrir/fechar menu lateral no mobile */
-    button[data-testid="stSidebarCollapseButton"] {
-        color: #d4af37 !important;
-        background-color: #1e222b !important;
-        border: 2px solid #d4af37 !important;
-        border-radius: 6px !important;
+    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] [data-baseweb="select"] > div, div[data-testid="stDateInput"] input {
+        background-color: #1e222b !important; color: #ffffff !important; border: 2px solid #4f5b66 !important; border-radius: 6px !important; padding: 10px !important;
     }
+    div[data-testid="stNumberInput"] div[data-baseweb="input"] { background-color: #1e222b !important; border: 2px solid #4f5b66 !important; }
+    div[data-testid="stNumberInput"] input { color: #ffffff !important; }
+    div[data-testid="stNumberInput"] button { background-color: #33363c !important; color: #d4af37 !important; border: 1px solid #4f5b66 !important; }
     
-    /* Configuração dos campos de texto e inputs */
-    div[data-testid="stTextInput"] input, 
-    div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
-    div[data-testid="stDateInput"] input {
-        background-color: #1e222b !important;
-        color: #ffffff !important;
-        border: 2px solid #4f5b66 !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
+    div.stButton > button, div[data-testid="stFormSubmitButton"] button {
+        background-color: #d4af37 !important; color: #121212 !important; border: 2px solid #d4af37 !important; border-radius: 6px !important; width: 100% !important; font-weight: bold !important; font-size: 1rem !important; padding: 10px !important; box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
     }
-    
-    /* Correção visual para os botões de + e - do seletor numérico */
-    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
-        background-color: #1e222b !important;
-        border: 2px solid #4f5b66 !important;
-    }
-    div[data-testid="stNumberInput"] input {
-        color: #ffffff !important;
-    }
-    div[data-testid="stNumberInput"] button {
-        background-color: #33363c !important;
-        color: #d4af37 !important;
-        border: 1px solid #4f5b66 !important;
-    }
-    
-    /* CORREÇÃO DO BOTÃO BRANCO: Todos os botões agora são Dourados com texto Preto */
-    div.stButton > button,
-    div[data-testid="stFormSubmitButton"] button {
-        background-color: #d4af37 !important;
-        color: #121212 !important;
-        border: 2px solid #d4af37 !important;
-        border-radius: 6px !important;
-        width: 100% !important;
-        font-weight: bold !important;
-        font-size: 1rem !important;
-        padding: 10px !important;
-        box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
-    }
-    div.stButton > button:hover,
-    div[data-testid="stFormSubmitButton"] button:hover {
-        background-color: #ffffff !important;
-        color: #121212 !important;
-        border-color: #ffffff !important;
-    }
-
-    /* Layout dos menus de ações rápidas */
+    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] button:hover { background-color: #ffffff !important; color: #121212 !important; border-color: #ffffff !important; }
     .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
     .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
     .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
     .fast-actions-title { color: white; font-weight: bold; font-size: 1rem; margin-right: 10px; }
     .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
-    
     .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
-    .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; margin-bottom: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO DINÂMICA COMPARTILHADA (ESTILO ITAGESSO) ---
+# --- CONEXÃO DINÂMICA SIMPLIFICADA POR URL ---
 if "db_url" not in st.session_state: st.session_state["db_url"] = ""
-if "db_key" not in st.session_state: st.session_state["db_key"] = ""
 
-if not st.session_state["db_url"] or not st.session_state["db_key"]:
-    st.title("🔌 Conexão com o Banco de Dados")
-    st.info("Insira as credenciais do seu projeto Supabase para ativar o sistema e salvar seus dados em nuvem com segurança.")
+if not st.session_state["db_url"]:
+    st.title("🔌 Conexão Direta com o Banco de Dados")
+    st.info("Insira a URL de Conexão (Connection String URI) do seu Supabase para ativar o sistema.")
     
-    with st.form("conexao_manual_supabase"):
-        url_input = st.text_input("Project URL (ex: https://xyz.supabase.co):").strip()
-        key_input = st.text_input("API anon / public key:", type="password").strip()
-        
+    with st.form("conexao_manual_sql"):
+        url_input = st.text_input("URL de Conexão (Começa com postgresql://):", placeholder="postgresql://postgres...").strip()
         if st.form_submit_button("Conectar e Inicializar Sistema 🚀"):
-            if url_input and key_input:
+            if url_input:
                 st.session_state["db_url"] = url_input
-                st.session_state["db_key"] = key_input
-                st.success("Credenciais salvas com sucesso!")
+                st.success("Configuração salva!")
                 time.sleep(1)
                 st.rerun()
             else:
-                st.error("Por favor, preencha ambos os campos corretamente.")
+                st.error("Por favor, cole a sua URL de conexão.")
     st.stop()
 
-# Inicialização segura do cliente Supabase
+# Inicialização da Engine de Banco de Dados
 @st.cache_resource
-def init_supabase(url, key) -> Client:
-    return create_client(url, key)
+def init_connection(url):
+    return create_engine(url, pool_pre_ping=True)
 
 try:
-    supabase = init_supabase(st.session_state["db_url"], st.session_state["db_key"])
+    engine = init_connection(st.session_state["db_url"])
 except Exception as e:
-    st.error(f"Erro ao conectar ao Supabase com as chaves fornecidas: {e}")
-    if st.button("Inserir Chaves Novamente"):
+    st.error(f"Erro ao criar conexão com a URL fornecida: {e}")
+    if st.button("Inserir Outra URL"):
         st.session_state["db_url"] = ""
-        st.session_state["db_key"] = ""
         st.rerun()
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA (SUPABASE) ---
+# --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT) ---
 
 def carregar_admin_hashes():
     try:
-        response = supabase.table("admin_config").select("*").eq("id", 1).execute()
-        if response.data:
-            return response.data[0].get("hash1"), response.data[0].get("hash2")
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
+            if result:
+                return result[0], result[1]
     except:
         pass
     return None, None
 
 def salvar_admin_hashes(password1, password2):
-    supabase.table("admin_config").upsert({
-        "id": 1,
-        "hash1": hash_password(password1),
-        "hash2": hash_password(password2)
-    }).execute()
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO admin_config (id, hash1, hash2) VALUES (1, :h1, :h2)
+            ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2
+        """), {"h1": hash_password(password1), "h2": hash_password(password2)})
 
 def carregar_usuarios():
     try:
-        response = supabase.table("usuarios").select("*").execute()
-        if response.data:
-            return {row['id']: row for row in response.data}
+        with engine.connect() as conn:
+            df = pd.read_sql("SELECT * FROM usuarios", conn)
+            if not df.empty:
+                return {row['id']: dict(row) for _, row in df.iterrows()}
     except:
         pass
     return {}
 
 def salvar_usuarios(usuarios_dict):
-    if not usuarios_dict:
-        return
-    rows = []
-    for k, v in usuarios_dict.items():
-        rows.append({
-            "id": k,
-            "senha": v["senha"],
-            "email": v.get("email", ""),
-            "tipo": v["tipo"],
-            "vencimento": v["vencimento"],
-            "status": v["status"]
-        })
-    try:
-        supabase.table("usuarios").upsert(rows).execute()
-    except Exception as e:
-        st.error(f"Erro ao sincronizar usuários: {e}")
+    if not usuarios_dict: return
+    with engine.begin() as conn:
+        for k, v in usuarios_dict.items():
+            conn.execute(text("""
+                INSERT INTO usuarios (id, senha, email, tipo, vencimento, status)
+                VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
+                ON CONFLICT (id) DO UPDATE SET 
+                    senha = EXCLUDED.senha, email = EXCLUDED.email, 
+                    tipo = EXCLUDED.tipo, vencimento = EXCLUDED.vencimento, status = EXCLUDED.status
+            """), {
+                "id": k, "senha": v["senha"], "email": v.get("email", ""),
+                "tipo": v["tipo"], "vencimento": str(v["vencimento"]), "status": v["status"]
+            })
 
 def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
-        response = supabase.table("servicos").select("*").eq("usuario_id", usuario).execute()
-        if response.data:
-            return {row['nome']: float(row['preco']) for row in response.data}
+        with engine.connect() as conn:
+            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": usuario})
+            if not df.empty:
+                return {row['nome']: float(row['preco']) for _, row in df.iterrows()}
     except:
         pass
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
 def salvar_servicos(servicos):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
-    try:
-        supabase.table("servicos").delete().eq("usuario_id", usuario).execute()
-        rows = [{"usuario_id": usuario, "nome": k, "preco": v} for k, v in servicos.items()]
-        if rows:
-            supabase.table("servicos").insert(rows).execute()
-    except Exception as e:
-        st.error(f"Erro ao salvar serviços: {e}")
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user"), {"user": usuario})
+        for k, v in servicos.items():
+            conn.execute(text("INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"),
+                         {"user": usuario, "nome": k, "preco": float(v)})
 
 def carregar_fluxo():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
-        response = supabase.table("fluxo_caixa").select("*").eq("usuario_id", usuario).execute()
-        if response.data:
-            df = pd.DataFrame(response.data)
-            df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
-            df['Data'] = pd.to_datetime(df['Data'])
-            return df[['Data', 'Tipo', 'Descrição', 'Valor']]
+        with engine.connect() as conn:
+            df = pd.read_sql(text("SELECT data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user"), conn, params={"user": usuario})
+            if not df.empty:
+                df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
+                df['Data'] = pd.to_datetime(df['Data'])
+                return df[['Data', 'Tipo', 'Descrição', 'Valor']]
     except:
         pass
     return pd.DataFrame(columns=["Data", "Tipo", "Descrição", "Valor"])
 
 def salvar_fluxo(df):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
-    try:
-        supabase.table("fluxo_caixa").delete().eq("usuario_id", usuario).execute()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM fluxo_caixa WHERE usuario_id = :user"), {"user": usuario})
         if not df.empty:
-            rows = []
             for _, row in df.iterrows():
-                rows.append({
-                    "usuario_id": usuario,
-                    "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
-                    "tipo": row['Tipo'],
-                    "descricao": row['Descrição'],
-                    "valor": float(row['Valor'])
-                })
-            supabase.table("fluxo_caixa").insert(rows).execute()
-    except Exception as e:
-        st.error(f"Erro ao salvar movimentação: {e}")
+                conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"),
+                             {
+                                 "user": usuario,
+                                 "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
+                                 "tipo": row['Tipo'],
+                                 "descricao": row['Descrição'],
+                                 "valor": float(row['Valor'])
+                             })
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -315,11 +252,9 @@ if not st.session_state.autenticado:
                             st.success("✅ Senha redefinida no Banco de Dados!")
                             st.session_state.recuperando_senha = False
                             time.sleep(1.5); st.rerun()
-                    else:
-                        st.error("Usuário ou e-mail correspondente não encontrado.")
+                    else: st.error("Usuário ou e-mail correspondente não encontrado.")
             with c_rec2:
-                if st.form_submit_button("Cancelar"):
-                    st.session_state.recuperando_senha = False; st.rerun()
+                if st.form_submit_button("Cancelar"): st.session_state.recuperando_senha = False; st.rerun()
         st.stop()
 
     st.title("✂️ Sistema de Gestão - Login")
@@ -351,13 +286,11 @@ if not st.session_state.autenticado:
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos.")
             
-    if st.button("Esqueci minha senha ❯"):
-        st.session_state.recuperando_senha = True; st.rerun()
+    if st.button("Esqueci minha senha ❯"): st.session_state.recuperando_senha = True; st.rerun()
     
     st.markdown("<br><br><hr>", unsafe_allow_html=True)
-    if st.button("⚙️ Redefinir Chaves do Banco de Dados", use_container_width=False):
+    if st.button("⚙️ Redefinir URL do Banco de Dados", use_container_width=False):
         st.session_state["db_url"] = ""
-        st.session_state["db_key"] = ""
         st.rerun()
     st.stop()
 
@@ -377,13 +310,10 @@ if st.session_state.eh_admin:
                 if novo_usuario and nova_senha and novo_email:
                     vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
                     usuarios_cadastrados[novo_usuario] = {
-                        "senha": hash_password(nova_senha), 
-                        "email": novo_email,
-                        "tipo": tipo_conta, 
-                        "vencimento": vencimento_calculado, 
-                        "status": "Ativo"
+                        "senha": hash_password(nova_senha), "email": novo_email,
+                        "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"
                     }
-                    salvar_usuarios(usuarios_cadastrados); st.success("Salão salvo com sucesso no Supabase!"); st.rerun()
+                    salvar_usuarios(usuarios_cadastrados); st.success("Salão salvo com sucesso!"); st.rerun()
 
     with tab_ger:
         usuarios_cadastrados = carregar_usuarios()
@@ -394,7 +324,7 @@ if st.session_state.eh_admin:
             
             with st.expander("📝 Editar Informações", expanded=True):
                 e_email = st.text_input("E-mail:", value=dados.get("email", ""))
-                e_senha_nova = st.text_input("Nova Senha (deixe em branco para manter):", type="password")
+                e_senha_nova = st.text_input("Nova Senha (deixe em branco):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
                 e_venc = st.date_input("Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d"))
                 e_status = st.selectbox("Status:", ["Ativo", "Suspenso"], index=0 if dados['status'] == "Ativo" else 1)
@@ -407,16 +337,14 @@ if st.session_state.eh_admin:
                     }
                     salvar_usuarios(usuarios_cadastrados); st.success("Atualizado!"); st.rerun()
 
-            if st.checkbox(f"Confirmar exclusão permanente de: {salao_sel}"):
+            if st.checkbox(f"Confirmar exclusão de: {salao_sel}"):
                 if st.button("EXCLUIR DEFINITIVAMENTE", type="primary"):
-                    try:
-                        supabase.table("usuarios").delete().eq("id", salao_sel).execute()
-                        st.warning("Removido!"); st.rerun()
-                    except Exception as e: st.error(e)
+                    with engine.begin() as conn:
+                        conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
+                    st.warning("Removido!"); st.rerun()
 
     with st.sidebar:
-        if st.button("🚪 Sair do Modo ADM", use_container_width=True):
-            st.session_state.autenticado = False; st.rerun()
+        if st.button("🚪 Sair do Modo ADM", use_container_width=True): st.session_state.autenticado = False; st.rerun()
     st.stop()
 
 # --- INTERFACE 2: PAINEL DO CLIENTE ---
@@ -466,8 +394,7 @@ with tab0:
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_entrada), "Tipo": "Entrada", "Descrição": f"Atendimento: {servico_selecionado}", "Valor": preco_final}])
                     salvar_fluxo(pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True))
-                    st.markdown('<div class="confirmacao-dourada">✅ Sucesso!</div>', unsafe_allow_html=True)
-                    st.session_state.formulario_ativo = 'none'; time.sleep(1.0); st.rerun()
+                    st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_b:
@@ -483,7 +410,7 @@ with tab0:
                 if descricao_saida and valor_saida > 0:
                     nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_saida), "Tipo": "Saída", "Descrição": descricao_saida, "Valor": -valor_saida}])
                     salvar_fluxo(pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True))
-                    st.session_state.formulario_ativo = 'none'; time.sleep(1.0); st.rerun()
+                    st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_c:
@@ -501,7 +428,7 @@ with tab0:
                     if nome_devedor:
                         nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_pendencia), "Tipo": "Pendência", "Descrição": f"Fiado de: {nome_devedor} ({servico_pendente})", "Valor": preco_final_p}])
                         salvar_fluxo(pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True))
-                        st.session_state.formulario_ativo = 'none'; time.sleep(1.0); st.rerun()
+                        st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_d:
@@ -520,7 +447,7 @@ with tab0:
                     df_fluxo_caixa.at[idx_alterar, 'Data'] = pd.to_datetime(datetime.now(TZ).date())
                     df_fluxo_caixa.at[idx_alterar, 'Descrição'] = df_fluxo_caixa.at[idx_alterar, 'Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
                     salvar_fluxo(df_fluxo_caixa)
-                    st.session_state.formulario_ativo = 'none'; time.sleep(1.0); st.rerun()
+                    st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             else: st.info("Sem fiados pendentes.")
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -552,8 +479,7 @@ with st.sidebar:
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover do Catálogo", use_container_width=True):
         del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
     st.markdown("<br><br>", unsafe_allow_html=True)
-    if st.button("🚪 Sair do Sistema", use_container_width=True):
-        st.session_state.autenticado = False; st.rerun()
+    if st.button("🚪 Sair do Sistema", use_container_width=True): st.session_state.autenticado = False; st.rerun()
 
 with tab2:
     st.subheader("📜 Histórico de Transações Completas")
