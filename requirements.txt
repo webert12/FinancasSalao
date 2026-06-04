@@ -1,5 +1,4 @@
-supabase==2.4.0
 pandas
-tzdata
-cryptography
-reportlab 
+reportlab
+SQLAlchemy
+psycopg2-binary
