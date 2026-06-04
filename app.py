@@ -27,7 +27,7 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
-# --- INJEÇÃO DE CSS CUSTOMIZADO (CORRIGIDO PARA ALTO CONTRASTE E VISIBILIDADE) ---
+# --- INJEÇÃO DE CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
     /* Configuração de Fundo Geral */
@@ -43,7 +43,7 @@ st.markdown("""
     .block-container { padding-top: 2rem !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #d4af37 !important; background-color: #1e222b !important; border: 2px solid #d4af37 !important; border-radius: 6px !important; }
     
-    /* CORREÇÃO DO BUG VISUAL: Customização total e forçada de Inputs com Alto Contraste */
+    /* Customização total de Inputs com Alto Contraste */
     div[data-testid="stTextInput"] input, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stDateInput"] input,
@@ -162,7 +162,7 @@ except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT OTIMIZADO) ---
+# --- FUNÇÕES DE PERSISTÊNCIA 100% OTIMIZADAS (SEM RE-ESCRITA DO PASSADO) ---
 
 def carregar_admin_hashes():
     try:
@@ -170,9 +170,8 @@ def carregar_admin_hashes():
             result = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
             if result:
                 return result[0], result[1]
-    except Exception as e:
-        st.error(f"❌ Erro ao ler hashes administrativos: {e}")
-        st.stop()
+    except:
+        pass
     return None, None
 
 def salvar_admin_hashes(password1, password2):
@@ -184,7 +183,6 @@ def salvar_admin_hashes(password1, password2):
             """), {"h1": hash_password(password1), "h2": hash_password(password2)})
     except Exception as e:
         st.error(f"Erro ao salvar hashes administrativos: {e}")
-        st.stop()
 
 def carregar_usuarios():
     try:
@@ -222,13 +220,25 @@ def carregar_servicos():
         pass
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
-def salvar_servicos(servicos):
+def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
+    """Insere ou atualiza de forma cirúrgica um único serviço sem reescrever a tabela."""
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user"), {"user": usuario})
-        for k, v in servicos.items():
-            conn.execute(text("INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"),
-                         {"user": usuario, "nome": k, "preco": float(v)})
+        if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
+            conn.execute(text("""
+                UPDATE servicos SET nome = :novo, preco = :preco 
+                WHERE usuario_id = :user AND nome = :antigo
+            """), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
+        else:
+            conn.execute(text("""
+                INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)
+            """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
+
+def deletar_servico_banco(nome):
+    """Remove cirurgicamente um único serviço do banco."""
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
 
 def carregar_fluxo():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
@@ -239,45 +249,49 @@ def carregar_fluxo():
                 df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
                 df['Data'] = pd.to_datetime(df['Data'])
                 return df[['id', 'Data', 'Tipo', 'Descrição', 'Valor']]
-    except:
-        pass
+        except:
+            pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
-def salvar_fluxo(df):
-    """
-    Função atualizada e otimizada: Não limpa mais a tabela inteira! 
-    Ela faz inserções cirúrgicas ou atualizações baseadas no ID.
-    """
+def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
+    """Insere cirurgicamente um lançamento. Velocidade instantânea independente do tamanho do banco."""
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.begin() as conn:
-        if not df.empty:
-            for _, row in df.iterrows():
-                # Se a linha já tem ID cadastrado do banco, faz um UPDATE seguro
-                if 'id' in row and pd.notna(row['id']):
-                    conn.execute(text("""
-                        UPDATE fluxo_caixa 
-                        SET data = :data, tipo = :tipo, descricao = :descricao, valor = :valor
-                        WHERE id = :id AND usuario_id = :user
-                    """), {
-                        "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
-                        "tipo": row['Tipo'],
-                        "descricao": row['Descrição'],
-                        "valor": float(row['Valor']),
-                        "id": int(row['id']),
-                        "user": usuario
-                    })
-                # Se não tem ID, é um novo lançamento, faz o INSERT
-                else:
-                    conn.execute(text("""
-                        INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) 
-                        VALUES (:user, :data, :tipo, :descricao, :valor)
-                    """), {
-                        "user": usuario,
-                        "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
-                        "tipo": row['Tipo'],
-                        "descricao": row['Descrição'],
-                        "valor": float(row['Valor'])
-                    })
+        conn.execute(text("""
+            INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) 
+            VALUES (:user, :data, :tipo, :descricao, :valor)
+        """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
+
+def dar_baixa_fiado_direta(id_registro, nova_descricao):
+    """Atualiza de forma cirúrgica apenas a linha do fiado que está sendo pago."""
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE fluxo_caixa 
+            SET tipo = 'Entrada', data = :data, descricao = :desc
+            WHERE id = :id AND usuario_id = :user
+        """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+
+# --- FUNÇÃO DE EXPORTAÇÃO DE BACKUP SEGURO ---
+def gerar_backup_json_completo():
+    usuario = st.session_state.usuario_logado
+    df_f = carregar_fluxo()
+    if not df_f.empty:
+        df_f['Data'] = df_f['Data'].dt.strftime('%Y-%m-%d')
+        fluxo_dict = df_f.to_dict(orient="records")
+    else:
+        fluxo_dict = []
+    
+    dados_backup = {
+        "sistema": "Fio&Caixa",
+        "usuario_dono": usuario,
+        "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'),
+        "catalogo_servicos": carregar_servicos(),
+        "historico_financeiro": fluxo_dict
+    }
+    return json.dumps(dados_backup, indent=4, ensure_ascii=False)
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -484,8 +498,7 @@ with tab0:
                 preco_final = st.number_input("Valor Cobrado (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
                 data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
-                    nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_entrada), "Tipo": "Entrada", "Descrição": f"Atendimento: {servico_selecionado}", "Valor": preco_final}])
-                    salvar_fluxo(pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True))
+                    inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
                     st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -500,8 +513,7 @@ with tab0:
             data_saida = st.date_input("Data:", datetime.now(TZ).date(), key="f_venda_dt")
             if st.button("Confirmar despesa", type="primary", key="f_venda_save", use_container_width=True):
                 if descricao_saida and valor_saida > 0:
-                    nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_saida), "Tipo": "Saída", "Descrição": descricao_saida, "Valor": -valor_saida}])
-                    salvar_fluxo(pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True))
+                    inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
                     st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -518,8 +530,7 @@ with tab0:
                 data_pendencia = st.date_input("Data:", datetime.now(TZ).date(), key="f_fiado_dt")
                 if st.button("Salvar Fiado", type="primary", key="f_fiado_save", use_container_width=True):
                     if nome_devedor:
-                        nova_linha = pd.DataFrame([{"Data": pd.to_datetime(data_pendencia), "Tipo": "Pendência", "Descrição": f"Fiado de: {nome_devedor} ({servico_pendente})", "Valor": preco_final_p}])
-                        salvar_fluxo(pd.concat([df_fluxo_caixa, nova_linha], ignore_index=True))
+                        inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                         st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -531,14 +542,13 @@ with tab0:
             st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
             df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
             if not df_pendencias.empty:
-                opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": idx for idx, row in df_pendencias.iterrows()}
+                opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
                 pendencia_selecionada = st.selectbox("Selecione:", list(opcoes_pendentes.keys()), key="f_pago_sel")
                 if st.button("Dar Baixa", type="primary", key="f_pago_save", use_container_width=True):
-                    idx_alterar = opcoes_pendentes[pendencia_selecionada]
-                    df_fluxo_caixa.at[idx_alterar, 'Tipo'] = 'Entrada'
-                    df_fluxo_caixa.at[idx_alterar, 'Data'] = pd.to_datetime(datetime.now(TZ).date())
-                    df_fluxo_caixa.at[idx_alterar, 'Descrição'] = df_fluxo_caixa.at[idx_alterar, 'Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
-                    salvar_fluxo(df_fluxo_caixa)
+                    id_alterar = opcoes_pendentes[pendencia_selecionada]
+                    row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
+                    nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
+                    dar_baixa_fiado_direta(id_alterar, nova_desc)
                     st.session_state.formulario_ativo = 'none'; time.sleep(0.5); st.rerun()
             else: st.info("Sem fiados pendentes.")
             st.markdown('</div>', unsafe_allow_html=True)
@@ -566,34 +576,67 @@ with st.sidebar:
     novo_preco = st.number_input("Preço Cobrado:", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
-            if servico_sel != "➕ Cadastrar Novo Serviço" and servico_sel != novo_servico: del servicos[servico_sel]
-            servicos[novo_servico] = novo_preco; salvar_servicos(servicos); st.rerun()
+            salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
+            st.success("Serviço atualizado com sucesso!")
+            time.sleep(0.5); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover do Catálogo", use_container_width=True):
-        del servicos[servico_sel]; salvar_servicos(servicos); st.rerun()
+        deletar_servico_banco(servico_sel)
+        st.warning("Serviço removido!")
+        time.sleep(0.5); st.rerun()
+        
+    st.markdown("---")
+    # --- OPÇÃO EXCLUSIVA DE BACKUP DA LOGOFADO DO DONO DO SALÃO ---
+    with st.expander("📦 Central de Backups"):
+        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
+        backup_dados = gerar_backup_json_completo()
+        st.download_button(
+            label="📥 Baixar Backup Geral (.json)",
+            data=backup_dados,
+            file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json",
+            mime="application/json",
+            use_container_width=True
+        )
+        
     st.markdown("<br><br>", unsafe_allow_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True): st.session_state.autenticado = False; st.rerun()
 
 with tab2:
-    st.subheader("📜 Histórico de Transações Completas")
+    st.subheader("📜 Histórico de Transações e Exportação para Contador")
     if not df_fluxo_caixa.empty:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
         df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-        meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-        mes_escolhido = st.selectbox("📅 Mês de referência:", ["Ver Tudo"] + meses)
-        df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
         
-        if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
+        # Opção solicitada de filtrar por qualquer período de datas escolhido pelo dono
+        modo_filtro = st.radio("Escolha como deseja filtrar os dados para baixar:", ["Por Mês Fechado", "Por Período Customizado (Escolher Datas)"], horizontal=True)
+        
+        if modo_filtro == "Por Mês Fechado":
+            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+            mes_escolhido = st.selectbox("📅 Selecione o Mês de referência:", ["Ver Tudo"] + meses)
+            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+            texto_pdf = mes_escolhido
+            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
+        else:
+            col_dt1, col_dt2 = st.columns(2)
+            with col_dt1:
+                dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
+            with col_dt2:
+                dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
+            
+            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
+            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} ate {dt_fim.strftime('%d/%m/%Y')}"
+            nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
+        
+        if not df_exibicao.empty:
             col_down1, col_down2 = st.columns(2)
             with col_down1:
-                st.download_button(label="📄 Baixar em CSV", data=df_exibicao.drop(columns=['id'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.csv", mime="text/csv", use_container_width=True)
+                st.download_button(label="📄 Baixar Arquivo CSV para Contador", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
             with col_down2:
-                st.download_button(label="📕 Baixar em PDF", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id'], errors='ignore'), mes_escolhido), file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
             st.markdown("---")
             
-        if not df_exibicao.empty:
             df_vis = df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            df_vis = df_vis.drop(columns=['Mês/Ano'])
+            if 'Mês/Ano' in df_vis.columns: df_vis = df_vis.drop(columns=['Mês/Ano'])
             if 'id' in df_vis.columns: df_vis = df_vis.drop(columns=['id'])
             
             def colorir(row):
@@ -601,4 +644,5 @@ with tab2:
                 elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
                 return ['background-color: #fff3cd; color: #856404'] * 4
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+        else: st.info("Nenhuma movimentação encontrada para o período selecionado.")
     else: st.info("Nenhuma movimentação financeira registrada.")
