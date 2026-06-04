@@ -162,7 +162,7 @@ except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA 100% OTIMIZADAS (SEM RE-ESCRITA DO PASSADO) ---
+# --- FUNÇÕES DE PERSISTÊNCIA ---
 
 def carregar_admin_hashes():
     try:
@@ -221,7 +221,6 @@ def carregar_servicos():
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
 def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
-    """Insere ou atualiza de forma cirúrgica um único serviço sem reescrever a tabela."""
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
@@ -235,7 +234,6 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
             """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
 
 def deletar_servico_banco(nome):
-    """Remove cirurgicamente um único serviço do banco."""
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
@@ -249,12 +247,11 @@ def carregar_fluxo():
                 df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
                 df['Data'] = pd.to_datetime(df['Data'])
                 return df[['id', 'Data', 'Tipo', 'Descrição', 'Valor']]
-        except:
-            pass
+    except:
+        pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
-    """Insere cirurgicamente um lançamento. Velocidade instantânea independente do tamanho do banco."""
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.begin() as conn:
@@ -264,7 +261,6 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
         """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
-    """Atualiza de forma cirúrgica apenas a linha do fiado que está sendo pago."""
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
     with engine.begin() as conn:
@@ -411,10 +407,10 @@ if st.session_state.eh_admin:
             novo_email = st.text_input("E-mail de Recuperação:").strip().lower()
             nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
             tipo_conta = st.selectbox("Tipo de Conta:", ["Teste", "Cliente"])
-            dias_validade = st.number_input("Dias de Validade:", min_value=1, value=30)
+            dias_validate = st.number_input("Dias de Validade:", min_value=1, value=30)
             if st.form_submit_button("Salvar Salão"):
                 if novo_usuario and nova_senha and novo_email:
-                    vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
+                    vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validate)).strftime("%Y-%m-%d")
                     usuarios_cadastrados[novo_usuario] = {
                         "senha": hash_password(nova_senha), "email": novo_email,
                         "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"
@@ -577,7 +573,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço atualizado com sucesso!")
+            st.success("Serviço updated com sucesso!")
             time.sleep(0.5); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover do Catálogo", use_container_width=True):
         deletar_servico_banco(servico_sel)
@@ -585,7 +581,6 @@ with st.sidebar:
         time.sleep(0.5); st.rerun()
         
     st.markdown("---")
-    # --- OPÇÃO EXCLUSIVA DE BACKUP DA LOGOFADO DO DONO DO SALÃO ---
     with st.expander("📦 Central de Backups"):
         st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
         backup_dados = gerar_backup_json_completo()
@@ -606,7 +601,6 @@ with tab2:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
         df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
         
-        # Opção solicitada de filtrar por qualquer período de datas escolhido pelo dono
         modo_filtro = st.radio("Escolha como deseja filtrar os dados para baixar:", ["Por Mês Fechado", "Por Período Customizado (Escolher Datas)"], horizontal=True)
         
         if modo_filtro == "Por Mês Fechado":
