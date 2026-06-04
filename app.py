@@ -17,21 +17,137 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-# --- CONFIGURAÇÃO DE SEGURANÇA ---
+# --- CONFIGURAÇÃO DE SEGURANÇA E HORÁRIO ---
 SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
 
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# --- CONEXÃO COM SUPABASE ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
+
+# --- INJEÇÃO DE CSS CUSTOMIZADO COORDENADO (OTIMIZADO PARA MOBILE) ---
+st.markdown("""
+<style>
+    /* Fundo escuro universal */
+    body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
+    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
+        color: #ffffff !important;
+    }
+    
+    /* Esconder completamente a barra superior do Streamlit */
+    [data-testid="stHeader"], header {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0px !important;
+    }
+    
+    /* Ajuste do espaçamento do topo sem a barra */
+    .block-container { padding-top: 2rem !important; }
+    
+    /* Botão de abrir/fechar menu lateral no mobile */
+    button[data-testid="stSidebarCollapseButton"] {
+        color: #d4af37 !important;
+        background-color: #1e222b !important;
+        border: 2px solid #d4af37 !important;
+        border-radius: 6px !important;
+    }
+    
+    /* Configuração dos campos de texto e inputs */
+    div[data-testid="stTextInput"] input, 
+    div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    div[data-testid="stDateInput"] input {
+        background-color: #1e222b !important;
+        color: #ffffff !important;
+        border: 2px solid #4f5b66 !important;
+        border-radius: 6px !important;
+        padding: 10px !important;
+    }
+    
+    /* Correção visual para os botões de + e - do seletor numérico */
+    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+        background-color: #1e222b !important;
+        border: 2px solid #4f5b66 !important;
+    }
+    div[data-testid="stNumberInput"] input {
+        color: #ffffff !important;
+    }
+    div[data-testid="stNumberInput"] button {
+        background-color: #33363c !important;
+        color: #d4af37 !important;
+        border: 1px solid #4f5b66 !important;
+    }
+    
+    /* CORREÇÃO DO BOTÃO BRANCO: Todos os botões agora são Dourados com texto Preto */
+    div.stButton > button,
+    div[data-testid="stFormSubmitButton"] button {
+        background-color: #d4af37 !important;
+        color: #121212 !important;
+        border: 2px solid #d4af37 !important;
+        border-radius: 6px !important;
+        width: 100% !important;
+        font-weight: bold !important;
+        font-size: 1rem !important;
+        padding: 10px !important;
+        box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
+    }
+    div.stButton > button:hover,
+    div[data-testid="stFormSubmitButton"] button:hover {
+        background-color: #ffffff !important;
+        color: #121212 !important;
+        border-color: #ffffff !important;
+    }
+
+    /* Layout dos menus de ações rápidas */
+    .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
+    .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
+    .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
+    .fast-actions-title { color: white; font-weight: bold; font-size: 1rem; margin-right: 10px; }
+    .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
+    
+    .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
+    .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; margin-bottom: 15px; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- CONEXÃO DINÂMICA COMPARTILHADA (ESTILO ITAGESSO) ---
+if "db_url" not in st.session_state: st.session_state["db_url"] = ""
+if "db_key" not in st.session_state: st.session_state["db_key"] = ""
+
+if not st.session_state["db_url"] or not st.session_state["db_key"]:
+    st.title("🔌 Conexão com o Banco de Dados")
+    st.info("Insira as credenciais do seu projeto Supabase para ativar o sistema e salvar seus dados em nuvem com segurança.")
+    
+    with st.form("conexao_manual_supabase"):
+        url_input = st.text_input("Project URL (ex: https://xyz.supabase.co):").strip()
+        key_input = st.text_input("API anon / public key:", type="password").strip()
+        
+        if st.form_submit_button("Conectar e Inicializar Sistema 🚀"):
+            if url_input and key_input:
+                st.session_state["db_url"] = url_input
+                st.session_state["db_key"] = key_input
+                st.success("Credenciais salvas com sucesso!")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("Por favor, preencha ambos os campos corretamente.")
+    st.stop()
+
+# Inicialização segura do cliente Supabase
 @st.cache_resource
-def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+def init_supabase(url, key) -> Client:
     return create_client(url, key)
 
-supabase = init_supabase()
+try:
+    supabase = init_supabase(st.session_state["db_url"], st.session_state["db_key"])
+except Exception as e:
+    st.error(f"Erro ao conectar ao Supabase com as chaves fornecidas: {e}")
+    if st.button("Inserir Chaves Novamente"):
+        st.session_state["db_url"] = ""
+        st.session_state["db_key"] = ""
+        st.rerun()
+    st.stop()
 
 # --- FUNÇÕES DE PERSISTÊNCIA (SUPABASE) ---
 
@@ -79,7 +195,7 @@ def salvar_usuarios(usuarios_dict):
         st.error(f"Erro ao sincronizar usuários: {e}")
 
 def carregar_servicos():
-    usuario = st.session_state.usuario_logado if st.session_state.usuario_logado else "padrao"
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
         response = supabase.table("servicos").select("*").eq("usuario_id", usuario).execute()
         if response.data:
@@ -89,7 +205,7 @@ def carregar_servicos():
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
 def salvar_servicos(servicos):
-    usuario = st.session_state.usuario_logado if st.session_state.usuario_logado else "padrao"
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
         supabase.table("servicos").delete().eq("usuario_id", usuario).execute()
         rows = [{"usuario_id": usuario, "nome": k, "preco": v} for k, v in servicos.items()]
@@ -99,7 +215,7 @@ def salvar_servicos(servicos):
         st.error(f"Erro ao salvar serviços: {e}")
 
 def carregar_fluxo():
-    usuario = st.session_state.usuario_logado if st.session_state.usuario_logado else "padrao"
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
         response = supabase.table("fluxo_caixa").select("*").eq("usuario_id", usuario).execute()
         if response.data:
@@ -112,7 +228,7 @@ def carregar_fluxo():
     return pd.DataFrame(columns=["Data", "Tipo", "Descrição", "Valor"])
 
 def salvar_fluxo(df):
-    usuario = st.session_state.usuario_logado if st.session_state.usuario_logado else "padrao"
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
         supabase.table("fluxo_caixa").delete().eq("usuario_id", usuario).execute()
         if not df.empty:
@@ -128,127 +244,6 @@ def salvar_fluxo(df):
             supabase.table("fluxo_caixa").insert(rows).execute()
     except Exception as e:
         st.error(f"Erro ao salvar movimentação: {e}")
-
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
-
-# Injeção de CSS customizado avançado para garantir 100% de visibilidade e contraste
-st.markdown("""
-<style>
-    body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
-    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
-        color: #ffffff !important;
-    }
-    
-    div[data-testid="stHeaderActionElements"],
-    header[data-testid="stHeader"] a,
-    header[data-testid="stHeader"] div[role="status"],
-    .stDeployButton, #MainMenu, footer {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-        box-shadow: none !important;
-        border: none !important;
-    }
-    
-    button[data-testid="stSidebarCollapseButton"] {
-        position: absolute !important;
-        top: 65px !important;
-        left: 15px !important;
-        z-index: 999999 !important;
-        display: inline-flex !important;
-        visibility: visible !important;
-        color: #d4af37 !important;
-        background-color: #1e222b !important;
-        border: 2px solid #d4af37 !important;
-        border-radius: 6px !important;
-        padding: 5px 12px !important;
-        box-shadow: 0px 4px 8px rgba(0,0,0,0.5) !important;
-    }
-    button[data-testid="stSidebarCollapseButton"] svg {
-        fill: #d4af37 !important;
-        color: #d4af37 !important;
-        width: 18px !important;
-        height: 18px !important;
-    }
-    
-    .block-container { padding-top: 6.5rem !important; }
-    
-    section[data-testid="stSidebar"] {
-        background-color: #1a1d21 !important;
-        border-right: 2px solid #d4af37 !important;
-    }
-    section[data-testid="stSidebar"] * { color: #ffffff !important; }
-    
-    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
-        background-color: #1e222b !important;
-        border: 2px solid #4f5b66 !important;
-        border-radius: 6px !important;
-        height: 46px !important;
-        padding: 0px !important;
-        overflow: hidden !important;
-    }
-    div[data-testid="stNumberInput"] input {
-        background-color: #1e222b !important;
-        color: #ffffff !important;
-        border: none !important;
-        height: 100% !important;
-        text-align: center !important;
-    }
-    div[data-testid="stNumberInput"] button {
-        height: 100% !important;
-        width: 45px !important;
-        background-color: #22252a !important;
-        color: #d4af37 !important;
-        border: none !important;
-        border-left: 1px solid #4f5b66 !important;
-    }
-    div[data-testid="stNumberInput"] button svg { fill: #d4af37 !important; }
-
-    div[data-testid="stTextInput"] input, 
-    div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
-    div[data-testid="stDateInput"] input {
-        background-color: #1e222b !important;
-        color: #ffffff !important;
-        border: 2px solid #4f5b66 !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
-        text-align: center !important;
-    }
-    
-    div.stButton > button:not(.is-action-card button),
-    div[data-testid="stFormSubmitButton"] button {
-        background-color: #1e222b !important;
-        color: #ffffff !important;
-        border: 2px solid #d4af37 !important;
-        border-radius: 6px !important;
-        width: 100% !important;
-        font-weight: bold !important;
-    }
-    div.stButton > button:not(.is-action-card button):hover,
-    div[data-testid="stFormSubmitButton"] button:hover {
-        background-color: #d4af37 !important;
-        color: #121212 !important;
-    }
-
-    .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
-    .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
-    .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
-    .fast-actions-title { color: white; font-weight: bold; font-size: 1rem; margin-right: 10px; }
-    .fast-actions-line { flex-grow: 1; height: 2px; background-color: #d4af37; }
-    .is-action-card { display: none; }
-    
-    div[data-testid="stColumn"]:has(.is-action-card) button {
-        background-color: #22252a !important; color: white !important; border: 1px solid #333 !important;
-        border-radius: 8px !important; padding: 18px 15px !important; min-height: 75px !important;
-        width: 100% !important; display: flex !important; align-items: center !important;
-    }
-    .embedded-form-container { margin-top: 15px; background-color: #1a1d21; padding: 15px; border-radius: 8px; border: 1px solid #d4af37; }
-    .confirmacao-dourada { background-color: #1e1e1e; border: 2px solid #d4af37; padding: 12px 15px; border-radius: 6px; color: #fff; margin-bottom: 15px; }
-</style>
-""", unsafe_allow_html=True)
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -290,6 +285,7 @@ usuarios_cadastrados = carregar_usuarios()
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
+        st.warning("Nenhum Administrador Mestre encontrado no banco de dados. Configure suas senhas master abaixo:")
         with st.form("primeiro_acesso"):
             nova_adm_pass1 = st.text_input("Definir Senha PRINCIPAL de ADMIN:", type="password")
             nova_adm_pass2 = st.text_input("Definir Senha SECUNDÁRIA de ADMIN:", type="password")
@@ -297,6 +293,7 @@ if not st.session_state.autenticado:
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2)
                     st.success("Administrador configurado! Reiniciando...")
+                    time.sleep(1.5)
                     st.rerun()
         st.stop()
 
@@ -318,6 +315,8 @@ if not st.session_state.autenticado:
                             st.success("✅ Senha redefinida no Banco de Dados!")
                             st.session_state.recuperando_senha = False
                             time.sleep(1.5); st.rerun()
+                    else:
+                        st.error("Usuário ou e-mail correspondente não encontrado.")
             with c_rec2:
                 if st.form_submit_button("Cancelar"):
                     st.session_state.recuperando_senha = False; st.rerun()
@@ -327,7 +326,7 @@ if not st.session_state.autenticado:
     tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
     
     with st.form("form_login"):
-        usuario_input = st.text_input("Usuário:").strip().lower()
+        usuario_input = st.text_input("Usuário do Salão:").strip().lower()
         senha_input = st.text_input("Senha:", type="password")
         senha2_input = st.text_input("Senha Secundária:", type="password") if tipo_acesso == "Administrador Mestre" else ""
             
@@ -344,7 +343,7 @@ if not st.session_state.autenticado:
                     dados_user = usuarios_cadastrados[usuario_input]
                     data_vencimento = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
                     if datetime.now(TZ).date() > data_vencimento or dados_user.get("status") == "Suspenso":
-                        st.error("❌ ACESSO BLOQUEADO! Licença vencida.")
+                        st.error("❌ ACESSO BLOQUEADO! Licença vencida ou suspensa.")
                         st.stop()
                     st.session_state.autenticado = True
                     st.session_state.usuario_logado = usuario_input
@@ -354,6 +353,12 @@ if not st.session_state.autenticado:
             
     if st.button("Esqueci minha senha ❯"):
         st.session_state.recuperando_senha = True; st.rerun()
+    
+    st.markdown("<br><br><hr>", unsafe_allow_html=True)
+    if st.button("⚙️ Redefinir Chaves do Banco de Dados", use_container_width=False):
+        st.session_state["db_url"] = ""
+        st.session_state["db_key"] = ""
+        st.rerun()
     st.stop()
 
 # --- INTERFACE 1: ADMINISTRADOR MESTRE ---
@@ -363,7 +368,7 @@ if st.session_state.eh_admin:
     
     with tab_cad:
         with st.form("form_cadastro_cliente"):
-            novo_usuario = st.text_input("Usuário do Salão:").strip().lower()
+            novo_usuario = st.text_input("Usuário do Salão (Minúsculo, sem espaços):").strip().lower()
             novo_email = st.text_input("E-mail de Recuperação:").strip().lower()
             nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
             tipo_conta = st.selectbox("Tipo de Conta:", ["Teste", "Cliente"])
@@ -449,7 +454,6 @@ with tab0:
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
     with col_a:
-        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("✂️ Novo atendimento  ❯", key="btn_atend", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_atendimento' else 'new_atendimento'
             st.rerun()
@@ -467,7 +471,6 @@ with tab0:
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_b:
-        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("🛍️ Nova despesa  ❯", key="btn_venda", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_venda' else 'new_venda'
             st.rerun()
@@ -484,7 +487,6 @@ with tab0:
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_c:
-        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("💰 Marcar fiado  ❯", key="btn_receber", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_receber' else 'new_receber'
             st.rerun()
@@ -503,7 +505,6 @@ with tab0:
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_d:
-        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("💸 Receber fiado  ❯", key="btn_pagar", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
             st.rerun()
@@ -524,7 +525,6 @@ with tab0:
             st.markdown('</div>', unsafe_allow_html=True)
             
     with col_e:
-        st.markdown('<div class="is-action-card"></div>', unsafe_allow_html=True)
         if st.button("📊 Ver relatórios  ❯", key="btn_relatorios", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'view_relatorios' else 'view_relatorios'
             st.rerun()
