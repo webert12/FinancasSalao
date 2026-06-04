@@ -58,24 +58,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO DINÂMICA SIMPLIFICADA POR URL ---
-if "db_url" not in st.session_state: st.session_state["db_url"] = ""
-
-if not st.session_state["db_url"]:
-    st.title("🔌 Conexão Direta com o Banco de Dados")
-    st.info("Insira a URL de Conexão (Connection String URI) do seu Supabase para ativar o sistema.")
-    
-    with st.form("conexao_manual_sql"):
-        url_input = st.text_input("URL de Conexão (Começa com postgresql://):", placeholder="postgresql://postgres...").strip()
-        if st.form_submit_button("Conectar e Inicializar Sistema 🚀"):
-            if url_input:
-                st.session_state["db_url"] = url_input
-                st.success("Configuração salva!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("Por favor, cole a sua URL de conexão.")
-    st.stop()
+# --- CONFIGURAÇÃO DA STRING DE CONEXÃO CORRIGIDA (PORTA 5432 + SSL REQUERIDO) ---
+DB_URL = "postgresql://postgres.ttptxdlvqwkitmbuafxn:Itagesso2026@aws-1-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require"
 
 # Inicialização da Engine de Banco de Dados
 @st.cache_resource
@@ -83,12 +67,9 @@ def init_connection(url):
     return create_engine(url, pool_pre_ping=True)
 
 try:
-    engine = init_connection(st.session_state["db_url"])
+    engine = init_connection(DB_URL)
 except Exception as e:
-    st.error(f"Erro ao criar conexão com a URL fornecida: {e}")
-    if st.button("Inserir Outra URL"):
-        st.session_state["db_url"] = ""
-        st.rerun()
+    st.error(f"Erro crítico ao conectar no banco de dados Supabase: {e}")
     st.stop()
 
 # --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT) ---
@@ -287,11 +268,6 @@ if not st.session_state.autenticado:
                 else: st.error("Usuário ou senha incorretos.")
             
     if st.button("Esqueci minha senha ❯"): st.session_state.recuperando_senha = True; st.rerun()
-    
-    st.markdown("<br><br><hr>", unsafe_allow_html=True)
-    if st.button("⚙️ Redefinir URL do Banco de Dados", use_container_width=False):
-        st.session_state["db_url"] = ""
-        st.rerun()
     st.stop()
 
 # --- INTERFACE 1: ADMINISTRADOR MESTRE ---
