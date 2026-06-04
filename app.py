@@ -27,28 +27,69 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
 
-# --- INJEÇÃO DE CSS CUSTOMIZADO (OTIMIZADO PARA MOBILE) ---
+# --- INJEÇÃO DE CSS CUSTOMIZADO (CORRIGIDO PARA ALTO CONTRASTE E VISIBILIDADE) ---
 st.markdown("""
 <style>
+    /* Configuração de Fundo Geral */
     body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
+    
+    /* Garantia de visibilidade de textos e labels do Streamlit */
     .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
         color: #ffffff !important;
     }
+    
+    /* Esconder headers nativos desnecessários */
     [data-testid="stHeader"], header { display: none !important; visibility: hidden !important; height: 0px !important; }
     .block-container { padding-top: 2rem !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #d4af37 !important; background-color: #1e222b !important; border: 2px solid #d4af37 !important; border-radius: 6px !important; }
     
-    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] [data-baseweb="select"] > div, div[data-testid="stDateInput"] input {
-        background-color: #1e222b !important; color: #ffffff !important; border: 2px solid #4f5b66 !important; border-radius: 6px !important; padding: 10px !important;
+    /* CORREÇÃO DO BUG VISUAL: Customização total e forçada de Inputs com Alto Contraste */
+    div[data-testid="stTextInput"] input, 
+    div[data-testid="stNumberInput"] input, 
+    div[data-testid="stDateInput"] input,
+    div[data-baseweb="input"] input {
+        background-color: #1e222b !important; 
+        color: #ffffff !important; 
+        border: 2px solid #4f5b66 !important; 
+        border-radius: 6px !important; 
+        padding: 10px !important;
+        opacity: 1 !important;
     }
-    div[data-testid="stNumberInput"] div[data-baseweb="input"] { background-color: #1e222b !important; border: 2px solid #4f5b66 !important; }
-    div[data-testid="stNumberInput"] input { color: #ffffff !important; }
-    div[data-testid="stNumberInput"] button { background-color: #33363c !important; color: #d4af37 !important; border: 1px solid #4f5b66 !important; }
     
-    div.stButton > button, div[data-testid="stFormSubmitButton"] button {
-        background-color: #d4af37 !important; color: #121212 !important; border: 2px solid #d4af37 !important; border-radius: 6px !important; width: 100% !important; font-weight: bold !important; font-size: 1rem !important; padding: 10px !important; box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
+    /* Correção visual para caixas de seleção (Selectbox) e seus menus suspensos */
+    div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+        background-color: #1e222b !important; 
+        color: #ffffff !important; 
+        border: 2px solid #4f5b66 !important; 
+        border-radius: 6px !important;
     }
-    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] button:hover { background-color: #ffffff !important; color: #121212 !important; border-color: #ffffff !important; }
+    
+    /* Estilização interna dos botões de mais e menos do seletor numérico */
+    div[data-testid="stNumberInput"] button { 
+        background-color: #33363c !important; 
+        color: #d4af37 !important; 
+        border: 1px solid #4f5b66 !important; 
+    }
+    
+    /* Botões Grandes e de Envio com Identidade Visual Ouro */
+    div.stButton > button, div[data-testid="stFormSubmitButton"] button {
+        background-color: #d4af37 !important; 
+        color: #121212 !important; 
+        border: 2px solid #d4af37 !important; 
+        border-radius: 6px !important; 
+        width: 100% !important; 
+        font-weight: bold !important; 
+        font-size: 1rem !important; 
+        padding: 10px !important; 
+        box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
+    }
+    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] button:hover { 
+        background-color: #ffffff !important; 
+        color: #121212 !important; 
+        border-color: #ffffff !important; 
+    }
+    
+    /* Containers das Ações Rápidas */
     .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
     .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
     .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
@@ -79,7 +120,6 @@ except Exception as e:
 # --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
-        # Criação da tabela administrativa
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS admin_config (
                 id INT PRIMARY KEY,
@@ -87,7 +127,6 @@ def inicializar_banco():
                 hash2 TEXT NOT NULL
             );
         """))
-        # Criação da tabela de usuários/salões
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id TEXT PRIMARY KEY,
@@ -98,7 +137,6 @@ def inicializar_banco():
                 status TEXT
             );
         """))
-        # Criação da tabela de catálogos de serviços
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS servicos (
                 id SERIAL PRIMARY KEY,
@@ -107,7 +145,6 @@ def inicializar_banco():
                 preco NUMERIC NOT NULL
             );
         """))
-        # Criação da tabela de fluxo de caixa
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS fluxo_caixa (
                 id SERIAL PRIMARY KEY,
@@ -119,14 +156,13 @@ def inicializar_banco():
             );
         """))
 
-# Executa a estruturação do banco de dados antes de carregar a interface
 try:
     inicializar_banco()
 except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT) ---
+# --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT OTIMIZADO) ---
 
 def carregar_admin_hashes():
     try:
@@ -198,29 +234,50 @@ def carregar_fluxo():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user"), conn, params={"user": usuario})
+            df = pd.read_sql(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user"), conn, params={"user": usuario})
             if not df.empty:
                 df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
                 df['Data'] = pd.to_datetime(df['Data'])
-                return df[['Data', 'Tipo', 'Descrição', 'Valor']]
+                return df[['id', 'Data', 'Tipo', 'Descrição', 'Valor']]
     except:
         pass
-    return pd.DataFrame(columns=["Data", "Tipo", "Descrição", "Valor"])
+    return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
 def salvar_fluxo(df):
+    """
+    Função atualizada e otimizada: Não limpa mais a tabela inteira! 
+    Ela faz inserções cirúrgicas ou atualizações baseadas no ID.
+    """
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM fluxo_caixa WHERE usuario_id = :user"), {"user": usuario})
         if not df.empty:
             for _, row in df.iterrows():
-                conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"),
-                             {
-                                 "user": usuario,
-                                 "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
-                                 "tipo": row['Tipo'],
-                                 "descricao": row['Descrição'],
-                                 "valor": float(row['Valor'])
-                             })
+                # Se a linha já tem ID cadastrado do banco, faz um UPDATE seguro
+                if 'id' in row and pd.notna(row['id']):
+                    conn.execute(text("""
+                        UPDATE fluxo_caixa 
+                        SET data = :data, tipo = :tipo, descricao = :descricao, valor = :valor
+                        WHERE id = :id AND usuario_id = :user
+                    """), {
+                        "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
+                        "tipo": row['Tipo'],
+                        "descricao": row['Descrição'],
+                        "valor": float(row['Valor']),
+                        "id": int(row['id']),
+                        "user": usuario
+                    })
+                # Se não tem ID, é um novo lançamento, faz o INSERT
+                else:
+                    conn.execute(text("""
+                        INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) 
+                        VALUES (:user, :data, :tipo, :descricao, :valor)
+                    """), {
+                        "user": usuario,
+                        "data": row['Data'].strftime('%Y-%m-%d') if hasattr(row['Data'], 'strftime') else str(row['Data']),
+                        "tipo": row['Tipo'],
+                        "descricao": row['Descrição'],
+                        "valor": float(row['Valor'])
+                    })
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -528,15 +585,17 @@ with tab2:
         if mes_escolhido != "Ver Tudo" and not df_exibicao.empty:
             col_down1, col_down2 = st.columns(2)
             with col_down1:
-                st.download_button(label="📄 Baixar em CSV", data=df_exibicao.to_csv(index=False).encode('utf-8-sig'), file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.csv", mime="text/csv", use_container_width=True)
+                st.download_button(label="📄 Baixar em CSV", data=df_exibicao.drop(columns=['id'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.csv", mime="text/csv", use_container_width=True)
             with col_down2:
-                st.download_button(label="📕 Baixar em PDF", data=gerar_pdf_contabilidade(df_exibicao, mes_escolhido), file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                st.download_button(label="📕 Baixar em PDF", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id'], errors='ignore'), mes_escolhido), file_name=f"contabilidade_{mes_escolhido.replace('/', '_')}.pdf", mime="application/pdf", use_container_width=True)
             st.markdown("---")
             
         if not df_exibicao.empty:
             df_vis = df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
             df_vis = df_vis.drop(columns=['Mês/Ano'])
+            if 'id' in df_vis.columns: df_vis = df_vis.drop(columns=['id'])
+            
             def colorir(row):
                 if row['Tipo'] == 'Entrada': return ['background-color: #d4edda; color: #155724'] * 4
                 elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
