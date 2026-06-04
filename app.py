@@ -71,8 +71,8 @@ st.markdown("""
         border: 1px solid #4f5b66 !important; 
     }
     
-    /* Botões Grandes e de Envio com Identidade Visual Ouro */
-    div.stButton > button, div[data-testid="stFormSubmitButton"] button {
+    /* Botões Grandes, de Envio e de Download com Identidade Visual Ouro */
+    div.stButton > button, div[data-testid="stFormSubmitButton"] button, div.stDownloadButton > button {
         background-color: #d4af37 !important; 
         color: #121212 !important; 
         border: 2px solid #d4af37 !important; 
@@ -83,7 +83,7 @@ st.markdown("""
         padding: 10px !important; 
         box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
     }
-    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] button:hover { 
+    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] button:hover, div.stDownloadButton > button:hover { 
         background-color: #ffffff !important; 
         color: #121212 !important; 
         border-color: #ffffff !important; 
