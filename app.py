@@ -58,8 +58,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÃO DA STRING DE CONEXÃO CORRIGIDA (PORTA 5432 + SSL REQUERIDO) ---
-DB_URL = "postgresql://postgres.ttptxdlvqwkitmbuafxn:Itagesso2026@aws-1-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require"
+# --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
+if "DB_URL" in st.secrets:
+    DB_URL = st.secrets["DB_URL"]
+else:
+    st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets do Streamlit Cloud.")
+    st.info("Por favor, adicione a linha DB_URL = '...' nas configurações (Secrets) do painel do Streamlit.")
+    st.stop()
 
 # Inicialização da Engine de Banco de Dados
 @st.cache_resource
@@ -69,7 +74,7 @@ def init_connection(url):
 try:
     engine = init_connection(DB_URL)
 except Exception as e:
-    st.error(f"Erro crítico ao conectar no banco de dados Supabase: {e}")
+    st.error(f"Erro crítico ao instanciar o motor do banco de dados: {e}")
     st.stop()
 
 # --- FUNÇÕES DE PERSISTÊNCIA (SQL DIRECT) ---
@@ -80,16 +85,25 @@ def carregar_admin_hashes():
             result = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
             if result:
                 return result[0], result[1]
-    except:
-        pass
+    except Exception as e:
+        # Se o erro for apenas que a tabela não existe (banco novo), permite criar.
+        # Qualquer outro erro (como falha de conexão/senha) vai travar e exibir o motivo real.
+        if "relation" in str(e) and "does not exist" in str(e):
+            return None, None
+        st.error(f"❌ Erro de Conexão com o Banco de Dados Supabase: {e}")
+        st.stop()
     return None, None
 
 def salvar_admin_hashes(password1, password2):
-    with engine.begin() as conn:
-        conn.execute(text("""
-            INSERT INTO admin_config (id, hash1, hash2) VALUES (1, :h1, :h2)
-            ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2
-        """), {"h1": hash_password(password1), "h2": hash_password(password2)})
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO admin_config (id, hash1, hash2) VALUES (1, :h1, :h2)
+                ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2
+            """), {"h1": hash_password(password1), "h2": hash_password(password2)})
+    except Exception as e:
+        st.error(f"Erro ao salvar hashes administrativos: {e}")
+        st.stop()
 
 def carregar_usuarios():
     try:
