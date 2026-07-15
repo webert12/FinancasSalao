@@ -442,6 +442,10 @@ if "salao" in query_params:
 # -------------------------------------------------------------------------------
 # INTEGRAÇÃO DE LOGIN E ROTINA ORIGINAL DO DONO DO SALÃO
 # -------------------------------------------------------------------------------
+# --- CARREGAMENTO DE DADOS (CORREÇÃO AQUI!) ---
+admin_hash1, admin_hash2 = carregar_admin_hashes()
+usuarios_cadastrados = carregar_usuarios()
+
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
@@ -683,7 +687,7 @@ with tab_agenda:
     st.subheader("🔗 Seu Link de Agendamento Exclusivo")
     
     # Reconhece dinamicamente a URL base em que o app está hospedado
-    url_base = "https://fioecaixa.streamlit.app" # Substitua pela sua URL final do Streamlit Cloud
+    url_base = "https://32k.streamlit.app" # URL que você está usando atualmente
     link_cliente = f"{url_base}/?salao={st.session_state.usuario_logado}"
     
     st.info(f"Copie o link abaixo e mande para seus clientes no WhatsApp:\n\n**{link_cliente}**")
@@ -742,7 +746,7 @@ with st.sidebar:
         
     st.markdown("---")
     with st.expander("📦 Central de Backups"):
-        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejjar.")
+        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
         backup_dados = gerar_backup_json_completo()
         st.download_button(
             label="📥 Baixar Backup Geral (.json)",
