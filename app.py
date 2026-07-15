@@ -173,6 +173,23 @@ except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
     st.stop()
 
+# --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS DE SEGURANÇA (CÓDIGO DO TÉO) ---
+# Estas funções garantem que carregamos os dados do banco antes do login
+def carregar_dados_iniciais():
+    try:
+        with engine.connect() as conn:
+            # Carrega Admin
+            admin = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
+            h1, h2 = (admin[0], admin[1]) if admin else (None, None)
+            
+            # Carrega Usuários
+            df_users = pd.read_sql("SELECT * FROM usuarios", conn)
+            users = {row['id']: dict(row) for _, row in df_users.iterrows()} if not df_users.empty else {}
+            
+            return h1, h2, users
+    except Exception:
+        return None, None, {}
+
 # --- FUNÇÕES DE PERSISTÊNCIA E AUXILIARES DO DONO DO SALÃO ---
 
 def carregar_admin_hashes():
@@ -442,9 +459,8 @@ if "salao" in query_params:
 # -------------------------------------------------------------------------------
 # INTEGRAÇÃO DE LOGIN E ROTINA ORIGINAL DO DONO DO SALÃO
 # -------------------------------------------------------------------------------
-# --- CARREGAMENTO DE DADOS (CORREÇÃO AQUI!) ---
-admin_hash1, admin_hash2 = carregar_admin_hashes()
-usuarios_cadastrados = carregar_usuarios()
+# --- CARREGAMENTO DE DADOS COM O CODIGO DO TEÓ ---
+admin_hash1, admin_hash2, usuarios_cadastrados = carregar_dados_iniciais()
 
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
@@ -741,7 +757,7 @@ with st.sidebar:
             time.sleep(0.5); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover do Catálogo", use_container_width=True):
         deletar_servico_banco(servico_sel)
-        st.warning("Serviço removido!")
+        st.warning("Serviço removed!")
         time.sleep(0.5); st.rerun()
         
     st.markdown("---")
