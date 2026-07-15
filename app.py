@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dt_time
 from zoneinfo import ZoneInfo
 import os
 import json
@@ -25,7 +25,7 @@ def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
+st.set_page_config(page_title="Gestão Financeira & Agendamento - Salão", layout="wide", page_icon="✂️")
 
 # --- INJEÇÃO DE CSS CUSTOMIZADO ---
 st.markdown("""
@@ -106,7 +106,6 @@ else:
     st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets do Streamlit Cloud.")
     st.stop()
 
-# Inicialização da Engine de Banco de Dados
 @st.cache_resource
 def init_connection(url):
     return create_engine(url, pool_pre_ping=True)
@@ -155,6 +154,18 @@ def inicializar_banco():
                 valor NUMERIC NOT NULL
             );
         """))
+        # NOVA TABELA PARA OS AGENDAMENTOS DOS CLIENTES
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS agendamentos (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                cliente_nome TEXT NOT NULL,
+                cliente_telefone TEXT NOT NULL,
+                servico TEXT NOT NULL,
+                data TEXT NOT NULL,
+                horario TEXT NOT NULL
+            );
+        """))
 
 try:
     inicializar_banco()
@@ -162,7 +173,7 @@ except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
+# --- FUNÇÕES DE PERSISTÊNCIA E AUXILIARES DO DONO DO SALÃO ---
 
 def carregar_admin_hashes():
     try:
@@ -209,8 +220,7 @@ def salvar_usuarios(usuarios_dict):
                 "tipo": v["tipo"], "vencimento": str(v["vencimento"]), "status": v["status"]
             })
 
-def carregar_servicos():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+def carregar_servicos_custom(usuario):
     try:
         with engine.connect() as conn:
             df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": usuario})
@@ -219,6 +229,10 @@ def carregar_servicos():
     except:
         pass
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
+
+def carregar_servicos():
+    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    return carregar_servicos_custom(usuario)
 
 def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
@@ -269,6 +283,46 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
             SET tipo = 'Entrada', data = :data, descricao = :desc
             WHERE id = :id AND usuario_id = :user
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+
+# --- FUNÇÕES DO MÓDULO DE AGENDAMENTO EXCLUSIVO ---
+
+def verificar_horario_disponivel(usuario_id, data_str, horario_str):
+    with engine.connect() as conn:
+        query = text("SELECT 1 FROM agendamentos WHERE usuario_id = :user AND data = :data AND horario = :horario")
+        result = conn.execute(query, {"user": usuario_id, "data": data_str, "horario": horario_str}).fetchone()
+        return result is None
+
+def buscar_sugestoes_horarios(usuario_id, data_str):
+    horarios_comerciais = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)] # 08:00 até 18:30
+    with engine.connect() as conn:
+        query = text("SELECT horario FROM agendamentos WHERE usuario_id = :user AND data = :data")
+        df_ocupados = pd.read_sql(query, conn, params={"user": usuario_id, "data": data_str})
+    
+    ocupados = df_ocupados['horario'].tolist() if not df_ocupados.empty else []
+    disponiveis = [h for h in horarios_comerciais if h not in ocupados]
+    return disponiveis[:5] # Retorna até 5 alternativas livres
+
+def registrar_agendamento(usuario_id, nome, telefone, servico, data_str, horario_str):
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_telefone, servico, data, horario)
+            VALUES (:user, :nome, :tel, :serv, :data, :horario)
+        """), {"user": usuario_id, "nome": nome, "tel": telefone, "serv": servico, "data": data_str, "horario": horario_str})
+
+def carregar_agendamentos_salao(usuario_id):
+    try:
+        with engine.connect() as conn:
+            df = pd.read_sql(text("SELECT id, cliente_nome, cliente_telefone, servico, data, horario FROM agendamentos WHERE usuario_id = :user"), conn, params={"user": usuario_id})
+            if not df.empty:
+                df['data'] = pd.to_datetime(df['data'])
+                return df.sort_values(by=['data', 'horario'])
+    except:
+        pass
+    return pd.DataFrame()
+
+def deletar_agendamento_banco(id_agendamento):
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM agendamentos WHERE id = :id"), {"id": int(id_agendamento)})
 
 # --- FUNÇÃO DE EXPORTAÇÃO DE BACKUP SEGURO ---
 def gerar_backup_json_completo():
@@ -322,10 +376,72 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- CONTROLE DE ACESSO ---
-admin_hash1, admin_hash2 = carregar_admin_hashes()
-usuarios_cadastrados = carregar_usuarios()
 
+# ===================================================================================
+# ROTEAMENTO DA PÁGINA: CHECAGEM SE É LINK DE CLIENTE OU PAINEL INTERNO DO SALÃO
+# ===================================================================================
+query_params = st.query_params
+
+if "salao" in query_params:
+    # -------------------------------------------------------------------------------
+    # INTERFACE PÚBLICA: TELA DO CLIENTE FINAL (SEM LOGIN)
+    # -------------------------------------------------------------------------------
+    salao_id = query_params["salao"].strip().lower()
+    
+    # Valida se o salão realmente existe no banco antes de abrir
+    usuarios_existentes = carregar_usuarios()
+    if salao_id not in usuarios_existentes:
+        st.error("❌ Link Inválido ou Salão não encontrado no sistema.")
+        st.stop()
+        
+    nome_salao_bonito = salao_id.replace("_", " ").title()
+    st.markdown(f'<div class="sim-header"><span class="sim-header-title">✂️ Agendamento Online - {nome_salao_bonito}</span></div>', unsafe_allow_html=True)
+    st.subheader("Escolha o melhor dia e horário para ser atendido:")
+    
+    servicos_publicos = carregar_servicos_custom(salao_id)
+    
+    with st.form("form_agendamento_cliente"):
+        c_cli1, c_cli2 = st.columns(2)
+        with c_cli1:
+            c_nome = st.text_input("Seu Nome Completo:")
+            c_tel = st.text_input("Seu Telefone / WhatsApp:")
+        with c_cli2:
+            c_serv = st.selectbox("Selecione o Serviço:", list(servicos_publicos.keys()))
+            c_data = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
+            
+        # Lista padrão de horários comerciais de 30 em 30 minutos
+        lista_horarios = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
+        c_hora = st.selectbox("Selecione o Horário Inicial Pretendido:", lista_horarios)
+        
+        btn_enviar_agenda = st.form_submit_button("Confirmar Meu Horário")
+        
+    if btn_enviar_agenda:
+        if not c_nome or not c_tel:
+            st.error("⚠️ Por favor, preencha o seu nome e seu telefone para podermos confirmar.")
+        else:
+            data_str = c_data.strftime('%Y-%m-%d')
+            # 1. Verifica se está disponível
+            if verificar_horario_disponivel(salao_id, data_str, c_hora):
+                registrar_agendamento(salao_id, c_nome, c_tel, c_serv, data_str, c_hora)
+                st.success(f"🎉 Perfeito, {c_nome}! Seu horário no dia {c_data.strftime('%d/%m/%Y')} às {c_hora} foi agendado com sucesso!")
+                st.balloons()
+            else:
+                st.warning(f"⚠️ O horário de **{c_hora}** já está ocupado para esta data.")
+                # 2. Gera automaticamente as opções inteligentes sugeridas
+                sugestoes = buscar_sugestoes_horarios(salao_id, data_str)
+                if sugestoes:
+                    st.info("💡 **Veja os horários mais próximos ainda livres para hoje:**")
+                    for sug in sugestoes:
+                        st.markdown(f"• ✨ **{sug}** disponível")
+                    st.write("Escolha uma das opções acima alterando o seletor de horários e tente novamente.")
+                else:
+                    st.error("Desculpe, este dia está completamente lotado! Tente escolher outra data.")
+    st.stop()
+
+
+# -------------------------------------------------------------------------------
+# INTEGRAÇÃO DE LOGIN E ROTINA ORIGINAL DO DONO DO SALÃO
+# -------------------------------------------------------------------------------
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
@@ -449,7 +565,7 @@ if st.session_state.eh_admin:
         if st.button("🚪 Sair do Modo ADM", use_container_width=True): st.session_state.autenticado = False; st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO CLIENTE ---
+# --- INTERFACE 2: PAINEL DO CLIENTE (DONO DO SALÃO) ---
 df_fluxo_caixa = carregar_fluxo() 
 servicos = carregar_servicos()
 
@@ -467,7 +583,8 @@ if not df_fluxo_caixa.empty:
 else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
-tab1, tab0, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📜 Histórico"])
+# ADICIONADO A TABA DE AGENDAMENTOS NA NAVEGAÇÃO PRINCIPAL
+tab1, tab0, tab_agenda, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agenda de Clientes", "📜 Histórico"])
 
 with tab1:
     st.subheader("📊 Resumo Financeiro Estruturado")
@@ -559,6 +676,49 @@ with tab0:
             st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
+# -------------------------------------------------------------------------------
+# NOVA TABA INTERNA: CENTRAL DE GERENCIAMENTO DE AGENDAMENTOS DO DONO
+# -------------------------------------------------------------------------------
+with tab_agenda:
+    st.subheader("🔗 Seu Link de Agendamento Exclusivo")
+    
+    # Reconhece dinamicamente a URL base em que o app está hospedado
+    url_base = "https://fioecaixa.streamlit.app" # Substitua pela sua URL final do Streamlit Cloud
+    link_cliente = f"{url_base}/?salao={st.session_state.usuario_logado}"
+    
+    st.info(f"Copie o link abaixo e mande para seus clientes no WhatsApp:\n\n**{link_cliente}**")
+    
+    st.markdown("---")
+    st.subheader("📅 Horários Agendados pelos Clientes")
+    
+    df_agendamentos = carregar_agendamentos_salao(st.session_state.usuario_logado)
+    
+    if not df_agendamentos.empty:
+        # Formata a exibição amigável para a tabela do painel
+        df_view = df_agendamentos.copy()
+        df_view['data'] = df_view['data'].dt.strftime('%d/%m/%Y')
+        df_view = df_view.rename(columns={
+            "cliente_nome": "Cliente",
+            "cliente_telefone": "WhatsApp/Telefone",
+            "servico": "Serviço Solicitado",
+            "data": "Data Marcada",
+            "horario": "Horário"
+        })
+        
+        st.dataframe(df_view.drop(columns=['id']), use_container_width=True, hide_index=True)
+        
+        st.markdown("### 🛠️ Gerenciar e Cancelar Horários")
+        opcoes_cancelar = {f"{row['cliente_nome']} - {row['data'].strftime('%d/%m/%Y')} às {row['horario']} ({row['servico']})": row['id'] for _, row in df_agendamentos.iterrows()}
+        agenda_sel = st.selectbox("Selecione um horário cadastrado se precisar remover:", list(opcoes_cancelar.keys()))
+        
+        if st.button("🗑️ Cancelar Horário Selecionado", type="primary"):
+            deletar_agendamento_banco(opcoes_cancelar[agenda_sel])
+            st.warning("Horário removido da agenda com sucesso!")
+            time.sleep(0.5)
+            st.rerun()
+    else:
+        st.info("Nenhum cliente agendou horários pelo link online por enquanto.")
+
 with st.sidebar:
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.replace("_", " ").title() if st.session_state.usuario_logado else "Salão"
@@ -582,7 +742,7 @@ with st.sidebar:
         
     st.markdown("---")
     with st.expander("📦 Central de Backups"):
-        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
+        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejjar.")
         backup_dados = gerar_backup_json_completo()
         st.download_button(
             label="📥 Baixar Backup Geral (.json)",
