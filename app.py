@@ -7,7 +7,7 @@ import json
 import time
 import hashlib
 from io import BytesIO
-import urllib.parse  # Trata a codificação e decodificação segura de links com espaços e acentos
+import urllib.parse
 
 # Bibliotecas de Conexão Direta SQL
 from sqlalchemy import create_engine, text
@@ -17,6 +17,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+
+# ===================================================================================
+# 🔗 CONFIGURAÇÃO DO LINK DE RESERVAS EXTERNO
+# ===================================================================================
+# IMPORTANTE: Altere este link abaixo com a URL real do seu app 'reservar.py' depois de publicá-lo!
+RESERVA_APP_URL = "https://SEU-APP-DE-RESERVAS.streamlit.app" 
+
 
 # --- CONFIGURAÇÃO DE SEGURANÇA E HORÁRIO ---
 SALT = "salao_fio_caixa_2026_security"
@@ -28,7 +35,7 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira & Agendamento - Salão", layout="wide", page_icon="✂️")
 
-# --- INICIALIZAÇÃO DE VARIÁVEIS DE SESSÃO (PREVINE ATRIBUTEERROR) ---
+# --- INICIALIZAÇÃO DE VARIÁVEIS DE SESSÃO ---
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 if "usuario_logado" not in st.session_state:
@@ -43,20 +50,16 @@ if "formulario_ativo" not in st.session_state:
 # --- INJEÇÃO DE CSS CUSTOMIZADO (Identidade Visual Dark & Gold) ---
 st.markdown("""
 <style>
-    /* Configuração de Fundo Geral */
     body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
     
-    /* Garantia de visibilidade de textos e labels do Streamlit */
     .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
         color: #ffffff !important;
     }
     
-    /* Esconder headers nativos desnecessários */
     [data-testid="stHeader"], header { display: none !important; visibility: hidden !important; height: 0px !important; }
     .block-container { padding-top: 2rem !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #d4af37 !important; background-color: #1e222b !important; border: 2px solid #d4af37 !important; border-radius: 6px !important; }
     
-    /* Customização total de Inputs com Alto Contraste */
     div[data-testid="stTextInput"] input, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stDateInput"] input,
@@ -69,7 +72,6 @@ st.markdown("""
         opacity: 1 !important;
     }
     
-    /* Correção visual para caixas de seleção (Selectbox) e seus menus suspensos */
     div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
         background-color: #1e222b !important; 
         color: #ffffff !important; 
@@ -77,14 +79,12 @@ st.markdown("""
         border-radius: 6px !important;
     }
     
-    /* Estilização interna dos botões de mais e menos do seletor numérico */
     div[data-testid="stNumberInput"] button { 
         background-color: #33363c !important; 
         color: #d4af37 !important; 
         border: 1px solid #4f5b66 !important; 
     }
     
-    /* Botões Grandes, de Envio e de Download com Identidade Visual Ouro */
     div.stButton > button, div[data-testid="stFormSubmitButton"] button, div.stDownloadButton > button {
         background-color: #d4af37 !important; 
         color: #121212 !important; 
@@ -102,7 +102,6 @@ st.markdown("""
         border-color: #ffffff !important; 
     }
     
-    /* Containers das Ações Rápidas */
     .sim-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
     .sim-header-title { color: #d4af37; font-weight: bold; font-size: 1.2rem; }
     .fast-actions-header { display: flex; align-items: center; margin-bottom: 15px; }
@@ -112,11 +111,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
+# --- CAPTURA DA DATABASE ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
-    st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets do Streamlit Cloud.")
+    st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets.")
     st.stop()
 
 @st.cache_resource
@@ -126,75 +125,17 @@ def init_connection(url):
 try:
     engine = init_connection(DB_URL)
 except Exception as e:
-    st.error(f"Erro crítico ao instanciar o motor do banco de dados: {e}")
+    st.error(f"Erro crítico: {e}")
     st.stop()
 
-# --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
-def inicializar_banco():
-    with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS admin_config (
-                id INT PRIMARY KEY,
-                hash1 TEXT NOT NULL,
-                hash2 TEXT NOT NULL
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id TEXT PRIMARY KEY,
-                senha TEXT NOT NULL,
-                email TEXT,
-                tipo TEXT,
-                vencimento TEXT,
-                status TEXT
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS servicos (
-                id SERIAL PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                nome TEXT NOT NULL,
-                preco NUMERIC NOT NULL
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS fluxo_caixa (
-                id SERIAL PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                data TEXT NOT NULL,
-                tipo TEXT NOT NULL,
-                descricao TEXT NOT NULL,
-                valor NUMERIC NOT NULL
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS agendamentos (
-                id SERIAL PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                cliente_nome TEXT NOT NULL,
-                cliente_telefone TEXT NOT NULL,
-                servico TEXT NOT NULL,
-                data TEXT NOT NULL,
-                horario TEXT NOT NULL
-            );
-        """))
-
-try:
-    inicializar_banco()
-except Exception as e:
-    st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
-    st.stop()
-
-# --- CARREGAMENTO DE DADOS DE SEGURANÇA E USUÁRIOS ---
+# --- CARREGAMENTO DE DADOS E USUÁRIOS ---
 def carregar_dados_iniciais():
     try:
         with engine.connect() as conn:
             admin = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
             h1, h2 = (admin[0], admin[1]) if admin else (None, None)
-            
             df_users = pd.read_sql("SELECT * FROM usuarios", conn)
             users = {row['id']: dict(row) for _, row in df_users.iterrows()} if not df_users.empty else {}
-            
             return h1, h2, users
     except Exception:
         return None, None, {}
@@ -232,7 +173,7 @@ def salvar_admin_hashes(password1, password2):
                 ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2
             """), {"h1": hash_password(password1), "h2": hash_password(password2)})
     except Exception as e:
-        st.error(f"Erro ao salvar hashes administrativos: {e}")
+        st.error(f"Erro ao salvar hashes: {e}")
 
 # --- CONTROLE DE SERVIÇOS DO SALÃO ---
 def carregar_servicos_custom(usuario):
@@ -267,7 +208,7 @@ def deletar_servico_banco(nome):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
 
-# --- CONTROLE FINANCEIRO (FLUXO DE CAIXA) ---
+# --- CONTROLE FINANCEIRO ---
 def carregar_fluxo():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
@@ -300,30 +241,7 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
             WHERE id = :id AND usuario_id = :user
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
 
-# --- CONTROLE DE AGENDAMENTO ONLINE ---
-def verificar_horario_disponivel(usuario_id, data_str, horario_str):
-    with engine.connect() as conn:
-        query = text("SELECT 1 FROM agendamentos WHERE usuario_id = :user AND data = :data AND horario = :horario")
-        result = conn.execute(query, {"user": usuario_id, "data": data_str, "horario": horario_str}).fetchone()
-        return result is None
-
-def buscar_sugestoes_horarios(usuario_id, data_str):
-    horarios_comerciais = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
-    with engine.connect() as conn:
-        query = text("SELECT horario FROM agendamentos WHERE usuario_id = :user AND data = :data")
-        df_ocupados = pd.read_sql(query, conn, params={"user": usuario_id, "data": data_str})
-    
-    ocupados = df_ocupados['horario'].tolist() if not df_ocupados.empty else []
-    disponiveis = [h for h in horarios_comerciais if h not in ocupados]
-    return disponiveis[:5]
-
-def registrar_agendamento(usuario_id, nome, telefone, servico, data_str, horario_str):
-    with engine.begin() as conn:
-        conn.execute(text("""
-            INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_telefone, servico, data, horario)
-            VALUES (:user, :nome, :tel, :serv, :data, :horario)
-        """), {"user": usuario_id, "nome": nome, "tel": telefone, "serv": servico, "data": data_str, "horario": horario_str})
-
+# --- AGENDAMENTOS ---
 def carregar_agendamentos_salao(usuario_id):
     try:
         with engine.connect() as conn:
@@ -339,7 +257,7 @@ def deletar_agendamento_banco(id_agendamento):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id"), {"id": int(id_agendamento)})
 
-# --- EXPORTAÇÃO E BACKUPS ---
+# --- EXPORTAÇÕES E BACKUP ---
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
@@ -348,7 +266,6 @@ def gerar_backup_json_completo():
         fluxo_dict = df_f.to_dict(orient="records")
     else:
         fluxo_dict = []
-    
     dados_backup = {
         "sistema": "Fio&Caixa",
         "usuario_dono": usuario,
@@ -385,58 +302,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
 
 
 # ===================================================================================
-# 📱 FUNÇÃO DO CLIENTE (APP EXCLUSIVO DE AGENDAMENTO)
-# ===================================================================================
-def renderizar_app_cliente(salao_id):
-    usuarios_existentes = carregar_usuarios()
-    if salao_id not in usuarios_existentes:
-        st.error("❌ Link Inválido ou Salão não cadastrado no sistema.")
-        st.stop()
-        
-    nome_salao_bonito = salao_id.replace("_", " ").title()
-    
-    st.markdown(f'<div class="sim-header"><span class="sim-header-title">✂️ Agendamento Online - {nome_salao_bonito}</span></div>', unsafe_allow_html=True)
-    st.subheader("Escolha o melhor dia e horário para ser atendido:")
-    
-    servicos_publicos = carregar_servicos_custom(salao_id)
-    
-    with st.form("form_agendamento_cliente"):
-        c_cli1, c_cli2 = st.columns(2)
-        with c_cli1:
-            c_nome = st.text_input("Seu Nome Completo:")
-            c_tel = st.text_input("Seu Telefone / WhatsApp:")
-        with c_cli2:
-            c_serv = st.selectbox("Selecione o Serviço:", list(servicos_publicos.keys()))
-            c_data = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
-            
-        lista_horarios = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
-        c_hora = st.selectbox("Selecione o Horário Inicial Pretendido:", lista_horarios)
-        
-        btn_enviar_agenda = st.form_submit_button("Confirmar Meu Horário")
-        
-    if btn_enviar_agenda:
-        if not c_nome or not c_tel:
-            st.error("⚠️ Por favor, preencha o seu nome e seu telefone para podermos confirmar.")
-        else:
-            data_str = c_data.strftime('%Y-%m-%d')
-            if verificar_horario_disponivel(salao_id, data_str, c_hora):
-                registrar_agendamento(salao_id, c_nome, c_tel, c_serv, data_str, c_hora)
-                st.success(f"🎉 Perfeito, {c_nome}! Seu horário no dia {c_data.strftime('%d/%m/%Y')} às {c_hora} foi agendado com sucesso!")
-                st.balloons()
-            else:
-                st.warning(f"⚠️ O horário de **{c_hora}** já está ocupado para esta data.")
-                sugestoes = buscar_sugestoes_horarios(salao_id, data_str)
-                if sugestoes:
-                    st.info("💡 **Veja os horários mais próximos ainda livres para hoje:**")
-                    for sug in sugestoes:
-                        st.markdown(f"• ✨ **{sug}** disponível")
-                    st.write("Escolha uma das opções acima alterando o seletor de horários e tente novamente.")
-                else:
-                    st.error("Desculpe, este dia está completamente lotado! Tente escolher outra data.")
-
-
-# ===================================================================================
-# 💈 FUNÇÃO DO DONO DO SALÃO (PAINEL ADMINISTRATIVO & FINANCEIRO)
+# 💈 FUNÇÃO DO DONO DO SALÃO
 # ===================================================================================
 def renderizar_app_salao():
     df_fluxo_caixa = carregar_fluxo() 
@@ -549,17 +415,17 @@ def renderizar_app_salao():
                 st.markdown('</div>', unsafe_allow_html=True)
 
     with tab_agenda:
-        st.subheader("🔗 Seu Link de Agendamento Exclusivo")
+        st.subheader("🔗 Link de Agendamento Exclusivo")
         
-        # Codifica o login para garantir compatibilidade com espaços e caracteres especiais (ex: salão deloh vira sal%C3%A3o%20deloh)
+        # Gera o link apontando para o seu novo app externo 'reservar.py'
         usuario_codificado = urllib.parse.quote(st.session_state.usuario_logado)
-        link_cliente = f"https://32k.streamlit.app/?salao={usuario_codificado}"
+        link_cliente = f"{RESERVA_APP_URL}/?salao={usuario_codificado}"
         
-        st.info("Copie o link abaixo para enviar para seus clientes no WhatsApp. Ao clicar nele, o cliente entrará direto na tela de agendamento exclusiva do seu salão, sem precisar logar.")
+        st.info("Copie este link para enviar aos clientes no WhatsApp. Ao clicar, eles abrirão a página exclusiva de agendamento para o seu estabelecimento.")
         st.code(link_cliente, language="markdown")
         
         st.markdown("---")
-        st.subheader("📅 Horários Agendados pelos Clientes")
+        st.subheader("📅 Horários Marcados")
         
         df_agendamentos = carregar_agendamentos_salao(st.session_state.usuario_logado)
         
@@ -582,7 +448,7 @@ def renderizar_app_salao():
             
             if st.button("🗑️ Cancelar Horário Selecionado", type="primary"):
                 deletar_agendamento_banco(opcoes_cancelar[agenda_sel])
-                st.warning("Horário removido da agenda com sucesso!")
+                st.warning("Horário removido com sucesso!")
                 time.sleep(0.5)
                 st.rerun()
         else:
@@ -611,7 +477,7 @@ def renderizar_app_salao():
             
         st.markdown("---")
         with st.expander("📦 Central de Backups"):
-            st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
+            st.write("Dados em segurança na nuvem do Supabase.")
             backup_dados = gerar_backup_json_completo()
             st.download_button(
                 label="📥 Baixar Backup Geral (.json)",
@@ -652,9 +518,9 @@ def renderizar_app_salao():
             if not df_exibicao.empty:
                 col_down1, col_down2 = st.columns(2)
                 with col_down1:
-                    st.download_button(label="📄 Baixar Arquivo CSV para Contador", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
+                    st.download_button(label="📄 Baixar Arquivo CSV", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
                 with col_down2:
-                    st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+                    st.download_button(label="📕 Baixar Relatório PDF", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
                 st.markdown("---")
                 
                 df_vis = df_exibicao.sort_index(ascending=False).copy()
@@ -667,8 +533,8 @@ def renderizar_app_salao():
                     elif row['Tipo'] == 'Saída': return ['background-color: #f8d7da; color: #721c24'] * 4
                     return ['background-color: #fff3cd; color: #856404'] * 4
                 st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-            else: st.info("Nenhuma movimentação encontrada para o período selecionado.")
-        else: st.info("Nenhuma movimentação financeira registrada.")
+            else: st.info("Nenhuma movimentação para o período.")
+        else: st.info("Nenhuma movimentação registrada.")
 
 
 # ===================================================================================
@@ -727,22 +593,11 @@ def renderizar_app_admin():
 
 
 # ===================================================================================
-# 🔀 ROTEAMENTO GERAL DE ACESSOS (O DIRECIONADOR DO SISTEMA)
+# 🔀 ROTEAMENTO GERAL DE ACESSOS 
 # ===================================================================================
 admin_hash1, admin_hash2, usuarios_cadastrados = carregar_dados_iniciais()
-query_params = st.query_params
 
-# --- ROTA DO CLIENTE: Se houver ?salao= na URL ---
-if "salao" in query_params:
-    salao_id_raw = query_params["salao"]
-    # Decodifica corretamente os caracteres especiais e espaços (ex: %20 vira espaço de novo)
-    salao_id = urllib.parse.unquote(salao_id_raw).strip().lower()
-    renderizar_app_cliente(salao_id)
-    st.stop()  # Impede totalmente o carregamento do login ou das funções administrativas
-
-# --- ROTA INTERNA (DONO OU ADMIN): Se acessar o link comum (Sem Parâmetro) ---
 if not st.session_state.autenticado:
-    # Caso o admin mestre ainda não exista no banco de dados
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
         st.warning("Nenhum Administrador Mestre encontrado no banco de dados. Configure suas senhas master abaixo:")
@@ -757,7 +612,6 @@ if not st.session_state.autenticado:
                     st.rerun()
         st.stop()
 
-    # Fluxo de Recuperação de Senha
     if st.session_state.recuperando_senha:
         st.title("🔑 Recuperação de Senha Segura")
         with st.form("form_recuperacao"):
@@ -773,7 +627,7 @@ if not st.session_state.autenticado:
                         if nova_senha_recup == conf_senha_recup and nova_senha_recup:
                             usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
                             salvar_usuarios(usuarios_cadastrados)
-                            st.success("✅ Senha redefinida no Banco de Dados!")
+                            st.success("✅ Senha redefinida!")
                             st.session_state.recuperando_senha = False
                             time.sleep(1.5); st.rerun()
                     else: st.error("Usuário ou e-mail correspondente não encontrado.")
@@ -781,7 +635,6 @@ if not st.session_state.autenticado:
                 if st.form_submit_button("Cancelar"): st.session_state.recuperando_senha = False; st.rerun()
         st.stop()
 
-    # TELA DE LOGIN DO SISTEMA FINANCEIRO / ADMINISTRATIVO
     st.markdown('<div class="sim-header"><span class="sim-header-title">✂️ Login - Fio & Caixa</span></div>', unsafe_allow_html=True)
     tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
     
@@ -797,7 +650,7 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_logado = "Administrador"
                     st.session_state.eh_admin = True
                     st.rerun()
-                else: st.error("Credenciais de Administrador incorretas.")
+                else: st.error("Credenciais incorretas.")
             else:
                 if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                     dados_user = usuarios_cadastrados[usuario_input]
@@ -814,7 +667,7 @@ if not st.session_state.autenticado:
     if st.button("Esqueci minha senha ❯"): st.session_state.recuperando_senha = True; st.rerun()
     st.stop()
 
-# --- DIRECIONAMENTO APÓS AUTENTICAÇÃO ---
+# --- DIRECIONAMENTO DE TELAS ---
 if st.session_state.eh_admin:
     renderizar_app_admin()
 else:
