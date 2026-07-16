@@ -266,13 +266,6 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
 
 # --- FUNÇÕES DE AGENDAMENTO ---
-def salvar_agendamento(salao_id, cliente, contato, servico, data, hora):
-    with engine.begin() as conn:
-        conn.execute(text("""
-            INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
-            VALUES (:user, :cliente, :contato, :servico, :data, :hora)
-        """), {"user": salao_id, "cliente": cliente, "contato": contato, "servico": servico, "data": str(data), "hora": str(hora)})
-
 def carregar_agendamentos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     try:
@@ -341,48 +334,6 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # ==============================================================================
-# 🎯 INTERCEPTADOR: ROTA DE AGENDAMENTO DO CLIENTE (SEM LOGIN/TELA LIMPA)
-# ==============================================================================
-query_params = st.query_params
-if "salao" in query_params:
-    salao_id = query_params["salao"].strip().lower()
-    
-    # Renderiza a página sem login direto para o agendamento
-    st.title(f"📅 Agendamento Online - {salao_id.title()}")
-    st.markdown("Escolha as opções abaixo para reservar o seu horário de forma rápida.")
-    st.markdown("---")
-    
-    servicos_disponiveis = carregar_servicos_por_salao(salao_id)
-    
-    with st.form("form_agendamento_cliente"):
-        cliente_nome = st.text_input("Seu Nome (Obrigatório):")
-        cliente_contato = st.text_input("Seu WhatsApp/Telefone (Opcional):")
-        
-        servico_selecionado = st.selectbox("Selecione o Serviço desejado:", list(servicos_disponiveis.keys()))
-        
-        preco_estimado = servicos_disponiveis[servico_selecionado]
-        st.info(f"💵 Valor estimado do serviço: R$ {preco_estimado:.2f}")
-        
-        data_agendada = st.date_input("Escolha o Dia:", datetime.now(TZ).date())
-        
-        slots_horario = [f"{h:02d}:00" for h in range(8, 20)] + [f"{h:02d}:30" for h in range(8, 20)]
-        slots_horario.sort()
-        
-        horario_selecionado = st.selectbox("Escolha o Horário:", slots_horario)
-        
-        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
-        
-        if enviar_agendamento:
-            if cliente_nome.strip():
-                salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_selecionado, data_agendada, horario_selecionado)
-                st.success(f"🎉 Pronto, {cliente_nome}! Seu horário foi reservado com sucesso!")
-                st.balloons()
-            else:
-                st.error("Por favor, informe seu nome para concluir a reserva.")
-                
-    st.stop()
-
-# ==============================================================================
 # --- CONTROLE DE ACESSO (SALAO / ADMIN) ---
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
@@ -395,7 +346,7 @@ if not st.session_state.autenticado:
         with st.form("primeiro_acesso"):
             nova_adm_pass1 = st.text_input("Senha PRINCIPAL de ADMIN:", type="password")
             nova_adm_pass2 = st.text_input("Senha SECUNDÁRIA de ADMIN:", type="password")
-            url_padrao_app = st.text_input("URL Real do seu App (Ex: https://fioecaixa.streamlit.app):")
+            url_padrao_app = st.text_input("URL do App de AGENDAMENTO (Ex: https://fioecaixa-agendar.streamlit.app):")
             if st.form_submit_button("Criar Acesso Seguro"):
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
@@ -513,10 +464,10 @@ if st.session_state.eh_admin:
 
     with tab_config:
         st.subheader("Configurações Globais")
-        nova_url_input = st.text_input("URL Real Publicada do App (Ex: https://fioecaixa.streamlit.app):", value=url_sistema_salva if url_sistema_salva else "")
+        nova_url_input = st.text_input("URL Real do App de AGENDAMENTO (Ex: https://fioecaixa-agendar.streamlit.app):", value=url_sistema_salva if url_sistema_salva else "")
         if st.button("Salvar URL do Sistema"):
             atualizar_url_sistema(nova_url_input.strip())
-            st.success("URL de produção atualizada com sucesso no banco de dados!")
+            st.success("URL de agendamento salva com sucesso!")
             time.sleep(1)
             st.rerun()
 
@@ -545,16 +496,16 @@ else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
 # ==============================================================================
-# 🔗 GERAÇÃO DINÂMICA DO LINK DE AGENDAMENTO (SALVO NO SUPABASE)
+# 🔗 GERAÇÃO DINÂMICA DO LINK DE AGENDAMENTO
 # ==============================================================================
-base_url = url_sistema_salva if url_sistema_salva else "https://fioecaixa.streamlit.app"
+base_url = url_sistema_salva if url_sistema_salva else "https://fioecaixa-agendar.streamlit.app"
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 
 st.markdown("""
 <div style="background-color: #1e2127; padding: 15px; border-radius: 10px; border-left: 5px solid #d4af37; margin-bottom: 20px;">
-    <h4 style="color: #d4af37; margin: 0 0 10px 0;">🔗 Seu Link de Agendamento Online</h4>
+    <h4 style="color: #d4af37; margin: 0 0 10px 0;">🔗 Link de Agendamento dos seus Clientes</h4>
     <p style="color: #ffffff; font-size: 14px; margin: 0 0 10px 0;">
-        Envie o link abaixo para seus clientes pelo WhatsApp ou adicione na Bio do seu Instagram. Eles conseguirão agendar <b>sem fazer qualquer login</b>!
+        Copie o link abaixo para enviar aos seus clientes no WhatsApp ou colocar no perfil do Instagram. Eles agendarão direto <b>sem senha e sem erro</b>!
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -699,7 +650,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço updated!")
+            st.success("Serviço atualizado!")
             time.sleep(0.5)
             st.rerun()
             
