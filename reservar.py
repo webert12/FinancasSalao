@@ -2,60 +2,18 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from zoneinfo import ZoneInfo
-import urllib.parse
 from sqlalchemy import create_engine, text
 
-# --- CONFIGURAÇÃO DE HORÁRIO ---
+# --- CONFIGURAÇÕES BÁSICAS ---
 TZ = ZoneInfo("America/Sao_Paulo")
+st.set_page_config(page_title="Agendamento Online", layout="centered", page_icon="📅")
 
-st.set_page_config(page_title="Agendamento Online", layout="centered", page_icon="✂️")
-
-# --- INJEÇÃO DE CSS CUSTOMIZADO (Identidade Visual Dark & Gold) ---
+# --- ESTILO VISUAL LIMPO ---
 st.markdown("""
 <style>
-    body, .stApp { background-color: #121212 !important; color: #ffffff !important; }
-    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
-        color: #ffffff !important;
-    }
-    [data-testid="stHeader"], header { display: none !important; visibility: hidden !important; height: 0px !important; }
-    .block-container { padding-top: 2rem !important; }
-    
-    /* Inputs */
-    div[data-testid="stTextInput"] input, 
-    div[data-testid="stDateInput"] input,
-    div[data-baseweb="input"] input {
-        background-color: #1e222b !important; 
-        color: #ffffff !important; 
-        border: 2px solid #4f5b66 !important; 
-        border-radius: 6px !important; 
-        padding: 10px !important;
-    }
-    
-    /* Selectbox */
-    div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
-        background-color: #1e222b !important; 
-        color: #ffffff !important; 
-        border: 2px solid #4f5b66 !important; 
-        border-radius: 6px !important;
-    }
-    
-    /* Botões */
-    div.stButton > button {
-        background-color: #d4af37 !important; 
-        color: #121212 !important; 
-        border: 2px solid #d4af37 !important; 
-        border-radius: 6px !important; 
-        width: 100% !important; 
-        font-weight: bold !important; 
-        font-size: 1rem !important; 
-        padding: 12px !important; 
-        box-shadow: 0px 4px 10px rgba(212, 175, 55, 0.2) !important;
-    }
-    div.stButton > button:hover { 
-        background-color: #ffffff !important; 
-        color: #121212 !important; 
-        border-color: #ffffff !important; 
-    }
+    .block-container { padding-top: 2rem; }
+    h1 { text-align: center; color: #d4af37; }
+    p { text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,121 +21,106 @@ st.markdown("""
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
-    st.error("❌ ERRO CRÍTICO: Banco de dados não configurado nos Secrets deste aplicativo.")
+    st.error("Erro técnico: Banco de dados não configurado nos Secrets.")
     st.stop()
 
 @st.cache_resource
 def init_connection(url):
     return create_engine(url, pool_pre_ping=True)
 
-try:
-    engine = init_connection(DB_URL)
-except Exception as e:
-    st.error(f"Erro ao conectar ao banco: {e}")
-    st.stop()
+engine = init_connection(DB_URL)
 
-# --- FUNÇÕES DE BANCO ---
-def carregar_usuarios():
+# --- FUNÇÕES DE BUSCA E SALVAMENTO ---
+def carregar_servicos_por_salao(salao_id):
     try:
         with engine.connect() as conn:
-            df = pd.read_sql("SELECT id FROM usuarios", conn)
-            return df['id'].tolist() if not df.empty else []
-    except:
-        return []
-
-def carregar_servicos_custom(usuario):
-    try:
-        with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": usuario})
+            df = pd.read_sql(
+                text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), 
+                conn, 
+                params={"user": salao_id}
+            )
             if not df.empty:
                 return {row['nome']: float(row['preco']) for _, row in df.iterrows()}
-    except:
-        pass
-    return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
+    except Exception as e:
+        st.error(f"Erro ao carregar serviços: {e}")
+    # Retorno padrão caso o salão não tenha serviços cadastrados ainda
+    return {"Corte": 30.0, "Barba": 25.0}
 
-def verificar_horario_disponivel(usuario_id, data_str, horario_str):
-    with engine.connect() as conn:
-        query = text("SELECT 1 FROM agendamentos WHERE usuario_id = :user AND data = :data AND horario = :horario")
-        result = conn.execute(query, {"user": usuario_id, "data": data_str, "horario": horario_str}).fetchone()
-        return result is None
-
-def buscar_sugestoes_horarios(usuario_id, data_str):
-    horarios_comerciais = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
+def verificar_se_salao_existe(salao_id):
     try:
         with engine.connect() as conn:
-            query = text("SELECT horario FROM agendamentos WHERE usuario_id = :user AND data = :data")
-            df_ocupados = pd.read_sql(query, conn, params={"user": usuario_id, "data": data_str})
-        ocupados = df_ocupados['horario'].tolist() if not df_ocupados.empty else []
+            result = conn.execute(
+                text("SELECT id FROM usuarios WHERE id = :user AND status = 'Ativo'"), 
+                {"user": salao_id}
+            ).fetchone()
+            return result is not None
     except:
-        ocupados = []
-    disponiveis = [h for h in horarios_comerciais if h not in ocupados]
-    return disponiveis[:5]
+        return False
 
-def registrar_agendamento(usuario_id, nome, telefone, servico, data_str, horario_str):
-    with engine.begin() as conn:
-        conn.execute(text("""
-            INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_telefone, servico, data, horario)
-            VALUES (:user, :nome, :tel, :serv, :data, :horario)
-        """), {"user": usuario_id, "nome": nome, "tel": telefone, "serv": servico, "data": data_str, "horario": horario_str})
+def salvar_agendamento(salao_id, cliente, contato, servico, data, hora):
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
+                VALUES (:user, :cliente, :contato, :servico, :data, :hora)
+            """), {
+                "user": salao_id, 
+                "cliente": cliente, 
+                "contato": contato, 
+                "servico": servico, 
+                "data": str(data), 
+                "hora": str(hora)
+            })
+            return True
+    except Exception as e:
+        st.error(f"Erro ao salvar agendamento: {e}")
+        return False
 
-
-# --- FLUXO DE LEITURA DO PARÂMETRO DA URL ---
+# --- ROTEAMENTO E LEITURA DO SALÃO ---
 query_params = st.query_params
 
 if "salao" not in query_params:
-    st.error("❌ Link Inválido! Use o link de agendamento correto enviado pelo seu salão.")
+    st.warning("⚠️ Link Inválido. Por favor, use o link correto enviado pelo seu salão de beleza.")
     st.stop()
 
-salao_id_raw = query_params["salao"]
-salao_id = urllib.parse.unquote(salao_id_raw).strip().lower()
+salao_id = query_params["salao"].strip().lower()
 
-# Verifica se o salão existe no banco de dados
-salões_cadastrados = carregar_usuarios()
-if salao_id not in salões_cadastrados:
-    st.error("❌ Desculpe, este estabelecimento não foi localizado em nossa base de dados.")
+# Verifica se o salão de fato existe no seu banco de dados
+if not verificar_se_salao_existe(salao_id):
+    st.error(f"❌ O salão '{salao_id}' não foi encontrado ou está com a licença inativa.")
     st.stop()
 
-nome_salao_bonito = salao_id.replace("_", " ").title()
-
-# --- INTERFACE DE AGENDAMENTO ---
-st.markdown(f'<div style="text-align: center; margin-top: 10px;"><h2 style="color: #d4af37;">✂️ {nome_salao_bonito}</h2><p>Agende seu horário online de forma rápida e simples</p></div>', unsafe_allow_html=True)
+# --- TELA DE AGENDAMENTO PARA O CLIENTE ---
+st.title(f"📅 Agendamento Online - {salao_id.title()}")
+st.markdown("Reserve seu horário em poucos segundos. É rápido e prático!")
 st.markdown("---")
 
-servicos_disponiveis = carregar_servicos_custom(salao_id)
+servicos_disponiveis = carregar_servicos_por_salao(salao_id)
 
-with st.form("form_agendamento"):
-    c_nome = st.text_input("Seu Nome Completo:")
-    c_tel = st.text_input("Seu Telefone / WhatsApp:")
-    c_serv = st.selectbox("Selecione o Serviço desejado:", list(servicos_disponiveis.keys()))
-    c_data = st.date_input("Escolha a Data do Atendimento:", min_value=datetime.now(TZ).date())
+with st.form("form_agendamento_publico"):
+    cliente_nome = st.text_input("Seu Nome completo (Obrigatório):")
+    cliente_contato = st.text_input("Seu WhatsApp com DDD (Ex: 11999999999):")
     
-    # Gera a grade de horários de 8h às 18h30 (de 30 em 30 min)
-    lista_horarios = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
-    c_hora = st.selectbox("Selecione o Horário:", lista_horarios)
+    servico_selecionado = st.selectbox("Selecione o Serviço desejado:", list(servicos_disponiveis.keys()))
     
-    st.write("")
-    btn_enviar = st.form_submit_button("Confirmar Agendamento")
-
-if btn_enviar:
-    if not c_nome or not c_tel:
-        st.error("⚠️ Por favor, informe seu nome e telefone para que possamos confirmar o horário!")
-    else:
-        data_str = c_data.strftime('%Y-%m-%d')
-        
-        # Faz a varredura para garantir que o horário está livre para aquele salão específico
-        if verificar_horario_disponivel(salao_id, data_str, c_hora):
-            registrar_agendamento(salao_id, c_nome, c_tel, c_serv, data_str, c_hora)
-            st.success(f"🎉 Excelente, {c_nome}! Seu agendamento foi confirmado para o dia {c_data.strftime('%d/%m/%Y')} às {c_hora}!")
-            st.balloons()
+    preco_estimado = servicos_disponiveis[servico_selecionado]
+    st.info(f"💵 Valor do serviço: R$ {preco_estimado:.2f}")
+    
+    data_agendada = st.date_input("Escolha o Dia:", datetime.now(TZ).date())
+    
+    # Criação de horários de 30 em 30 minutos
+    slots_horario = [f"{h:02d}:00" for h in range(8, 20)] + [f"{h:02d}:30" for h in range(8, 20)]
+    slots_horario.sort()
+    
+    horario_selecionado = st.selectbox("Escolha o Horário:", slots_horario)
+    
+    enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
+    
+    if enviar_agendamento:
+        if not cliente_nome.strip():
+            st.error("Por favor, preencha o seu nome.")
         else:
-            st.error(f"⚠️ Sentimos muito, mas o horário das **{c_hora}** já foi reservado para essa data.")
-            
-            # Varre o banco e busca os horários alternativos para sugerir
-            sugestoes = buscar_sugestoes_horarios(salao_id, data_str)
-            if sugestoes:
-                st.info("💡 **Veja outras opções de horários livres para este mesmo dia:**")
-                for sug in sugestoes:
-                    st.markdown(f"• ✨ Horário das **{sug}** está disponível")
-                st.write("Por favor, selecione uma das opções acima no menu e tente reservar novamente.")
-            else:
-                st.warning("Todas as vagas para este dia foram preenchidas. Que tal escolher outra data?")
+            sucesso = salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_selecionado, data_agendada, horario_selecionado)
+            if sucesso:
+                st.success(f"🎉 Excelente, {cliente_nome}! Seu horário para o dia {data_agendada.strftime('%d/%m/%Y')} às {horario_selecionado} foi reservado com sucesso!")
+                st.balloons()
