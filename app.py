@@ -124,6 +124,11 @@ def inicializar_banco():
                 hora TEXT NOT NULL
             );
         """))
+        # Força a criação da coluna de contato caso a tabela já existisse no Supabase sem ela
+        try:
+            conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cliente_contato TEXT;"))
+        except:
+            pass
 
 try:
     inicializar_banco()
@@ -650,7 +655,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço atualizado!")
+            st.success("Serviço updated!")
             time.sleep(0.5)
             st.rerun()
             
