@@ -154,7 +154,7 @@ def inicializar_banco():
                 valor NUMERIC NOT NULL
             );
         """))
-        # NOVA TABELA PARA OS AGENDAMENTOS DOS CLIENTES
+        # TABELA PARA OS AGENDAMENTOS DOS CLIENTES
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id SERIAL PRIMARY KEY,
@@ -173,8 +173,7 @@ except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
     st.stop()
 
-# --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS DE SEGURANÇA (CÓDIGO DO TÉO) ---
-# Estas funções garantem que carregamos os dados do banco antes do login
+# --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS DE SEGURANÇA ---
 def carregar_dados_iniciais():
     try:
         with engine.connect() as conn:
@@ -395,17 +394,14 @@ def gerar_pdf_contabilidade(df, mes_ref):
 
 
 # ===================================================================================
-# ROTEAMENTO DA PÁGINA: CHECAGEM SE É LINK DE CLIENTE OU PAINEL INTERNO DO SALÃO
+# ROTEAMENTO DA PÁGINA: INTEGRAÇÃO E ROTEAMENTO INTELIGENTE (CLIENTE VS SALÃO)
 # ===================================================================================
+# Carrega dados mestres do banco necessários para as rotas
+admin_hash1, admin_hash2, usuarios_cadastrados = carregar_dados_iniciais()
 query_params = st.query_params
 
-if "salao" in query_params:
-    # -------------------------------------------------------------------------------
-    # INTERFACE PÚBLICA: TELA DO CLIENTE FINAL (SEM LOGIN)
-    # -------------------------------------------------------------------------------
-    salao_id = query_params["salao"].strip().lower()
-    
-    # Valida se o salão realmente existe no banco antes de abrir
+# Função auxiliar unificada para renderizar a interface limpa de agendamento (sem opção de login)
+def renderizar_agendamento_cliente(salao_id):
     usuarios_existentes = carregar_usuarios()
     if salao_id not in usuarios_existentes:
         st.error("❌ Link Inválido ou Salão não encontrado no sistema.")
@@ -453,15 +449,47 @@ if "salao" in query_params:
                     st.write("Escolha uma das opções acima alterando o seletor de horários e tente novamente.")
                 else:
                     st.error("Desculpe, este dia está completamente lotado! Tente escolher outra data.")
+
+# --- ROTA 1: ACESSO POR LINK PERSONALIZADO (Ex: ?salao=barbearia) ---
+# Entra direto no agendamento do salão correspondente, totalmente sem opções de login
+if "salao" in query_params:
+    salao_id = query_params["salao"].strip().lower()
+    renderizar_agendamento_cliente(salao_id)
     st.stop()
 
+# --- ROTA 2: ACESSO PELO APP SECUNDÁRIO LIMPO (Sem parâmetros no link) ---
+# Se o usuário não estiver autenticado e abrir o app principal, oferecemos as duas opções limpas
+if not st.session_state.autenticado:
+    st.markdown('<div class="sim-header"><span class="sim-header-title">✂️ Portal Fio & Caixa</span></div>', unsafe_allow_html=True)
+    
+    opcao_portal = st.radio(
+        "Como deseja navegar hoje?",
+        ["📅 Sou Cliente (Quero Agendar Horário)", "🔒 Área Restrita (Login do Salão)"],
+        horizontal=True
+    )
+    
+    if opcao_portal == "📅 Sou Cliente (Quero Agendar Horário)":
+        usuarios_existentes = carregar_usuarios()
+        # Filtramos o usuário admin padrão da listagem de agendamento dos clientes
+        opcoes_saloes = {user_id.replace("_", " ").title(): user_id for user_id in usuarios_existentes.keys() if user_id != 'admin'}
+        
+        if not opcoes_saloes:
+            st.info("Nenhum salão cadastrado no sistema por enquanto.")
+        else:
+            st.subheader("Selecione o salão para agendar seu horário:")
+            salao_selecionado_nome = st.selectbox("Escolha o Salão:", list(opcoes_saloes.keys()))
+            salao_id_selecionado = opcoes_saloes[salao_selecionado_nome]
+            
+            st.markdown("---")
+            # Renderiza o agendamento limpo do salão escolhido
+            renderizar_agendamento_cliente(salao_id_selecionado)
+        st.stop()
+    
+    # Se o usuário escolher "Área Restrita", ele continuará para a rotina de Login abaixo
 
 # -------------------------------------------------------------------------------
-# INTEGRAÇÃO DE LOGIN E ROTINA ORIGINAL DO DONO DO SALÃO
+# INTEGRALIZAÇÃO DA ROTINA DE LOGIN ORIGINAL DO SALÃO (ÁREA RESTRITA)
 # -------------------------------------------------------------------------------
-# --- CARREGAMENTO DE DADOS COM O CODIGO DO TEÓ ---
-admin_hash1, admin_hash2, usuarios_cadastrados = carregar_dados_iniciais()
-
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
@@ -551,7 +579,7 @@ if st.session_state.eh_admin:
                         "senha": hash_password(nova_senha), "email": novo_email,
                         "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"
                     }
-                    salvar_usuarios(usuarios_cadastrados); st.success("Salão salvo com sucesso!"); st.rerun()
+                    salvar_usuarios(usuarios_cadastrados); st.success("Salão saved com sucesso!"); st.rerun()
 
     with tab_ger:
         usuarios_cadastrados = carregar_usuarios()
@@ -603,7 +631,6 @@ if not df_fluxo_caixa.empty:
 else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
-# ADICIONADO A TABA DE AGENDAMENTOS NA NAVEGAÇÃO PRINCIPAL
 tab1, tab0, tab_agenda, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agenda de Clientes", "📜 Histórico"])
 
 with tab1:
@@ -696,14 +723,11 @@ with tab0:
             st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# -------------------------------------------------------------------------------
-# NOVA TABA INTERNA: CENTRAL DE GERENCIAMENTO DE AGENDAMENTOS DO DONO
-# -------------------------------------------------------------------------------
 with tab_agenda:
     st.subheader("🔗 Seu Link de Agendamento Exclusivo")
     
-    # Reconhece dinamicamente a URL base em que o app está hospedado
-    url_base = "https://32k.streamlit.app" # URL que você está usando atualmente
+    # Substitua pelo link real se você criar um app secundário como '32k-clientes'
+    url_base = "https://32k.streamlit.app" 
     link_cliente = f"{url_base}/?salao={st.session_state.usuario_logado}"
     
     st.info(f"Copie o link abaixo e mande para seus clientes no WhatsApp:\n\n**{link_cliente}**")
@@ -714,7 +738,6 @@ with tab_agenda:
     df_agendamentos = carregar_agendamentos_salao(st.session_state.usuario_logado)
     
     if not df_agendamentos.empty:
-        # Formata a exibição amigável para a tabela do painel
         df_view = df_agendamentos.copy()
         df_view['data'] = df_view['data'].dt.strftime('%d/%m/%Y')
         df_view = df_view.rename(columns={
