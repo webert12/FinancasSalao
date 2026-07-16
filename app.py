@@ -58,31 +58,72 @@ except Exception as e:
 # --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS admin_config (
-            id INT PRIMARY KEY,
-            hash1 TEXT NOT NULL,
-            hash2 TEXT NOT NULL,
-            url_sistema TEXT
-        );"""))
-        
-        # Garante a coluna url_sistema se a tabela já existia antes
+        # 1. Tabela admin_config
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS admin_config (
+                id INT PRIMARY KEY,
+                hash1 TEXT NOT NULL,
+                hash2 TEXT NOT NULL,
+                url_sistema TEXT
+            );
+        """))
         try:
             conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
         except:
             pass
 
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY,senha TEXT NOT NULL,email TEXT,tipo TEXT,vencimento TEXT,status TEXT);"""))
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY,usuario_id TEXT NOT NULL,nome TEXT NOT NULL,preco NUMERIC NOT NULL);"""))
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY,usuario_id TEXT NOT NULL,data TEXT NOT NULL,tipo TEXT NOT NULL,descricao TEXT NOT NULL,valor NUMERIC NOT NULL);"""))
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS agendamentos (
-            id SERIAL PRIMARY KEY,
-            usuario_id TEXT NOT NULL,
-            cliente_nome TEXT NOT NULL,
-            cliente_contato TEXT,
-            servico_nome TEXT NOT NULL,
-            data TEXT NOT NULL,
-            hora TEXT NOT NULL
-        );"""))
+        # 2. Tabela usuarios
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id TEXT PRIMARY KEY,
+                senha TEXT NOT NULL,
+                email TEXT,
+                tipo TEXT,
+                vencimento TEXT,
+                status TEXT
+            );
+        """))
+        # Garante de forma segura que as novas colunas existam caso a tabela já estivesse criada no Supabase
+        for col, col_type in [("email", "TEXT"), ("status", "TEXT")]:
+            try:
+                conn.execute(text(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {col} {col_type};"))
+            except:
+                pass
+
+        # 3. Tabela servicos
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS servicos (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                nome TEXT NOT NULL,
+                preco NUMERIC NOT NULL
+            );
+        """))
+
+        # 4. Tabela fluxo_caixa
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS fluxo_caixa (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                tipo TEXT NOT NULL,
+                descricao TEXT NOT NULL,
+                valor NUMERIC NOT NULL
+            );
+        """))
+
+        # 5. Tabela agendamentos
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS agendamentos (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                cliente_nome TEXT NOT NULL,
+                cliente_contato TEXT,
+                servico_nome TEXT NOT NULL,
+                data TEXT NOT NULL,
+                hora TEXT NOT NULL
+            );
+        """))
 
 try:
     inicializar_banco()
@@ -107,7 +148,10 @@ def salvar_admin_hashes(password1, password2, url=""):
             conn.execute(text("""
                 INSERT INTO admin_config (id, hash1, hash2, url_sistema) 
                 VALUES (1, :h1, :h2, :url)
-                ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
+                ON CONFLICT (id) DO UPDATE SET 
+                    hash1 = EXCLUDED.hash1, 
+                    hash2 = EXCLUDED.hash2, 
+                    url_sistema = EXCLUDED.url_sistema
             """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
     except Exception as e:
         st.error(f"Erro ao salvar configurações administrativas: {e}")
@@ -130,10 +174,27 @@ def carregar_usuarios():
     return {}
 
 def salvar_usuarios(usuarios_dict):
-    if not usuarios_dict: return
+    if not usuarios_dict: 
+        return
     with engine.begin() as conn:
         for k, v in usuarios_dict.items():
-            conn.execute(text("""INSERT INTO usuarios (id, senha, email, tipo, vencimento, status)VALUES (:id, :senha, :email, :tipo, :vencimento, :status)ON CONFLICT (id) DO UPDATE SETsenha = EXCLUDED.senha, email = EXCLUDED.email,tipo = EXCLUDED.tipo, vencimento = EXCLUDED.vencimento, status = EXCLUDED.status"""), {"id": k, "senha": v["senha"], "email": v.get("email", ""),"tipo": v["tipo"], "vencimento": str(v["vencimento"]), "status": v["status"]})
+            conn.execute(text("""
+                INSERT INTO usuarios (id, senha, email, tipo, vencimento, status)
+                VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
+                ON CONFLICT (id) DO UPDATE SET
+                    senha = EXCLUDED.senha, 
+                    email = EXCLUDED.email,
+                    tipo = EXCLUDED.tipo, 
+                    vencimento = EXCLUDED.vencimento, 
+                    status = EXCLUDED.status
+            """), {
+                "id": k, 
+                "senha": v["senha"], 
+                "email": v.get("email", ""),
+                "tipo": v["tipo"], 
+                "vencimento": str(v["vencimento"]), 
+                "status": v["status"]
+            })
 
 def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
@@ -153,9 +214,17 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
-            conn.execute(text("""UPDATE servicos SET nome = :novo, preco = :precoWHERE usuario_id = :user AND nome = :antigo"""), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
+            conn.execute(text("""
+                UPDATE servicos 
+                SET nome = :novo, 
+                    preco = :preco
+                WHERE usuario_id = :user AND nome = :antigo
+            """), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
         else:
-            conn.execute(text("""INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"""), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
+            conn.execute(text("""
+                INSERT INTO servicos (usuario_id, nome, preco) 
+                VALUES (:user, :nome, :preco)
+            """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
 
 def deletar_servico_banco(nome):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
@@ -179,13 +248,22 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.begin() as conn:
-        conn.execute(text("""INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor)VALUES (:user, :data, :tipo, :descricao, :valor)"""), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
+        conn.execute(text("""
+            INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor)
+            VALUES (:user, :data, :tipo, :descricao, :valor)
+        """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
     with engine.begin() as conn:
-        conn.execute(text("""UPDATE fluxo_caixaSET tipo = 'Entrada', data = :data, descricao = :descWHERE id = :id AND usuario_id = :user"""), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+        conn.execute(text("""
+            UPDATE fluxo_caixa
+            SET tipo = 'Entrada', 
+                data = :data, 
+                descricao = :desc
+            WHERE id = :id AND usuario_id = :user
+        """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
 
 # --- FUNÇÕES DE AGENDAMENTO ---
 def salvar_agendamento(salao_id, cliente, contato, servico, data, hora):
@@ -621,7 +699,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço atualizado!")
+            st.success("Serviço updated!")
             time.sleep(0.5)
             st.rerun()
             
@@ -635,7 +713,7 @@ with st.sidebar:
     with st.expander("📦 Central de Backups"): 
         st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.") 
         backup_dados = gerar_backup_json_completo() 
-        st.download_button( label="📥 Baixar Backup Geral (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", mime="application/json", use_container_width=True ) 
+        st.download_button( label="📥 Baixar Backup Geral (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d/%m/%Y')}.json", mime="application/json", use_container_width=True ) 
         st.markdown("<br><br>", unsafe_allow_html=True)
         
     if st.button("🚪 Sair do Sistema", use_container_width=True): 
