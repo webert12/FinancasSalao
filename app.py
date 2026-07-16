@@ -30,7 +30,7 @@ st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page
 # --- INJEÇÃO DE CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
-/* CSS personalizado pode ser inserido aqui */
+/* Estilos customizados */
 </style>
 """, unsafe_allow_html=True)
 
@@ -42,7 +42,7 @@ else:
     st.stop()
 
 # --- Inicialização da Engine de Banco de Dados ---
-@st.cache_resourced
+@st.cache_resource
 def init_connection(url):
     return create_engine(url, pool_pre_ping=True)
 
@@ -276,12 +276,12 @@ if "salao" in query_params:
         if enviar_agendamento:
             if cliente_nome.strip():
                 salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_selecionado, data_agendada, horario_selecionado)
-                st.success(f"🎉 Pronto, {cliente_nome}! Seu horário para {servico_selecionado} foi reservado com sucesso no dia {data_agendada.strftime('%d/%m/%Y')} às {horario_selecionado}!")
+                st.success(f"🎉 Pronto, {cliente_nome}! Seu horário foi agendado!")
                 st.balloons()
             else:
                 st.error("Por favor, informe seu nome para confirmar a reserva.")
                 
-    st.stop() # Finaliza a execução aqui para o cliente, não mostrando a tela de login.
+    st.stop()
 
 # ==============================================================================
 # --- CONTROLE DE ACESSO (SALAO / ADMIN) ---
@@ -444,8 +444,8 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    st.markdown('<div>Fio&Caixa</div>', unsafe_allow_html=True)
-    st.markdown('<div>Ações rápidas</div>', unsafe_allow_html=True)
+    st.markdown('<div class="caixa-header">Fio&Caixa</div>', unsafe_allow_html=True)
+    st.markdown('<div class="acoes-rapidas">Ações rápidas</div>', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     
     with col_a: 
@@ -569,8 +569,8 @@ with st.sidebar:
     novo_preco = st.number_input("Preço Cobrado:", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
     
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
-        if novo_servico:
-            salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
+        if autocomplete_servico := novo_servico:
+            salvar_ou_atualizar_servico(servico_sel, autocomplete_servico, novo_preco)
             st.success("Serviço atualizado com sucesso!")
             time.sleep(0.5)
             st.rerun()
@@ -585,7 +585,6 @@ with st.sidebar:
     
     # GERADOR DE LINK AUTOMÁTICO PARA O DONO DO SALÃO
     st.subheader("🔗 Link de Agendamento")
-    # Nota: Caso use um subdomínio específico, o dono do salão pode atualizar este endereço.
     base_url = "https://seu-app.streamlit.app" 
     link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
     st.info("Envie o link abaixo para seus clientes. Ao acessá-lo, eles poderão reservar horários diretamente sem precisar de login!")
