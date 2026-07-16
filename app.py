@@ -7,6 +7,7 @@ import json
 import time
 import hashlib
 from io import BytesIO
+import urllib.parse  # Biblioteca adicionada para tratar segurança e formatação de links/URLs
 
 # Bibliotecas de Conexão Direta SQL
 from sqlalchemy import create_engine, text
@@ -295,7 +296,7 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
             UPDATE fluxo_caixa 
             SET tipo = 'Entrada', data = :data, descricao = :desc
             WHERE id = :id AND usuario_id = :user
-        """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+        """), {"data": data_hoje, "desc": nova_desc, "id": int(id_registro), "user": usuario})
 
 # --- FUNÇÕES DO MÓDULO DE AGENDAMENTO EXCLUSIVO ---
 
@@ -445,7 +446,9 @@ def renderizar_agendamento_cliente(salao_id):
 
 # --- ROTA 1: CLIENTE ACESSANDO PELO LINK DO WHATSAPP (Ex: ?salao=barbearia) ---
 if "salao" in query_params:
-    salao_id = query_params["salao"].strip().lower()
+    salao_id_raw = query_params["salao"]
+    # Decodifica corretamente os caracteres especiais e espaços (ex: %20 vira espaço)
+    salao_id = urllib.parse.unquote(salao_id_raw).strip().lower()
     renderizar_agendamento_cliente(salao_id)
     st.stop()  # Impede totalmente a renderização de qualquer formulário de login
 
@@ -689,8 +692,9 @@ with tab0:
 with tab_agenda:
     st.subheader("🔗 Seu Link de Agendamento Exclusivo")
     
-    # Gera o link correto de acordo com a URL do seu Streamlit
-    link_cliente = f"https://32k.streamlit.app/?salao={st.session_state.usuario_logado}"
+    # Codifica o login para garantir compatibilidade com WhatsApp (espaços viram %20)
+    usuario_codificado = urllib.parse.quote(st.session_state.usuario_logado)
+    link_cliente = f"https://32k.streamlit.app/?salao={usuario_codificado}"
     
     st.info("Copie o link abaixo para enviar para seus clientes no WhatsApp. Ao clicar nele, o cliente entrará direto na tela de agendamento exclusiva do seu salão, sem precisar logar.")
     st.code(link_cliente, language="markdown")
