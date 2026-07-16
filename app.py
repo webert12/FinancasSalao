@@ -30,7 +30,10 @@ st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page
 # --- INJEÇÃO DE CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
-/* Estilos customizados */
+/* Customizações visuais profissionais */
+.reportview-container {
+    background: #0e1117;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -55,11 +58,22 @@ except Exception as e:
 # --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY,hash1 TEXT NOT NULL,hash2 TEXT NOT NULL);"""))
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS admin_config (
+            id INT PRIMARY KEY,
+            hash1 TEXT NOT NULL,
+            hash2 TEXT NOT NULL,
+            url_sistema TEXT
+        );"""))
+        
+        # Garante a coluna url_sistema se a tabela já existia antes
+        try:
+            conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
+        except:
+            pass
+
         conn.execute(text("""CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY,senha TEXT NOT NULL,email TEXT,tipo TEXT,vencimento TEXT,status TEXT);"""))
         conn.execute(text("""CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY,usuario_id TEXT NOT NULL,nome TEXT NOT NULL,preco NUMERIC NOT NULL);"""))
         conn.execute(text("""CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY,usuario_id TEXT NOT NULL,data TEXT NOT NULL,tipo TEXT NOT NULL,descricao TEXT NOT NULL,valor NUMERIC NOT NULL);"""))
-        # NOVA TABELA PARA AGENDAMENTOS DOS CLIENTES
         conn.execute(text("""CREATE TABLE IF NOT EXISTS agendamentos (
             id SERIAL PRIMARY KEY,
             usuario_id TEXT NOT NULL,
@@ -80,19 +94,30 @@ except Exception as e:
 def carregar_admin_hashes():
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
+            result = conn.execute(text("SELECT hash1, hash2, url_sistema FROM admin_config WHERE id = 1")).fetchone()
             if result:
-                return result[0], result[1]
+                return result[0], result[1], result[2]
     except:
         pass
-    return None, None
+    return None, None, None
 
-def salvar_admin_hashes(password1, password2):
+def salvar_admin_hashes(password1, password2, url=""):
     try:
         with engine.begin() as conn:
-            conn.execute(text("""INSERT INTO admin_config (id, hash1, hash2) VALUES (1, :h1, :h2)ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2"""), {"h1": hash_password(password1), "h2": hash_password(password2)})
+            conn.execute(text("""
+                INSERT INTO admin_config (id, hash1, hash2, url_sistema) 
+                VALUES (1, :h1, :h2, :url)
+                ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
+            """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
     except Exception as e:
-        st.error(f"Erro ao salvar hashes administrativos: {e}")
+        st.error(f"Erro ao salvar configurações administrativas: {e}")
+
+def atualizar_url_sistema(url):
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
+    except Exception as e:
+        st.error(f"Erro ao atualizar URL do sistema: {e}")
 
 def carregar_usuarios():
     try:
@@ -114,7 +139,6 @@ def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
     return carregar_servicos_por_salao(usuario)
 
-# Carrega serviços específicos de um salão (usado na tela pública do cliente)
 def carregar_servicos_por_salao(salao_id):
     try:
         with engine.connect() as conn:
@@ -239,18 +263,17 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # ==============================================================================
-# 🎯 INTERCEPTADOR: ROTA DE AGENDAMENTO DO CLIENTE (SEM LOGIN)
+# 🎯 INTERCEPTADOR: ROTA DE AGENDAMENTO DO CLIENTE (SEM LOGIN/TELA LIMPA)
 # ==============================================================================
 query_params = st.query_params
 if "salao" in query_params:
     salao_id = query_params["salao"].strip().lower()
     
-    # Renderiza a página limpa apenas para o agendamento do cliente
+    # Renderiza a página sem login direto para o agendamento
     st.title(f"📅 Agendamento Online - {salao_id.title()}")
-    st.markdown("Reserve seu horário de forma rápida e simples, sem complicações!")
+    st.markdown("Escolha as opções abaixo para reservar o seu horário de forma rápida.")
     st.markdown("---")
     
-    # Carrega os serviços cadastrados especificamente por este salão
     servicos_disponiveis = carregar_servicos_por_salao(salao_id)
     
     with st.form("form_agendamento_cliente"):
@@ -259,13 +282,11 @@ if "salao" in query_params:
         
         servico_selecionado = st.selectbox("Selecione o Serviço desejado:", list(servicos_disponiveis.keys()))
         
-        # Mostra o valor do serviço selecionado
         preco_estimado = servicos_disponiveis[servico_selecionado]
         st.info(f"💵 Valor estimado do serviço: R$ {preco_estimado:.2f}")
         
         data_agendada = st.date_input("Escolha o Dia:", datetime.now(TZ).date())
         
-        # Cria slots de horário dinâmicos das 08h00 às 19h30
         slots_horario = [f"{h:02d}:00" for h in range(8, 20)] + [f"{h:02d}:30" for h in range(8, 20)]
         slots_horario.sort()
         
@@ -276,30 +297,31 @@ if "salao" in query_params:
         if enviar_agendamento:
             if cliente_nome.strip():
                 salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_selecionado, data_agendada, horario_selecionado)
-                st.success(f"🎉 Pronto, {cliente_nome}! Seu horário foi agendado!")
+                st.success(f"🎉 Pronto, {cliente_nome}! Seu horário foi reservado com sucesso!")
                 st.balloons()
             else:
-                st.error("Por favor, informe seu nome para confirmar a reserva.")
+                st.error("Por favor, informe seu nome para concluir a reserva.")
                 
     st.stop()
 
 # ==============================================================================
 # --- CONTROLE DE ACESSO (SALAO / ADMIN) ---
 # ==============================================================================
-admin_hash1, admin_hash2 = carregar_admin_hashes()
+admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
 
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
-        st.warning("Nenhum Administrador Mestre encontrado no banco de dados. Configure suas senhas master abaixo:")
+        st.warning("Defina as credenciais mestre de Administrador do sistema abaixo:")
         with st.form("primeiro_acesso"):
-            nova_adm_pass1 = st.text_input("Definir Senha PRINCIPAL de ADMIN:", type="password")
-            nova_adm_pass2 = st.text_input("Definir Senha SECUNDÁRIA de ADMIN:", type="password")
+            nova_adm_pass1 = st.text_input("Senha PRINCIPAL de ADMIN:", type="password")
+            nova_adm_pass2 = st.text_input("Senha SECUNDÁRIA de ADMIN:", type="password")
+            url_padrao_app = st.text_input("URL Real do seu App (Ex: https://fioecaixa.streamlit.app):")
             if st.form_submit_button("Criar Acesso Seguro"):
                 if nova_adm_pass1 and nova_adm_pass2:
-                    salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2)
-                    st.success("Administrador configurado! Reiniciando...")
+                    salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
+                    st.success("Configuração inicial salva! Recarregando...")
                     time.sleep(1.5)
                     st.rerun()
         st.stop()
@@ -323,7 +345,9 @@ if not st.session_state.autenticado:
                             time.sleep(1.5)
                             st.rerun() 
                         else: 
-                            st.error("Usuário ou e-mail correspondente não encontrado.") 
+                            st.error("As senhas informadas não coincidem.") 
+                    else: 
+                        st.error("Usuário ou e-mail correspondente não encontrado.") 
             with c_rec2: 
                 if st.form_submit_button("Cancelar"): 
                     st.session_state.recuperando_senha = False
@@ -366,7 +390,7 @@ if not st.session_state.autenticado:
 # --- INTERFACE 1: ADMINISTRADOR MESTRE ---
 if st.session_state.eh_admin:
     st.title("👑 Central do Administrador")
-    tab_cad, tab_ger = st.tabs(["➕ Cadastrar/Renovar", "⚙️ Gerenciar Salões"])
+    tab_cad, tab_ger, tab_config = st.tabs(["➕ Cadastrar/Renovar", "⚙️ Gerenciar Salões", "🔧 Configurações do Sistema"])
     
     with tab_cad: 
         with st.form("form_cadastro_cliente"): 
@@ -380,8 +404,9 @@ if st.session_state.eh_admin:
                     vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validate)).strftime("%Y-%m-%d") 
                     usuarios_cadastrados[novo_usuario] = { "senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo" } 
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Salão saved successfully!")
+                    st.success("Salão cadastrado!")
                     st.rerun()
+
     with tab_ger: 
         usuarios_cadastrados = carregar_usuarios() 
         if not usuarios_cadastrados: 
@@ -391,7 +416,7 @@ if st.session_state.eh_admin:
             dados = usuarios_cadastrados[salao_sel] 
             with st.expander("📝 Editar Informações", expanded=True): 
                 e_email = st.text_input("E-mail:", value=dados.get("email", "")) 
-                e_senha_nova = st.text_input("Nova Senha (deixe em branco):", type="password") 
+                e_senha_nova = st.text_input("Nova Senha (deixe em branco para manter):", type="password") 
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1) 
                 e_venc = st.date_input("Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d")) 
                 e_status = st.selectbox("Status:", ["Ativo", "Suspenso"], index=0 if dados['status'] == "Ativo" else 1) 
@@ -401,12 +426,22 @@ if st.session_state.eh_admin:
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Atualizado!")
                     st.rerun() 
-            if st.checkbox(f"Confirmar exclusão de: {salao_sel}"): 
+            if st.checkbox(f"Confirmar exclusão definitiva de: {salao_sel}"): 
                 if st.button("EXCLUIR DEFINITIVAMENTE", type="primary"): 
                     with engine.begin() as conn: 
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel}) 
-                    st.warning("Removido!")
+                    st.warning("Salão removido com sucesso!")
                     st.rerun()
+
+    with tab_config:
+        st.subheader("Configurações Globais")
+        nova_url_input = st.text_input("URL Real Publicada do App (Ex: https://fioecaixa.streamlit.app):", value=url_sistema_salva if url_sistema_salva else "")
+        if st.button("Salvar URL do Sistema"):
+            atualizar_url_sistema(nova_url_input.strip())
+            st.success("URL de produção atualizada com sucesso no banco de dados!")
+            time.sleep(1)
+            st.rerun()
+
     with st.sidebar: 
         if st.button("🚪 Sair do Modo ADM", use_container_width=True): 
             st.session_state.autenticado = False
@@ -432,23 +467,22 @@ else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
 # ==============================================================================
-# 🔗 GERAÇÃO DE LINK DE AGENDAMENTO (EM DESTAQUE NO TOPO DA TELA PRINCIPAL)
+# 🔗 GERAÇÃO DINÂMICA DO LINK DE AGENDAMENTO (SALVO NO SUPABASE)
 # ==============================================================================
-base_url = "https://seu-app.streamlit.app"  # IMPORTANTE: Altere para o link do seu app publicado
+base_url = url_sistema_salva if url_sistema_salva else "https://fioecaixa.streamlit.app"
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 
 st.markdown("""
-<div style="background-color: #1e2127; padding: 15px; border-radius: 10px; border-left: 5px solid #d4af37; margin-bottom: 5px;">
-    <h4 style="color: #d4af37; margin: 0 0 8px 0;">🔗 Seu Link de Agendamento Online</h4>
-    <p style="color: #ffffff; font-size: 14px; margin: 0;">
-        Copie o endereço abaixo para enviar aos seus clientes pelo WhatsApp ou incluir na Bio do seu Instagram.
+<div style="background-color: #1e2127; padding: 15px; border-radius: 10px; border-left: 5px solid #d4af37; margin-bottom: 20px;">
+    <h4 style="color: #d4af37; margin: 0 0 10px 0;">🔗 Seu Link de Agendamento Online</h4>
+    <p style="color: #ffffff; font-size: 14px; margin: 0 0 10px 0;">
+        Envie o link abaixo para seus clientes pelo WhatsApp ou adicione na Bio do seu Instagram. Eles conseguirão agendar <b>sem fazer qualquer login</b>!
     </p>
 </div>
 """, unsafe_allow_html=True)
 st.code(link_clientes, language="text")
-st.markdown("---")
 
-# ADICIONADA A ABA "📅 Agendamentos" NA VISUALIZAÇÃO DO DONO DO SALÃO
+# --- ABAS PRINCIPAIS ---
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 with tab1:
@@ -558,7 +592,6 @@ with tab_agend:
     if not df_agendamentos.empty:
         st.dataframe(df_agendamentos.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
         
-        # Opção para o dono do salão gerenciar os agendamentos realizados
         st.markdown("---")
         st.write("🔧 **Gerenciar Agendamentos**")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
@@ -566,11 +599,11 @@ with tab_agend:
         
         if st.button("Remover / Concluir Agendamento Selecionado", type="primary"):
             deletar_agendamento(opcoes_agend[agend_selecionado])
-            st.success("Agendamento concluído/removido!")
+            st.success("Agendamento atualizado com sucesso!")
             time.sleep(0.5)
             st.rerun()
     else:
-        st.info("Nenhum agendamento pendente no momento. Divulgue seu link acima para receber reservas online!")
+        st.info("Nenhum agendamento pendente no momento. Divulgue seu link para receber reservas!")
 
 with st.sidebar:
     st.header("⚙️ Configurações")
@@ -588,7 +621,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço atualizado com sucesso!")
+            st.success("Serviço atualizado!")
             time.sleep(0.5)
             st.rerun()
             
