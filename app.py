@@ -154,7 +154,6 @@ def inicializar_banco():
                 valor NUMERIC NOT NULL
             );
         """))
-        # TABELA PARA OS AGENDAMENTOS DOS CLIENTES
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id SERIAL PRIMARY KEY,
@@ -177,11 +176,9 @@ except Exception as e:
 def carregar_dados_iniciais():
     try:
         with engine.connect() as conn:
-            # Carrega Admin
             admin = conn.execute(text("SELECT hash1, hash2 FROM admin_config WHERE id = 1")).fetchone()
             h1, h2 = (admin[0], admin[1]) if admin else (None, None)
             
-            # Carrega Usuários
             df_users = pd.read_sql("SELECT * FROM usuarios", conn)
             users = {row['id']: dict(row) for _, row in df_users.iterrows()} if not df_users.empty else {}
             
@@ -309,14 +306,14 @@ def verificar_horario_disponivel(usuario_id, data_str, horario_str):
         return result is None
 
 def buscar_sugestoes_horarios(usuario_id, data_str):
-    horarios_comerciais = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)] # 08:00 até 18:30
+    horarios_comerciais = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
     with engine.connect() as conn:
         query = text("SELECT horario FROM agendamentos WHERE usuario_id = :user AND data = :data")
         df_ocupados = pd.read_sql(query, conn, params={"user": usuario_id, "data": data_str})
     
     ocupados = df_ocupados['horario'].tolist() if not df_ocupados.empty else []
     disponiveis = [h for h in horarios_comerciais if h not in ocupados]
-    return disponiveis[:5] # Retorna até 5 alternativas livres
+    return disponiveis[:5]
 
 def registrar_agendamento(usuario_id, nome, telefone, servico, data_str, horario_str):
     with engine.begin() as conn:
@@ -394,13 +391,12 @@ def gerar_pdf_contabilidade(df, mes_ref):
 
 
 # ===================================================================================
-# ROTEAMENTO DA PÁGINA: INTEGRAÇÃO E ROTEAMENTO INTELIGENTE (CLIENTE VS SALÃO)
+# ROTEAMENTO E INTEGRAÇÃO DE ACESSOS (CLIENTE VS LOGISTICA INTERNA)
 # ===================================================================================
-# Carrega dados mestres do banco necessários para as rotas
 admin_hash1, admin_hash2, usuarios_cadastrados = carregar_dados_iniciais()
 query_params = st.query_params
 
-# Função auxiliar unificada para renderizar a interface limpa de agendamento (sem opção de login)
+# Interface exclusiva de agendamento de cliente
 def renderizar_agendamento_cliente(salao_id):
     usuarios_existentes = carregar_usuarios()
     if salao_id not in usuarios_existentes:
@@ -422,7 +418,6 @@ def renderizar_agendamento_cliente(salao_id):
             c_serv = st.selectbox("Selecione o Serviço:", list(servicos_publicos.keys()))
             c_data = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
             
-        # Lista padrão de horários comerciais de 30 em 30 minutos
         lista_horarios = [f"{h:02d}:{m:02d}" for h in range(8, 19) for m in (0, 30)]
         c_hora = st.selectbox("Selecione o Horário Inicial Pretendido:", lista_horarios)
         
@@ -433,14 +428,12 @@ def renderizar_agendamento_cliente(salao_id):
             st.error("⚠️ Por favor, preencha o seu nome e seu telefone para podermos confirmar.")
         else:
             data_str = c_data.strftime('%Y-%m-%d')
-            # 1. Verifica se está disponível
             if verificar_horario_disponivel(salao_id, data_str, c_hora):
                 registrar_agendamento(salao_id, c_nome, c_tel, c_serv, data_str, c_hora)
                 st.success(f"🎉 Perfeito, {c_nome}! Seu horário no dia {c_data.strftime('%d/%m/%Y')} às {c_hora} foi agendado com sucesso!")
                 st.balloons()
             else:
                 st.warning(f"⚠️ O horário de **{c_hora}** já está ocupado para esta data.")
-                # 2. Gera automaticamente as opções inteligentes sugeridas
                 sugestoes = buscar_sugestoes_horarios(salao_id, data_str)
                 if sugestoes:
                     st.info("💡 **Veja os horários mais próximos ainda livres para hoje:**")
@@ -450,47 +443,15 @@ def renderizar_agendamento_cliente(salao_id):
                 else:
                     st.error("Desculpe, este dia está completamente lotado! Tente escolher outra data.")
 
-# --- ROTA 1: ACESSO POR LINK PERSONALIZADO (Ex: ?salao=barbearia) ---
-# Entra direto no agendamento do salão correspondente, totalmente sem opções de login
+# --- ROTA 1: CLIENTE ACESSANDO PELO LINK DO WHATSAPP (Ex: ?salao=barbearia) ---
 if "salao" in query_params:
     salao_id = query_params["salao"].strip().lower()
     renderizar_agendamento_cliente(salao_id)
-    st.stop()
+    st.stop()  # Impede totalmente a renderização de qualquer formulário de login
 
-# --- ROTA 2: ACESSO PELO APP SECUNDÁRIO LIMPO (Sem parâmetros no link) ---
-# Se o usuário não estiver autenticado e abrir o app principal, oferecemos as duas opções limpas
+# --- ROTA 2: DONO DO SALÃO ENTRANDO NO SISTEMA FINANCEIRO (Sem Parâmetro) ---
 if not st.session_state.autenticado:
-    st.markdown('<div class="sim-header"><span class="sim-header-title">✂️ Portal Fio & Caixa</span></div>', unsafe_allow_html=True)
-    
-    opcao_portal = st.radio(
-        "Como deseja navegar hoje?",
-        ["📅 Sou Cliente (Quero Agendar Horário)", "🔒 Área Restrita (Login do Salão)"],
-        horizontal=True
-    )
-    
-    if opcao_portal == "📅 Sou Cliente (Quero Agendar Horário)":
-        usuarios_existentes = carregar_usuarios()
-        # Filtramos o usuário admin padrão da listagem de agendamento dos clientes
-        opcoes_saloes = {user_id.replace("_", " ").title(): user_id for user_id in usuarios_existentes.keys() if user_id != 'admin'}
-        
-        if not opcoes_saloes:
-            st.info("Nenhum salão cadastrado no sistema por enquanto.")
-        else:
-            st.subheader("Selecione o salão para agendar seu horário:")
-            salao_selecionado_nome = st.selectbox("Escolha o Salão:", list(opcoes_saloes.keys()))
-            salao_id_selecionado = opcoes_saloes[salao_selecionado_nome]
-            
-            st.markdown("---")
-            # Renderiza o agendamento limpo do salão escolhido
-            renderizar_agendamento_cliente(salao_id_selecionado)
-        st.stop()
-    
-    # Se o usuário escolher "Área Restrita", ele continuará para a rotina de Login abaixo
-
-# -------------------------------------------------------------------------------
-# INTEGRALIZAÇÃO DA ROTINA DE LOGIN ORIGINAL DO SALÃO (ÁREA RESTRITA)
-# -------------------------------------------------------------------------------
-if not st.session_state.autenticado:
+    # Caso o admin mestre ainda não exista
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
         st.warning("Nenhum Administrador Mestre encontrado no banco de dados. Configure suas senhas master abaixo:")
@@ -505,6 +466,7 @@ if not st.session_state.autenticado:
                     st.rerun()
         st.stop()
 
+    # Fluxo de Recuperação de Senha
     if st.session_state.recuperando_senha:
         st.title("🔑 Recuperação de Senha Segura")
         with st.form("form_recuperacao"):
@@ -528,7 +490,8 @@ if not st.session_state.autenticado:
                 if st.form_submit_button("Cancelar"): st.session_state.recuperando_senha = False; st.rerun()
         st.stop()
 
-    st.title("✂️ Sistema de Gestão - Login")
+    # TELA DE LOGIN DIRETA E EXCLUSIVA DO SISTEMA
+    st.markdown('<div class="sim-header"><span class="sim-header-title">✂️ Login - Fio & Caixa</span></div>', unsafe_allow_html=True)
     tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
     
     with st.form("form_login"):
@@ -579,7 +542,7 @@ if st.session_state.eh_admin:
                         "senha": hash_password(nova_senha), "email": novo_email,
                         "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo"
                     }
-                    salvar_usuarios(usuarios_cadastrados); st.success("Salão saved com sucesso!"); st.rerun()
+                    salvar_usuarios(usuarios_cadastrados); st.success("Salão cadastrado com sucesso!"); st.rerun()
 
     with tab_ger:
         usuarios_cadastrados = carregar_usuarios()
@@ -613,7 +576,7 @@ if st.session_state.eh_admin:
         if st.button("🚪 Sair do Modo ADM", use_container_width=True): st.session_state.autenticado = False; st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO CLIENTE (DONO DO SALÃO) ---
+# --- INTERFACE 2: PAINEL DO SALÃO (Dono do Salão Logado) ---
 df_fluxo_caixa = carregar_fluxo() 
 servicos = carregar_servicos()
 
@@ -726,11 +689,11 @@ with tab0:
 with tab_agenda:
     st.subheader("🔗 Seu Link de Agendamento Exclusivo")
     
-    # Substitua pelo link real se você criar um app secundário como '32k-clientes'
-    url_base = "https://32k.streamlit.app" 
-    link_cliente = f"{url_base}/?salao={st.session_state.usuario_logado}"
+    # Gera o link correto de acordo com a URL do seu Streamlit
+    link_cliente = f"https://32k.streamlit.app/?salao={st.session_state.usuario_logado}"
     
-    st.info(f"Copie o link abaixo e mande para seus clientes no WhatsApp:\n\n**{link_cliente}**")
+    st.info("Copie o link abaixo para enviar para seus clientes no WhatsApp. Ao clicar nele, o cliente entrará direto na tela de agendamento exclusiva do seu salão, sem precisar logar.")
+    st.code(link_cliente, language="markdown")
     
     st.markdown("---")
     st.subheader("📅 Horários Agendados pelos Clientes")
@@ -776,11 +739,11 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço updated com sucesso!")
+            st.success("Serviço atualizado com sucesso!")
             time.sleep(0.5); st.rerun()
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover do Catálogo", use_container_width=True):
         deletar_servico_banco(servico_sel)
-        st.warning("Serviço removed!")
+        st.warning("Serviço removido!")
         time.sleep(0.5); st.rerun()
         
     st.markdown("---")
