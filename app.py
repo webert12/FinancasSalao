@@ -28,6 +28,18 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira & Agendamento - Salão", layout="wide", page_icon="✂️")
 
+# --- INICIALIZAÇÃO DE VARIÁVEIS DE SESSÃO (PREVINE ATRIBUTEERROR) ---
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+if "usuario_logado" not in st.session_state:
+    st.session_state.usuario_logado = None
+if "eh_admin" not in st.session_state:
+    st.session_state.eh_admin = False
+if "recuperando_senha" not in st.session_state:
+    st.session_state.recuperando_senha = False
+if "formulario_ativo" not in st.session_state:
+    st.session_state.formulario_ativo = 'none'
+
 # --- INJEÇÃO DE CSS CUSTOMIZADO (Identidade Visual Dark & Gold) ---
 st.markdown("""
 <style>
