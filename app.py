@@ -380,7 +380,7 @@ if st.session_state.eh_admin:
                     vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validate)).strftime("%Y-%m-%d") 
                     usuarios_cadastrados[novo_usuario] = { "senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo" } 
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Salão salvo com sucesso!")
+                    st.success("Salão saved successfully!")
                     st.rerun()
     with tab_ger: 
         usuarios_cadastrados = carregar_usuarios() 
@@ -430,6 +430,23 @@ if not df_fluxo_caixa.empty:
     lucro_dia, lucro_sem, lucro_mes = ent_dia + sai_dia, ent_sem + sai_sem, ent_mes + sai_mes
 else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
+
+# ==============================================================================
+# 🔗 GERAÇÃO DE LINK DE AGENDAMENTO (EM DESTAQUE NO TOPO DA TELA PRINCIPAL)
+# ==============================================================================
+base_url = "https://seu-app.streamlit.app"  # IMPORTANTE: Altere para o link do seu app publicado
+link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
+
+st.markdown("""
+<div style="background-color: #1e2127; padding: 15px; border-radius: 10px; border-left: 5px solid #d4af37; margin-bottom: 5px;">
+    <h4 style="color: #d4af37; margin: 0 0 8px 0;">🔗 Seu Link de Agendamento Online</h4>
+    <p style="color: #ffffff; font-size: 14px; margin: 0;">
+        Copie o endereço abaixo para enviar aos seus clientes pelo WhatsApp ou incluir na Bio do seu Instagram.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+st.code(link_clientes, language="text")
+st.markdown("---")
 
 # ADICIONADA A ABA "📅 Agendamentos" NA VISUALIZAÇÃO DO DONO DO SALÃO
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
@@ -549,15 +566,15 @@ with tab_agend:
         
         if st.button("Remover / Concluir Agendamento Selecionado", type="primary"):
             deletar_agendamento(opcoes_agend[agend_selecionado])
-            st.success("Agendamento atualizado com sucesso!")
+            st.success("Agendamento concluído/removido!")
             time.sleep(0.5)
             st.rerun()
     else:
-        st.info("Nenhum agendamento pendente no momento. Divulgue seu link para receber reservas!")
+        st.info("Nenhum agendamento pendente no momento. Divulgue seu link acima para receber reservas online!")
 
 with st.sidebar:
     st.header("⚙️ Configurações")
-    nome_salao = st.session_state.usuario_logado.replace("", " ").title() if st.session_state.usuario_logado else "Salão"
+    nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     st.markdown("---")
     
@@ -569,8 +586,8 @@ with st.sidebar:
     novo_preco = st.number_input("Preço Cobrado:", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
     
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
-        if autocomplete_servico := novo_servico:
-            salvar_ou_atualizar_servico(servico_sel, autocomplete_servico, novo_preco)
+        if novo_servico:
+            salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
             st.success("Serviço atualizado com sucesso!")
             time.sleep(0.5)
             st.rerun()
@@ -581,15 +598,6 @@ with st.sidebar:
         time.sleep(0.5)
         st.rerun()
         
-    st.markdown("---")
-    
-    # GERADOR DE LINK AUTOMÁTICO PARA O DONO DO SALÃO
-    st.subheader("🔗 Link de Agendamento")
-    base_url = "https://seu-app.streamlit.app" 
-    link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
-    st.info("Envie o link abaixo para seus clientes. Ao acessá-lo, eles poderão reservar horários diretamente sem precisar de login!")
-    st.code(link_clientes, language="text")
-    
     st.markdown("---")
     with st.expander("📦 Central de Backups"): 
         st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.") 
