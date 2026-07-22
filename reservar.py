@@ -128,6 +128,32 @@ st.write(f"Seja bem-vindo ao sistema de agendamento de **{nome_salao_formatado}*
 
 servicos_disponiveis = carregar_servicos_salao(salao_id_clean)
 
+# Obter data e hora atual no fuso de Brasília
+agora_br = datetime.now(TZ_BR)
+hoje_str = agora_br.strftime("%Y-%m-%d")
+hora_atual_str = agora_br.strftime("%H:%M")
+
+# --- SELEÇÃO DE DATA FORA DO FORMULÁRIO PARA ATUALIZAÇÃO INSTANTÂNEA ---
+data_escolhida = st.date_input("Escolha o Dia do Agendamento:", min_value=agora_br.date())
+data_str = data_escolhida.strftime("%Y-%m-%d")
+
+# Consulta no banco de dados para a data recém-selecionada
+ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
+
+# Monta a lista dinâmica de opções imediatamente
+opcoes_horario = ["-- Selecione o Horário --"]
+for h in HORARIOS_DISPONIVEIS:
+    eh_passado = (data_str == hoje_str) and (h <= hora_atual_str)
+    eh_reservado = h in ocupados
+
+    if eh_passado:
+        opcoes_horario.append(f"🔴 {h} - (HORÁRIO JÁ PASSOU)")
+    elif eh_reservado:
+        opcoes_horario.append(f"🔴 {h} - (RESERVADO)")
+    else:
+        opcoes_horario.append(f"🟢 {h} - (DISPONÍVEL)")
+
+# --- FORMULÁRIO DE DADOS DO CLIENTE ---
 with st.form("form_agendamento_cliente", clear_on_submit=True):
     nome_cliente = st.text_input("Seu Nome Completo:")
     telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
@@ -141,30 +167,6 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
     else:
         st.warning("Nenhum serviço disponível no momento.")
         servico_escolhido = None
-
-    # Captura a data e hora atual do Fuso de Brasília
-    agora_br = datetime.now(TZ_BR)
-    hoje_str = agora_br.strftime("%Y-%m-%d")
-    hora_atual_str = agora_br.strftime("%H:%M")
-
-    data_escolhida = st.date_input("Escolha o Dia:", min_value=agora_br.date())
-    data_str = data_escolhida.strftime("%Y-%m-%d")
-
-    # Busca no banco de dados os horários agendados para este salão e data
-    ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
-
-    # Monta a lista dinâmica de horários analisando hora retroativa e banco
-    opcoes_horario = ["-- Selecione o Horário --"]
-    for h in HORARIOS_DISPONIVEIS:
-        eh_passado = (data_str == hoje_str) and (h <= hora_atual_str)
-        eh_reservado = h in ocupados
-
-        if eh_passado:
-            opcoes_horario.append(f"🔴 {h} - (HORÁRIO JÁ PASSOU)")
-        elif eh_reservado:
-            opcoes_horario.append(f"🔴 {h} - (RESERVADO)")
-        else:
-            opcoes_horario.append(f"🟢 {h} - (DISPONÍVEL)")
 
     horario_selecionado = st.selectbox(
         "Escolha o Horário Desejado:", 
@@ -184,14 +186,13 @@ if enviar:
     elif "🔴" in horario_selecionado:
         hora_ext = horario_selecionado.split()[1]
         if "HORÁRIO JÁ PASSOU" in horario_selecionado:
-            st.error(f"❌ O horário **{hora_ext}** já passou para a data de hoje. Escolha um horário futuro.")
+            st.error(f"❌ O horário **{hora_ext}** já passou para a data selecionada. Escolha um horário futuro.")
         else:
             st.error(f"❌ O horário **{hora_ext}** já possui uma reserva confirmada para esta data. Escolha um horário verde (🟢).")
     else:
-        # Extrai o formato do horário (ex: "08:00")
         hora_limpa = horario_selecionado.split()[1]
         
-        # Checagem em tempo real antes de gravar no banco de dados
+        # Checagem em tempo real antes de salvar
         ocupados_agora = buscar_horarios_ocupados(salao_id_clean, data_str)
         if hora_limpa in ocupados_agora:
             st.error(f"❌ O horário **{hora_limpa}** acabou de ser reservado nesta data por outro cliente. Escolha outro horário.")
