@@ -289,7 +289,6 @@ def gerar_backup_json_completo():
     else:
         fluxo_dict = []
 
-    # Serializador para tratar Decimal, Timestamp, etc.
     def custom_serializer(obj):
         if isinstance(obj, (decimal.Decimal, float)):
             return float(obj)
@@ -737,35 +736,36 @@ with tab_agend:
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
         agend_selecionado = st.selectbox("Selecione para gerenciar:", list(opcoes_agend.keys()))
 
-        col_ag_a, col_ag_b = st.columns(2)
-        
         id_sel = opcoes_agend[agend_selecionado]
         row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
         
         num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
 
-        with col_ag_a:
-            if num_clean:
-                if not num_clean.startswith('55') and len(num_clean) <= 11:
-                    num_clean = '55' + num_clean
-                
-                msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
-                wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                
-                st.markdown(f"""
-                <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;box-sizing:border-box;">
-                    💬 Falar com Cliente no WhatsApp
-                </a>
-                """, unsafe_allow_html=True)
-            else:
-                st.info("Telefone não informado.")
+        # BOTÃO 1: Falar com o cliente no WhatsApp
+        if num_clean:
+            if not num_clean.startswith('55') and len(num_clean) <= 11:
+                num_clean = '55' + num_clean
+            
+            msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
+            wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
+            
+            st.markdown(f"""
+            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;box-sizing:border-box;">
+                💬 Falar com Cliente no WhatsApp
+            </a>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("Telefone não informado.")
 
-        with col_ag_b:
-            if st.button("✅ Concluir / Remover Agendamento", type="primary", use_container_width=True):
-                deletar_agendamento(id_sel)
-                st.success("Agendamento concluído com sucesso!")
-                time.sleep(0.5)
-                st.rerun()
+        # ESPAÇADOR DE 15PX ENTRE OS BOTÕES
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+
+        # BOTÃO 2: Concluir / Remover Agendamento
+        if st.button("✅ Concluir / Remover Agendamento", type="primary", use_container_width=True):
+            deletar_agendamento(id_sel)
+            st.success("Agendamento concluído com sucesso!")
+            time.sleep(0.5)
+            st.rerun()
     else:
         st.info("Nenhum agendamento pendente no momento.")
 
