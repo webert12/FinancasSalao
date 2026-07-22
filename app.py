@@ -7,6 +7,7 @@ import json
 import time
 import hashlib
 from io import BytesIO
+import urllib.parse
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -26,6 +27,7 @@ def hash_password(password):
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")                                                    
+
 # --- INJEÇÃO DE CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
@@ -82,7 +84,6 @@ def inicializar_banco():
                 status TEXT
             );
         """))
-        # Garante de forma segura que as novas colunas existam caso a tabela já estivesse criada no Supabase
         for col, col_type in [("email", "TEXT"), ("status", "TEXT")]:
             try:
                 conn.execute(text(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {col} {col_type};"))
@@ -123,7 +124,6 @@ def inicializar_banco():
                 hora TEXT NOT NULL
             );
         """))
-        # Força a criação da coluna de contato caso a tabela já estivesse no Supabase sem ela
         try:
             conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cliente_contato TEXT;"))
         except:
@@ -344,10 +344,48 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    st.title("✂️ Agendamento Online")
-    st.write("Faça seu agendamento rápido e direto com o salão.")
+    # Oculta menus e elementos padrões do Streamlit para manter um visual limpo de aplicativo
+    st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .stApp {
+            background-color: #0e1117;
+        }
+        .header-card {
+            background: linear-gradient(135deg, #1e2127 0%, #252932 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border-bottom: 3px solid #d4af37;
+            text-align: center;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .header-title {
+            color: #d4af37;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .header-subtitle {
+            color: #b0b3b8;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # Lista de horários padrão disponíveis
+    nome_salao_formatado = salao_url.replace('_', ' ').replace('-', ' ').title()
+
+    st.markdown(f"""
+    <div class="header-card">
+        <div class="header-title">✂️ {nome_salao_formatado}</div>
+        <div class="header-subtitle">Agende seu horário de forma simples e rápida</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Horários disponíveis padrão
     HORARIOS_DISPONIVEIS = [
         "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
         "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
@@ -363,15 +401,15 @@ if salao_url:
         
         if servicos_salao:
             servico_escolhido = st.selectbox("Escolha o Serviço Desejado:", list(servicos_salao.keys()))
-            st.info(f"Valor estimado: R$ {servicos_salao[servico_escolhido]:.2f}")
+            st.caption(f"💰 Valor: R$ {servicos_salao[servico_escolhido]:.2f}")
         else:
-            st.warning("Este salão ainda não possui serviços cadastrados.")
+            st.warning("Este salão ainda não cadastrou serviços no sistema.")
             servico_escolhido = None
 
         data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
 
-        # Buscar horários já ocupados para este salão nesta data
+        # Buscar horários já ocupados
         try:
             with engine.connect() as conn:
                 df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_url, "dt": data_str})
@@ -384,16 +422,16 @@ if salao_url:
         if horarios_livres:
             horario_escolhido = st.selectbox("Horários Disponíveis:", horarios_livres)
         else:
-            st.error("⚠️ Todos os horários para este dia já estão ocupados! Escolha outra data.")
+            st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outro dia.")
             horario_escolhido = None
 
-        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀")
+        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
 
     if enviar_agendamento:
         if not nome_cliente or not telefone_cliente:
-            st.warning("⚠️ Por favor, preencha seu nome e WhatsApp.")
+            st.warning("⚠️ Por favor, informe seu nome e telefone para contato.")
         elif not horario_escolhido or not servico_escolhido:
-            st.error("⚠️ Verifique os dados preenchidos e escolha um horário válido.")
+            st.error("⚠️ Selecione um horário e serviço válidos para prosseguir.")
         else:
             try:
                 with engine.begin() as conn:
@@ -408,12 +446,14 @@ if salao_url:
                         "data": data_str,
                         "hora": horario_escolhido
                     })
-                st.success(f"🎉 Agendamento confirmado com sucesso, {nome_cliente}!")
+                st.success(f"🎉 Perfeito, {nome_cliente}! Seu agendamento foi confirmado.")
                 st.balloons()
                 st.info(f"📅 **Data:** {data_escolhida.strftime('%d/%m/%Y')} às **{horario_escolhido}**\n✂️ **Serviço:** {servico_escolhido}")
             except Exception as e:
-                st.error(f"Erro ao salvar agendamento: {e}")
-    st.stop() # Interrompe a execução para que o cliente não veja o painel administrativo
+                st.error(f"Erro ao registrar o agendamento: {e}")
+                
+    # st.stop() garante que NENHUMA outra parte do sistema/rodapé seja visível para o cliente
+    st.stop()
 
 # ==============================================================================
 # --- CONTROLE DE ACESSO (SALAO / ADMIN) ---
@@ -559,7 +599,7 @@ if st.session_state.eh_admin:
             st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO CLIENTE (SALAO LOGADO) ---
+# --- INTERFACE 2: PAINEL DO SALÃO LOGADO ---
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 
@@ -578,20 +618,45 @@ else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
 # ==============================================================================
-# 🔗 GERAÇÃO DINÂMICA DO LINK DE AGENDAMENTO
+# 🔗 MENSAGEM PROFISSIONAL E LINK EXCLUSIVO PARA O CLIENTE
 # ==============================================================================
 base_url = url_sistema_salva if url_sistema_salva else "https://fioecaixa-agendar.streamlit.app"
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 
+nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
+
+# Formatação da mensagem pronta para o WhatsApp
+mensagem_whatsapp_pronta = f"""Olá! 👋
+Agende seu horário no *{nome_salao_titulo}* de forma simples e rápida! ✂️💈
+
+Clique no link abaixo para escolher o melhor dia e horário para você:
+👉 {link_clientes}
+
+Aguardamos sua visita! ✨"""
+
+# URL Encoding para abrir direto no WhatsApp
+msg_encoded = urllib.parse.quote(mensagem_whatsapp_pronta)
+url_whatsapp_direct = f"https://api.whatsapp.com/send?text={msg_encoded}"
+
 st.markdown("""
-<div style="background-color: #1e2127; padding: 15px; border-radius: 10px; border-left: 5px solid #d4af37; margin-bottom: 20px;">
-    <h4 style="color: #d4af37; margin: 0 0 10px 0;">🔗 Link de Agendamento dos seus Clientes</h4>
-    <p style="color: #ffffff; font-size: 14px; margin: 0 0 10px 0;">
-        Copie o link abaixo para enviar aos seus clientes no WhatsApp ou colocar no perfil do Instagram. Eles agendarão direto <b>sem senha e sem erro</b>!
+<div style="background-color: #1e2127; padding: 18px; border-radius: 12px; border-left: 5px solid #d4af37; margin-bottom: 20px;">
+    <h4 style="color: #d4af37; margin: 0 0 8px 0;">📲 Mensagem Pronta de Agendamento para Clientes</h4>
+    <p style="color: #e0e0e0; font-size: 14px; margin: 0;">
+        Copie a mensagem abaixo ou clique no botão para disparar diretamente no WhatsApp dos seus clientes ou colocar na bio do seu Instagram!
     </p>
 </div>
 """, unsafe_allow_html=True)
-st.code(link_clientes, language="text")
+
+col_msg_txt, col_msg_action = st.columns([2, 1])
+
+with col_msg_txt:
+    st.text_area("📋 Mensagem Formatada para Envio:", value=mensagem_whatsapp_pronta, height=140)
+
+with col_msg_action:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.link_button("📲 Enviar via WhatsApp", url_whatsapp_direct, use_container_width=True, type="primary")
+    st.caption("Ou copie apenas o link direto:")
+    st.code(link_clientes, language="text")
 
 # --- ABAS PRINCIPAIS ---
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
@@ -732,7 +797,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço updated!")
+            st.success("Serviço atualizado!")
             time.sleep(0.5)
             st.rerun()
 
