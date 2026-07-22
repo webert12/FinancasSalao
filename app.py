@@ -30,33 +30,49 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- CUSTOMIZAÇÃO CSS: REMOVE ÍCONES/BADGES E PRESERVA O BOTÃO DO MENU ---
+# --- CUSTOMIZAÇÃO CSS: POSICIONA BOTÃO NO CANTO SUPERIOR DIREITO E OCULTA RODAPÉ ---
 st.markdown("""
     <style>
-        /* 1. OCULTA APENAS O MENU PADRÃO E FERRAMENTAS DO GITHUB/DEPLOY */
+        /* 1. OCULTA MENU PADRÃO E FERRAMENTAS DE DEPLOY DO STREAMLIT */
         #MainMenu {visibility: hidden !important; display: none !important;}
         [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
         [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
         [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
         .stDeployButton {display: none !important;}
 
-        /* Mantém o cabeçalho transparente para permitir a exibição do botão de menu lateral */
+        /* Cabeçalho transparente */
         header[data-testid="stHeader"] {
             background-color: transparent !important;
             z-index: 999999 !important;
         }
 
-        /* FORÇA A EXIBIÇÃO DO BOTÃO DE ABRIR/FECHAR A BARRA LATERAL (CONFIGURAÇÕES) */
+        /* 2. POSICIONA O BOTÃO DE CONFIGURAÇÕES NO CANTO SUPERIOR DIREITO (ÁREA CIRCULADA DE VERMELHO) */
         [data-testid="collapsedControl"] {
             display: flex !important;
             visibility: visible !important;
+            position: fixed !important;
+            top: 45px !important;
+            right: 15px !important;
+            left: auto !important;
             z-index: 1000000 !important;
+            background-color: #ffffff !important;
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            padding: 4px !important;
+            box-shadow: 0px 2px 6px rgba(0,0,0,0.15) !important;
         }
 
-        /* 2. REMOÇÃO COMPLETA DO RODAPÉ E DO SELO/BADGE FLUTUANTE DO STREAMLIT (CANTO INFERIOR) */
-        footer {visibility: hidden !important; display: none !important;}
-        [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
-        
+        /* 3. REMOÇÃO RIGOROSA E COMPLETA DO RODAPÉ E SELOS FLUTUANTES DO STREAMLIT */
+        footer, [data-testid="stFooter"], .stFooter {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0px !important;
+            max-height: 0px !important;
+            margin: 0px !important;
+            padding: 0px !important;
+            overflow: hidden !important;
+        }
+
         [data-testid="stViewerBadge"],
         .viewerBadge_container__16308,
         div[class*="viewerBadge"],
@@ -69,9 +85,9 @@ st.markdown("""
             pointer-events: none !important;
         }
 
-        /* 3. AJUSTE DE ESPAÇAMENTO DO CONTEÚDO PRINCIPAL */
+        /* 4. AJUSTE DE ESPAÇAMENTO DO CONTEÚDO PRINCIPAL PARA NÃO SOBREPOR A LOGO */
         .main .block-container {
-            padding-top: 1.5rem !important;
+            padding-top: 3.5rem !important;
             padding-bottom: 0rem !important;
         }
     </style>
@@ -384,9 +400,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
 
 # --- RENDERIZAÇÃO DA LOGO NO TOPO DO SISTEMA ---
 if os.path.exists("logo.png"):
-    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2:
-        st.image("logo.png", use_container_width=True)
+    st.image("logo.png", use_container_width=True)
 
 # ==============================================================================
 # --- ROTA PÚBLICA EXCLUSIVA PARA O CLIENTE (?salao=nome) ---
