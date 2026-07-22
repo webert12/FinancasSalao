@@ -583,7 +583,7 @@ base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstr
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-# MONTAGEM DA MENSAGEM COM PROTOCOLO WEB DO WHATSAPP
+# MONTAGEM DA MENSAGEM PARA O WHATSAPP
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
@@ -692,8 +692,12 @@ with tab_agend:
     
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        # Injeção de Botão Nativo do Streamlit
-        st.link_button("📲 Compartilhar Link no WhatsApp", wa_url_geral, use_container_width=True)
+        # Botão Nativo em HTML direcionado para APK WebView (abre direto o App do WhatsApp)
+        st.markdown(f"""
+        <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
+            📲 Compartilhar Link no WhatsApp
+        </a>
+        """, unsafe_allow_html=True)
 
     df_agendamentos = carregar_agendamentos()
 
@@ -713,24 +717,25 @@ with tab_agend:
 
         col_ag_a, col_ag_b = st.columns(2)
         
-        # Encontrar dados do item selecionado para extrair telefone correto
         id_sel = opcoes_agend[agend_selecionado]
         row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
         
-        # Limpar todos os caracteres não-numéricos do telefone
         num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
 
         with col_ag_a:
             if num_clean:
-                # Tratamento para DDI do Brasil (Se não tiver 55 e tiver até 11 dígitos, adiciona o 55 automaticamente)
                 if not num_clean.startswith('55') and len(num_clean) <= 11:
                     num_clean = '55' + num_clean
                 
                 msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
                 wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
                 
-                # Renderiza o Botão Nativo do Streamlit
-                st.link_button("💬 Falar com Cliente no WhatsApp", wa_direct, use_container_width=True)
+                # Botão HTML Direto para o WebView do APK
+                st.markdown(f"""
+                <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;box-sizing:border-box;">
+                    💬 Falar com Cliente no WhatsApp
+                </a>
+                """, unsafe_allow_html=True)
             else:
                 st.info("Telefone não informado.")
 
@@ -748,8 +753,12 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # Injeção de Botão Nativo do Streamlit na Sidebar
-    st.link_button("📲 Enviar Link no WhatsApp", wa_url_geral, use_container_width=True)
+    # Botão HTML Direto para o WebView do APK na Sidebar
+    st.markdown(f"""
+    <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
+        📲 Enviar Link no WhatsApp
+    </a>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -828,7 +837,6 @@ with tab2:
                 return ['background-color: #fff3cd; color: #856404'] * 4
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
             
-            # --- SEÇÃO DE EXCLUSÃO DE LANÇAMENTOS INCORRETOS ---
             st.markdown("---")
             with st.expander("🗑️ Apagar/Excluir Lançamento do Caixa feito por Erro"):
                 opcoes_del_fluxo = {
