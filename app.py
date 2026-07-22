@@ -328,13 +328,13 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # ==============================================================================
-# --- ROTA PÚBLICA EXCLUSIVA DE AGENDAMENTO PARA O CLIENTE (?salao=nome_do_usuario) ---
+# --- ROTA PÚBLICA 100% BLINDADA PARA O CLIENTE (?salao=nome_do_usuario) ---
 # ==============================================================================
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    # OCULTAÇÃO TOTAL DE NAVEGAÇÕES/SIDEBAR/PAINEL ADMINISTRATIVO
+    # OCULTAÇÃO ABSOLUTA DE ELEMENTOS DE NAVEGAÇÃO E BARRAS ADMINISTRATIVAS
     st.markdown("""
     <style>
         #MainMenu {visibility: hidden !important;}
@@ -343,6 +343,8 @@ if salao_url:
         [data-testid="stSidebar"] {display: none !important;}
         [data-testid="collapsedControl"] {display: none !important;}
         [data-testid="stHeader"] {display: none !important;}
+        [data-testid="stToolbar"] {display: none !important;}
+        .stDeployButton {display:none !important;}
         .stApp {
             background-color: #0e1117;
         }
@@ -375,7 +377,7 @@ if salao_url:
     st.markdown(f"""
     <div class="header-card">
         <div class="header-title">✂️ {nome_salao_formatado}</div>
-        <div class="header-subtitle">Escolha o dia e horário para seu agendamento</div>
+        <div class="header-subtitle">Agende seu horário de forma rápida e segura</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -388,13 +390,10 @@ if salao_url:
 
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
-    # 1. Seleção da Data
-    col_date, col_space = st.columns([1, 1])
-    with col_date:
-        data_escolhida = st.date_input("📅 Selecione a Data:", min_value=datetime.now(TZ).date())
+    # 1. Seleção de Data e Atualização de Horários
+    data_escolhida = st.date_input("📅 Escolha a Data:", min_value=datetime.now(TZ).date())
     data_str = data_escolhida.strftime("%Y-%m-%d")
 
-    # Busca agendamentos do dia para atualizar a grade visual
     try:
         with engine.connect() as conn:
             df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_id_clean, "dt": data_str})
@@ -402,45 +401,33 @@ if salao_url:
     except:
         ocupados = []
 
-    # 2. TABELA VISUAL DE HORÁRIOS DO DIA
-    st.subheader(f"📋 Tabela de Horários - {data_escolhida.strftime('%d/%m/%Y')}")
+    # 2. Grade Visual de Horários
+    st.subheader(f"📋 Horários em {data_escolhida.strftime('%d/%m/%Y')}")
     
-    # Monta a tabela de horários (Livre / Ocupado)
-    tabela_horarios = []
-    for h in HORARIOS_DISPONIVEIS:
-        status = "🔴 Ocupado" if h in ocupados else "🟢 Livre"
-        tabela_horarios.append({"Horário": h, "Disponibilidade": status})
-    
-    df_grade = pd.DataFrame(tabela_horarios)
-    
-    # Exibe a tabela visual para o cliente
-    st.dataframe(
-        df_grade,
-        use_container_width=True,
-        hide_index=True
-    )
+    tabela_horarios = [{"Horário": h, "Disponibilidade": "🔴 Ocupado" if h in ocupados else "🟢 Livre"} for h in HORARIOS_DISPONIVEIS]
+    st.dataframe(pd.DataFrame(tabela_horarios), use_container_width=True, hide_index=True)
 
     st.markdown("---")
-    st.subheader("✍️ Preencha seus dados para Reservar:")
+    st.subheader("✍️ Preencha para Confirmar a Reserva:")
 
     horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
 
-    # 3. Form de Agendamento
+    # 3. Formulário de Agendamento do Cliente
     with st.form("form_cliente_agendamento", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
         
         if servicos_salao:
-            servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys()))
+            servico_escolhido = st.selectbox("Escolha o Serviço Desejado:", list(servicos_salao.keys()))
             st.caption(f"💰 Valor: R$ {servicos_salao[servico_escolhido]:.2f}")
         else:
             st.warning("Este salão ainda não cadastrou serviços no sistema.")
             servico_escolhido = None
 
         if horarios_livres:
-            horario_escolhido = st.selectbox("Escolha um Horário Livre:", horarios_livres)
+            horario_escolhido = st.selectbox("Horários Disponíveis:", horarios_livres)
         else:
-            st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outra data no campo acima.")
+            st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outra data.")
             horario_escolhido = None
 
         enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
@@ -468,18 +455,17 @@ if salao_url:
                 st.balloons()
                 st.info(f"📅 **Data:** {data_escolhida.strftime('%d/%m/%Y')} às **{horario_escolhido}**\n✂️ **Serviço:** {servico_escolhido}")
                 
-                # Aguarda 2.5 segundos para o cliente ver a mensagem e recarrega limpando a tela/atualizando a tabela
                 time.sleep(2.5)
                 st.rerun()
 
             except Exception as e:
                 st.error(f"Erro ao registrar o agendamento: {e}")
                 
-    # BLOQUEIO ABSOLUTO: impede a renderização de qualquer tela de login ou painel para o cliente
+    # BLOQUEIO ABSOLUTO: impede a renderização de qualquer rodapé, frase ou login
     st.stop()
 
 # ==============================================================================
-# --- CONTROLE DE ACESSO (PAINEL DO SALAO / ADMIN) ---
+# --- CONTROLE DE ACESSO INTERNO (PAINEL DO SALÃO / ADMIN) ---
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
@@ -779,7 +765,7 @@ with tab_agend:
             time.sleep(0.5)
             st.rerun()
     else:
-        st.info("Nenhum agendamento pendente no momento.")
+        st.info("Nenum agendamento pendente no momento.")
 
 # BARRA LATERAL (SIDEBAR) - VISÍVEL APENAS PARA O SALÃO LOGADO
 with st.sidebar:
