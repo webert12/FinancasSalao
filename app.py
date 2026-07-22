@@ -320,7 +320,6 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    # OCULTAÇÃO ABSOLUTA DE ELEMENTOS DO STREAMLIT E DE NAVEGAÇÃO
     st.markdown("""
     <style>
         #MainMenu {visibility: hidden !important; display: none !important;}
@@ -350,7 +349,6 @@ if salao_url:
 
     st.subheader(f"✂️ Agendamento - {nome_salao_formatado}")
 
-    # FORMULÁRIO ÚNICO E LIMPO
     with st.form("form_agendamento_cliente", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
@@ -364,7 +362,6 @@ if salao_url:
         data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
 
-        # Buscar horários ocupados para a data
         try:
             with engine.connect() as conn:
                 df_ocupados = pd.read_sql(
@@ -413,7 +410,6 @@ if salao_url:
             except Exception as e:
                 st.error(f"Erro ao salvar agendamento: {e}")
 
-    # PARADA OBRIGATÓRIA - IMPEDE QUE QUALQUER OUTRA LINHA DE CÓDIGO APAREÇA NA TELA
     st.stop()
 
 # ==============================================================================
@@ -582,9 +578,9 @@ base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstr
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-# MONTAGEM DA MENSAGEM E DA URL WHATSAPP 100% FUNCIONAL E COMPATÍVEL
+# MONTAGEM DA MENSAGEM E URL DIRETA DE DEEP-LINKING PARA MOBILE
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
-wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
+wa_url = f"https://wa.me/?text={urllib.parse.quote(mensagem_whatsapp)}"
 
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
@@ -691,15 +687,9 @@ with tab_agend:
     
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        # BOTÃO WHATSAPP REDIRECIONÁVEL E BLINDADO
-        st.markdown(
-            f'''
-            <a href="{wa_url}" target="_blank" rel="noopener noreferrer" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; box-sizing: border-box; margin-top: 5px;">
-                📲 Compartilhar Link no WhatsApp
-            </a>
-            ''', 
-            unsafe_allow_html=True
-        )
+        
+        # BOTÃO NATIVO DO STREAMLIT QUE DESTRAVA O CLIQUE NO CELULAR
+        st.link_button("📲 Compartilhar Link no WhatsApp", wa_url, use_container_width=True)
 
     df_agendamentos = carregar_agendamentos()
 
@@ -730,15 +720,8 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # BOTÃO WHATSAPP DA SIDEBAR TAMBÉM CORRIGIDO
-    st.markdown(
-        f'''
-        <a href="{wa_url}" target="_blank" rel="noopener noreferrer" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; box-sizing: border-box; margin-bottom: 15px;">
-            📲 Enviar Link no WhatsApp
-        </a>
-        ''', 
-        unsafe_allow_html=True
-    )
+    # BOTÃO NATIVO DA SIDEBAR TAMBÉM ATUALIZADO
+    st.link_button("📲 Enviar Link no WhatsApp", wa_url, use_container_width=True)
 
     st.markdown("---")
 
