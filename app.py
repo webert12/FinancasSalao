@@ -9,7 +9,7 @@ import hashlib
 from io import BytesIO
 import urllib.parse
 import re
-import decimal  # Importado para tratar valores numéricos do PostgreSQL
+import decimal
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -28,7 +28,22 @@ def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
+st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
+
+# --- OCULTAR CABEÇALHO, RODAPÉ E BOTOES DO STREAMLIT (GLOBAL) ---
+st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden !important; display: none !important;}
+        footer {visibility: hidden !important; display: none !important;}
+        header {visibility: hidden !important; display: none !important;}
+        [data-testid="stHeader"] {display: none !important;}
+        [data-testid="stToolbar"] {display: none !important;}
+        [data-testid="stFooter"] {display: none !important;}
+        .stDeployButton {display: none !important;}
+        /* Ajuste do topo da página após a remoção do cabeçalho nativo */
+        div[class*="stAppViewBlockContainer"] {padding-top: 1rem !important;}
+    </style>
+""", unsafe_allow_html=True)
 
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
@@ -276,7 +291,6 @@ def deletar_agendamento(id_agendamento):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
-# --- FUNÇÃO CORRIGIDA DE GERAR BACKUP JSON ---
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
@@ -345,16 +359,8 @@ salao_url = query_params.get("salao", None)
 if salao_url:
     st.markdown("""
     <style>
-        #MainMenu {visibility: hidden !important; display: none !important;}
-        footer {visibility: hidden !important; display: none !important;}
-        header {visibility: hidden !important; display: none !important;}
         [data-testid="stSidebar"] {display: none !important;}
         [data-testid="collapsedControl"] {display: none !important;}
-        [data-testid="stHeader"] {display: none !important;}
-        [data-testid="stToolbar"] {display: none !important;}
-        [data-testid="stFooter"] {display: none !important;}
-        .stDeployButton {display:none !important;}
-        div[class*="stAppViewBlockContainer"] {padding-top: 1rem !important;}
     </style>
     """, unsafe_allow_html=True)
 
