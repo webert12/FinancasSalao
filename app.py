@@ -14,7 +14,7 @@ from sqlalchemy import create_engine, text
 
 # --- Relatórios e Segurança ---
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
@@ -31,7 +31,6 @@ st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page
 # --- INJEÇÃO DE CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
-/* Customizações visuais profissionais */
 .reportview-container {
     background: #0e1117;
 }
@@ -87,11 +86,6 @@ def inicializar_banco():
                 status TEXT
             );
         """))
-        for col, col_type in [("email", "TEXT"), ("status", "TEXT")]:
-            try:
-                conn.execute(text(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {col} {col_type};"))
-            except:
-                pass
 
         # 3. Tabela servicos
         conn.execute(text("""
@@ -127,10 +121,6 @@ def inicializar_banco():
                 hora TEXT NOT NULL
             );
         """))
-        try:
-            conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cliente_contato TEXT;"))
-        except:
-            pass
 
 try:
     inicializar_banco()
@@ -203,22 +193,23 @@ def salvar_usuarios(usuarios_dict):
                 "status": v["status"]
             })
 
-def carregar_servicos():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
-    return carregar_servicos_por_salao(usuario)
-
 def carregar_servicos_por_salao(salao_id):
+    salao_id_clean = str(salao_id).strip().lower() if salao_id else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": salao_id})
+            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": salao_id_clean})
             if not df.empty:
                 return {row['nome']: float(row['preco']) for _, row in df.iterrows()}
     except:
         pass
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
-def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
+def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    return carregar_servicos_por_salao(usuario)
+
+def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
             conn.execute(text("""
@@ -234,12 +225,12 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
             """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
 
 def deletar_servico_banco(nome):
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
 
 def carregar_fluxo():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
             df = pd.read_sql(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user"), conn, params={"user": usuario})
@@ -252,7 +243,7 @@ def carregar_fluxo():
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.begin() as conn:
         conn.execute(text("""
@@ -261,7 +252,7 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
         """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
     with engine.begin() as conn:
         conn.execute(text("""
@@ -274,7 +265,7 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
 
 # --- FUNÇÕES DE AGENDAMENTO ---
 def carregar_agendamentos():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
             df = pd.read_sql(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), conn, params={"user": usuario})
@@ -286,8 +277,9 @@ def carregar_agendamentos():
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
 def deletar_agendamento(id_agendamento):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM agendamentos WHERE id = :id"), {"id": int(id_agendamento)})
+        conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
 # --- FUNÇÃO DE EXPORTAÇÃO DE BACKUP SEGURO ---
 def gerar_backup_json_completo():
@@ -347,11 +339,15 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
+    # OCULTAÇÃO TOTAL DA INTERFACE DO STREAMLIT (NÃO PERMITE ACESSAR BARRA LATERAL OU PAINEL)
     st.markdown("""
     <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        header {visibility: hidden !important;}
+        [data-testid="stSidebar"] {display: none !important;}
+        [data-testid="collapsedControl"] {display: none !important;}
+        [data-testid="stHeader"] {display: none !important;}
         .stApp {
             background-color: #0e1117;
         }
@@ -378,7 +374,8 @@ if salao_url:
     </style>
     """, unsafe_allow_html=True)
 
-    nome_salao_formatado = salao_url.replace('_', ' ').replace('-', ' ').title()
+    salao_id_clean = str(salao_url).strip().lower()
+    nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
 
     st.markdown(f"""
     <div class="header-card">
@@ -394,7 +391,7 @@ if salao_url:
         "18:00", "18:30", "19:00"
     ]
 
-    servicos_salao = carregar_servicos_por_salao(salao_url)
+    servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
     with st.form("form_cliente_agendamento"):
         nome_cliente = st.text_input("Seu Nome Completo:")
@@ -412,7 +409,7 @@ if salao_url:
 
         try:
             with engine.connect() as conn:
-                df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_url, "dt": data_str})
+                df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_id_clean, "dt": data_str})
                 ocupados = df_ocupados['hora'].tolist() if not df_ocupados.empty else []
         except:
             ocupados = []
@@ -439,9 +436,9 @@ if salao_url:
                         INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
                         VALUES (:user, :nome, :contato, :servico, :data, :hora)
                     """), {
-                        "user": salao_url,
-                        "nome": nome_cliente,
-                        "contato": telefone_cliente,
+                        "user": salao_id_clean,
+                        "nome": nome_cliente.strip(),
+                        "contato": telefone_cliente.strip(),
                         "servico": servico_escolhido,
                         "data": data_str,
                         "hora": horario_escolhido
@@ -736,22 +733,28 @@ with tab_agend:
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        st.dataframe(df_agendamentos.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
+        df_display = df_agendamentos.copy()
+        try:
+            df_display['Data'] = pd.to_datetime(df_display['Data']).dt.strftime('%d/%m/%Y')
+        except:
+            pass
+            
+        st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
 
         st.markdown("---")
-        st.write("🔧 **Gerenciar Agendamentos**")
+        st.write("🔧 **Gerenciar / Concluir Agendamento**")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
         agend_selecionado = st.selectbox("Selecione para concluir/remover:", list(opcoes_agend.keys()))
 
         if st.button("Concluir / Remover Agendamento", type="primary"):
             deletar_agendamento(opcoes_agend[agend_selecionado])
-            st.success("Agendamento atualizado com sucesso!")
+            st.success("Agendamento concluído com sucesso!")
             time.sleep(0.5)
             st.rerun()
     else:
         st.info("Nenhum agendamento pendente no momento.")
 
-# BARRA LATERAL (SIDEBAR)
+# BARRA LATERAL (SIDEBAR) - VISÍVEL APENAS PARA O SALÃO LOGADO
 with st.sidebar:
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
