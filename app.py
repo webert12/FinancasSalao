@@ -35,6 +35,9 @@ st.markdown("""
 .reportview-container {
     background: #0e1117;
 }
+.stButton>button {
+    border-radius: 8px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -344,7 +347,6 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    # Oculta menus e elementos padrões do Streamlit para manter um visual limpo de aplicativo
     st.markdown("""
     <style>
         #MainMenu {visibility: hidden;}
@@ -385,7 +387,6 @@ if salao_url:
     </div>
     """, unsafe_allow_html=True)
 
-    # Horários disponíveis padrão
     HORARIOS_DISPONIVEIS = [
         "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
         "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
@@ -409,7 +410,6 @@ if salao_url:
         data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
 
-        # Buscar horários já ocupados
         try:
             with engine.connect() as conn:
                 df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_url, "dt": data_str})
@@ -452,7 +452,6 @@ if salao_url:
             except Exception as e:
                 st.error(f"Erro ao registrar o agendamento: {e}")
                 
-    # st.stop() garante que NENHUMA outra parte do sistema/rodapé seja visível para o cliente
     st.stop()
 
 # ==============================================================================
@@ -617,48 +616,15 @@ if not df_fluxo_caixa.empty:
 else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
-# ==============================================================================
-# 🔗 MENSAGEM PROFISSIONAL E LINK EXCLUSIVO PARA O CLIENTE
-# ==============================================================================
-base_url = url_sistema_salva if url_sistema_salva else "https://fioecaixa-agendar.streamlit.app"
+# --- GERADOR CORRETO DO LINK E MENSAGEM DO WHATSAPP ---
+base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
-
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-# Formatação da mensagem pronta para o WhatsApp
-mensagem_whatsapp_pronta = f"""Olá! 👋
-Agende seu horário no *{nome_salao_titulo}* de forma simples e rápida! ✂️💈
+mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
+wa_url = f"https://wa.me/?text={urllib.parse.quote(mensagem_whatsapp)}"
 
-Clique no link abaixo para escolher o melhor dia e horário para você:
-👉 {link_clientes}
-
-Aguardamos sua visita! ✨"""
-
-# URL Encoding para abrir direto no WhatsApp
-msg_encoded = urllib.parse.quote(mensagem_whatsapp_pronta)
-url_whatsapp_direct = f"https://api.whatsapp.com/send?text={msg_encoded}"
-
-st.markdown("""
-<div style="background-color: #1e2127; padding: 18px; border-radius: 12px; border-left: 5px solid #d4af37; margin-bottom: 20px;">
-    <h4 style="color: #d4af37; margin: 0 0 8px 0;">📲 Mensagem Pronta de Agendamento para Clientes</h4>
-    <p style="color: #e0e0e0; font-size: 14px; margin: 0;">
-        Copie a mensagem abaixo ou clique no botão para disparar diretamente no WhatsApp dos seus clientes ou colocar na bio do seu Instagram!
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-col_msg_txt, col_msg_action = st.columns([2, 1])
-
-with col_msg_txt:
-    st.text_area("📋 Mensagem Formatada para Envio:", value=mensagem_whatsapp_pronta, height=140)
-
-with col_msg_action:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.link_button("📲 Enviar via WhatsApp", url_whatsapp_direct, use_container_width=True, type="primary")
-    st.caption("Ou copie apenas o link direto:")
-    st.code(link_clientes, language="text")
-
-# --- ABAS PRINCIPAIS ---
+# --- ABAS PRINCIPAIS (TELA INICIAL LIMPA) ---
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 with tab1:
@@ -671,8 +637,7 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    st.markdown('<div class="caixa-header">Fio&Caixa</div>', unsafe_allow_html=True)
-    st.markdown('<div class="acoes-rapidas">Ações rápidas</div>', unsafe_allow_html=True)
+    st.markdown('### 🚀 Ações Rápidas')
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
 
     with col_a:
@@ -760,9 +725,14 @@ with tab0:
             st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# GESTÃO DOS AGENDAMENTOS RECEBIDOS DOS CLIENTES
+# GESTÃO DOS AGENDAMENTOS E LINK DIRETO DO CLIENTE
 with tab_agend:
-    st.subheader("📅 Próximos Agendamentos Realizados por Clientes")
+    st.subheader("📅 Agendamentos de Clientes")
+    
+    with st.expander("🔗 Seu Link Único para Enviar a Clientes", expanded=False):
+        st.code(link_clientes, language="text")
+        st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">📲 Compartilhar Link no WhatsApp</button></a>', unsafe_allow_html=True)
+
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
@@ -771,20 +741,25 @@ with tab_agend:
         st.markdown("---")
         st.write("🔧 **Gerenciar Agendamentos**")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
-        agend_selecionado = st.selectbox("Selecione um agendamento para concluir/remover:", list(opcoes_agend.keys()))
+        agend_selecionado = st.selectbox("Selecione para concluir/remover:", list(opcoes_agend.keys()))
 
-        if st.button("Remover / Concluir Agendamento Selecionado", type="primary"):
+        if st.button("Concluir / Remover Agendamento", type="primary"):
             deletar_agendamento(opcoes_agend[agend_selecionado])
             st.success("Agendamento atualizado com sucesso!")
             time.sleep(0.5)
             st.rerun()
     else:
-        st.info("Nenhum agendamento pendente no momento. Divulgue seu link para receber reservas!")
+        st.info("Nenhum agendamento pendente no momento.")
 
+# BARRA LATERAL (SIDEBAR)
 with st.sidebar:
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
+    
+    # Botão Direto do WhatsApp no Menu Lateral
+    st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:15px;">📲 Enviar Link no WhatsApp</button></a>', unsafe_allow_html=True)
+
     st.markdown("---")
 
     opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
@@ -809,10 +784,9 @@ with st.sidebar:
 
     st.markdown("---")
     with st.expander("📦 Central de Backups"):
-        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
+        st.write("Baixar salvaguarda dos dados em formato JSON:")
         backup_dados = gerar_backup_json_completo()
-        st.download_button( label="📥 Baixar Backup Geral (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d/%m/%Y')}.json", mime="application/json", use_container_width=True )
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.download_button(label="📥 Baixar Backup (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d/%m/%Y')}.json", mime="application/json", use_container_width=True)
 
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False
