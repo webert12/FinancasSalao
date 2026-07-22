@@ -8,6 +8,7 @@ import time
 import hashlib
 from io import BytesIO
 import urllib.parse
+import re
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -216,7 +217,7 @@ def carregar_fluxo():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user"), conn, params={"user": usuario})
+            df = pd.read_sql(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), conn, params={"user": usuario})
             if not df.empty:
                 df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
                 df['Data'] = pd.to_datetime(df['Data'])
@@ -245,6 +246,12 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
                 descricao = :desc
             WHERE id = :id AND usuario_id = :user
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+
+# --- NOVA FUNÇÃO DE EXCLUSÃO DE LANÇAMENTO DO FLUXO DE CAIXA ---
+def deletar_movimentacao_fluxo(id_registro):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
 
 # --- FUNÇÕES DE AGENDAMENTO ---
 def carregar_agendamentos():
@@ -687,8 +694,6 @@ with tab_agend:
     
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        
-        # BOTÃO NATIVO DO STREAMLIT QUE DESTRAVA O CLIQUE NO CELULAR
         st.link_button("📲 Compartilhar Link no WhatsApp", wa_url, use_container_width=True)
 
     df_agendamentos = carregar_agendamentos()
@@ -705,13 +710,29 @@ with tab_agend:
         st.markdown("---")
         st.write("🔧 **Gerenciar / Concluir Agendamento**")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
-        agend_selecionado = st.selectbox("Selecione para concluir/remover:", list(opcoes_agend.keys()))
+        agend_selecionado = st.selectbox("Selecione para gerenciar:", list(opcoes_agend.keys()))
 
-        if st.button("Concluir / Remover Agendamento", type="primary"):
-            deletar_agendamento(opcoes_agend[agend_selecionado])
-            st.success("Agendamento concluído com sucesso!")
-            time.sleep(0.5)
-            st.rerun()
+        col_ag_a, col_ag_b = st.columns(2)
+        
+        # Encontrar dados do item selecionado
+        id_sel = opcoes_agend[agend_selecionado]
+        row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
+        num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
+
+        with col_ag_a:
+            if num_clean:
+                msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
+                wa_direct = f"https://wa.me/55{num_clean}?text={msg_cli}"
+                st.link_button("💬 Falar com Cliente no WhatsApp", wa_direct, use_container_width=True)
+            else:
+                st.info("Telefone não informado.")
+
+        with col_ag_b:
+            if st.button("✅ Concluir / Remover Agendamento", type="primary", use_container_width=True):
+                deletar_agendamento(id_sel)
+                st.success("Agendamento concluído com sucesso!")
+                time.sleep(0.5)
+                st.rerun()
     else:
         st.info("Nenhum agendamento pendente no momento.")
 
@@ -720,7 +741,6 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # BOTÃO NATIVO DA SIDEBAR TAMBÉM ATUALIZADO
     st.link_button("📲 Enviar Link no WhatsApp", wa_url, use_container_width=True)
 
     st.markdown("---")
@@ -799,6 +819,20 @@ with tab2:
                     return ['background-color: #f8d7da; color: #721c24'] * 4
                 return ['background-color: #fff3cd; color: #856404'] * 4
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+            
+            # --- SEÇÃO DE EXCLUSÃO DE LANÇAMENTOS INCORRETOS ---
+            st.markdown("---")
+            with st.expander("🗑️ Apagar/Excluir Lançamento do Caixa feito por Erro"):
+                opcoes_del_fluxo = {
+                    f"#{row['id']} - {row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else row['Data']} | {row['Descrição']} (R$ {row['Valor']:.2f})": row['id']
+                    for _, row in df_fluxo_caixa.iterrows()
+                }
+                item_apagar_sel = st.selectbox("Selecione o registro para apagar:", list(opcoes_del_fluxo.keys()), key="sel_del_fluxo_box")
+                if st.button("🗑️ Confirmar Exclusão do Lançamento", type="primary", key="btn_del_fluxo_confirm"):
+                    deletar_movimentacao_fluxo(opcoes_del_fluxo[item_apagar_sel])
+                    st.success("Lançamento excluído com sucesso!")
+                    time.sleep(0.5)
+                    st.rerun()
         else:
             st.info("Nenhuma movimentação encontrada para o período selecionado.")
     else:
