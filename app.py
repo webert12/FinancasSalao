@@ -30,50 +30,25 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- CUSTOMIZAÇÃO CSS: POSICIONA BOTÃO NO CANTO SUPERIOR DIREITO E OCULTA RODAPÉ ---
+# --- CUSTOMIZAÇÃO CSS: LIMPEZA TOTAL (WHITE-LABEL) + BOTÃO DE CONFIG VISÍVEL ---
 st.markdown("""
     <style>
-        /* 1. OCULTA MENU PADRÃO E FERRAMENTAS DE DEPLOY DO STREAMLIT */
-        #MainMenu {visibility: hidden !important; display: none !important;}
-        [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-        [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
-        [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
-        .stDeployButton {display: none !important;}
-
-        /* Cabeçalho transparente */
-        header[data-testid="stHeader"] {
-            background-color: transparent !important;
-            z-index: 999999 !important;
-        }
-
-        /* 2. POSICIONA O BOTÃO DE CONFIGURAÇÕES NO CANTO SUPERIOR DIREITO (ÁREA CIRCULADA DE VERMELHO) */
-        [data-testid="collapsedControl"] {
-            display: flex !important;
-            visibility: visible !important;
-            position: fixed !important;
-            top: 45px !important;
-            right: 15px !important;
-            left: auto !important;
-            z-index: 1000000 !important;
-            background-color: #ffffff !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 8px !important;
-            padding: 4px !important;
-            box-shadow: 0px 2px 6px rgba(0,0,0,0.15) !important;
-        }
-
-        /* 3. REMOÇÃO RIGOROSA E COMPLETA DO RODAPÉ E SELOS FLUTUANTES DO STREAMLIT */
+        /* 1. OCULTA RODAPÉ COMPLETAMENTE */
         footer, [data-testid="stFooter"], .stFooter {
             display: none !important;
             visibility: hidden !important;
             height: 0px !important;
-            max-height: 0px !important;
             margin: 0px !important;
             padding: 0px !important;
-            overflow: hidden !important;
         }
 
-        [data-testid="stViewerBadge"],
+        /* 2. OCULTA MENU PADRÃO, DEPLOY E BADGES DO STREAMLIT/GITHUB */
+        #MainMenu {visibility: hidden !important; display: none !important;}
+        [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+        [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
+        .stDeployButton {display: none !important;}
+        
+        /* Oculta o selo de "Manage App" ou ícone do GitHub no canto inferior */
         .viewerBadge_container__16308,
         div[class*="viewerBadge"],
         div[class*="styles_viewerBadge"],
@@ -85,10 +60,28 @@ st.markdown("""
             pointer-events: none !important;
         }
 
-        /* 4. AJUSTE DE ESPAÇAMENTO DO CONTEÚDO PRINCIPAL PARA NÃO SOBREPOR A LOGO */
+        /* 3. HEADER TRANSPARENTE PARA NÃO BLOQUEAR CLIQUES */
+        header[data-testid="stHeader"] {
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        /* 4. GARANTE QUE O BOTÃO DE ABRIR A BARRA LATERAL (CONFIGURAÇÕES) FIQUE VISÍVEL E CLICÁVEL */
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+            z-index: 999999 !important;
+            background-color: #ffffff !important;
+            border: 1px solid #cccccc !important;
+            border-radius: 6px !important;
+            box-shadow: 0px 2px 6px rgba(0,0,0,0.15) !important;
+            padding: 2px !important;
+        }
+
+        /* Ajuste de espaçamento para o conteúdo não sobrepor o topo */
         .main .block-container {
             padding-top: 3.5rem !important;
-            padding-bottom: 0rem !important;
+            padding-bottom: 2rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
