@@ -10,6 +10,7 @@ from io import BytesIO
 import urllib.parse
 import re
 import decimal
+import streamlit.components.v1 as components
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -30,71 +31,103 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- CUSTOMIZAÇÃO CSS: LIMPEZA TOTAL E POSICIONAMENTO DO BOTÃO ---
+# --- CUSTOMIZAÇÃO CSS E JAVASCRIPT: EXTERMÍNIO TOTAL DE RODAPÉ, GITHUB E STREAMLIT ---
 st.markdown("""
     <style>
-        /* 1. EXTERMÍNIO DE MARCAS D'ÁGUA, GITHUB E RODAPÉ (Círculo Vermelho) */
-        footer, [data-testid="stFooter"], .stFooter {
+        /* 1. REMOÇÃO DE RODAPÉS E MARCAS NATIVAS */
+        footer, [data-testid="stFooter"], .stFooter, 
+        #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
             display: none !important;
             visibility: hidden !important;
             height: 0px !important;
             margin: 0px !important;
             padding: 0px !important;
-        }
-
-        /* Oculta Menu Padrão e botão de Deploy */
-        #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
-            visibility: hidden !important; 
-            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
         
-        /* Força Bruta contra os selos "Manage App" e ícones flutuantes do Streamlit/GitHub */
-        div[class^="viewerBadge_"], 
-        div[class^="styles_viewerBadge_"],
-        .viewerBadge_container__16308,
-        .viewerBadge_link__1PBvw,
-        a[href^="https://streamlit.io"],
+        /* Seletores agressivos contra selos de deploy, badges e GitHub */
+        div[class*="viewerBadge"], 
+        div[class*="styles_viewerBadge"],
+        div[class*="viewerBadge_container"],
+        a[href*="streamlit.io"],
         a[href*="github"],
-        #manage-app-button,
-        iframe[title*="streamlit"] {
+        #manage-app-button {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             width: 0 !important;
             height: 0 !important;
             pointer-events: none !important;
-            z-index: -99999 !important;
+            z-index: -999999 !important;
         }
 
-        /* Header Transparente para não criar faixas estranhas no topo */
         header[data-testid="stHeader"] {
             background-color: transparent !important;
             box-shadow: none !important;
         }
 
-        /* 2. BOTÃO DE CONFIGURAÇÕES NO TOPO DIREITO (Círculo Azul) */
+        /* 2. BOTÃO DE CONFIGURAÇÕES FIXO NO CANTO SUPERIOR DIREITO (Acima do Banner) */
         [data-testid="collapsedControl"] {
             display: flex !important;
             visibility: visible !important;
-            position: fixed !important; /* Desprende o botão do layout padrão */
-            top: 15px !important;       /* Distância do topo */
-            right: 15px !important;     /* Joga o botão para a DIREITA */
-            left: auto !important;      /* Anula a posição padrão na ESQUERDA */
-            z-index: 999999 !important; /* Garante que fique acima do banner */
+            position: fixed !important;
+            top: 12px !important;       
+            right: 15px !important;     
+            left: auto !important;      
+            z-index: 9999999 !important; 
             background-color: #ffffff !important;
-            border: 2px solid #29b6f6 !important; /* Bordinha azul para combinar com o app */
-            border-radius: 8px !important;
-            box-shadow: 0px 4px 6px rgba(0,0,0,0.3) !important; /* Sombra para dar destaque */
-            padding: 5px !important;
+            border: 2px solid #29b6f6 !important;
+            border-radius: 50% !important;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.4) !important;
+            padding: 8px !important;
+            width: 45px !important;
+            height: 45px !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
-        /* Afasta o conteúdo principal para baixo para o botão não sobrepor o banner */
+        /* Afasta o conteúdo principal para o topo para acomodar o botão livremente */
         .main .block-container {
             padding-top: 4.5rem !important;
             padding-bottom: 2rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
+
+# --- SCRIPT JAVASCRIPT DE VARREDURA E DESTRUIÇÃO EM TEMPO REAL ---
+# Remove dinamicamente qualquer iframe, badge ou elemento do Github/Streamlit que tente nascer no APK
+components.html("""
+    <script>
+        function removeUnwantedElements() {
+            const selectors = [
+                'iframe[title*="streamlit"]',
+                'div[class*="viewerBadge"]',
+                'a[href*="streamlit.io"]',
+                'a[href*="github"]',
+                'footer',
+                '#manage-app-button'
+            ];
+            
+            selectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => {
+                    el.remove();
+                });
+            });
+
+            // Varre todos os elementos buscando textos indesejados no rodapé/canto inferior
+            const allElements = document.querySelectorAll('div, a, span');
+            allElements.forEach(el => {
+                if (el.innerText && (el.innerText.includes('Made with Streamlit') || el.innerText.includes('Deploy with GitHub'))) {
+                    el.remove();
+                }
+            });
+        }
+
+        // Executa a cada 500ms para garantir que NADA apareça após atualizações de tela
+        setInterval(removeUnwantedElements, 500);
+    </script>
+""", height=0, width=0)
 
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
@@ -913,7 +946,7 @@ with tab2:
             with col_down2:
                 st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
             st.markdown("---")
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis = df_exexibicao if 'df_exexibicao' in locals() else df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
             if 'Mês/Ano' in df_vis.columns:
                 df_vis = df_vis.drop(columns=['Mês/Ano'])
