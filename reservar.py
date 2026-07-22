@@ -30,7 +30,6 @@ except Exception as e:
 def ajustar_estrutura_banco():
     try:
         with engine.begin() as conn:
-            # Remove a obrigatoriedade NOT NULL de 'cliente_telefone' caso ela exista no PostgreSQL
             conn.execute(text("ALTER TABLE agendamentos ALTER COLUMN cliente_telefone DROP NOT NULL;"))
     except Exception:
         pass
@@ -69,7 +68,7 @@ def buscar_horarios_ocupados(salao_id, data_str):
                 text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), 
                 {"user": salao_clean, "dt": data_str}
             )
-            return [row[0] for row in result.fetchall()]
+            return [str(row[0]).strip() for row in result.fetchall()]
     except Exception:
         return []
 
@@ -79,7 +78,6 @@ def salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_nome, da
     nome_clean = cliente_nome.strip()
 
     with engine.begin() as conn:
-        # Tenta gravar em ambas as colunas (cliente_contato e cliente_telefone) para garantir total compatibilidade
         try:
             conn.execute(
                 text("""
@@ -96,7 +94,6 @@ def salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_nome, da
                 }
             )
         except Exception:
-            # Caso a coluna cliente_telefone não exista no banco, grava na estrutura simples
             conn.execute(
                 text("""
                     INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
@@ -141,13 +138,35 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
     data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
     data_str = data_escolhida.strftime("%Y-%m-%d")
 
+    # --- CONSULTA E EXIBIÇÃO DOS HORÁRIOS EM CORES ---
     ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
+
+    st.markdown("---")
+    st.subheader("📅 Status dos Horários do Dia")
+    st.caption("🟢 **Verde:** Horário Livre | 🔴 **Vermelho:** Horário Ocupado")
+
+    # Exibição do grid visual de horários
+    cols = st.columns(3)
+    for index, hora in enumerate(HORARIOS_DISPONIVEIS):
+        col = cols[index % 3]
+        if hora in ocupados:
+            col.markdown(f"🔴 ~~**{hora}**~~ *(Ocupado)*")
+        else:
+            col.markdown(f"🟢 **{hora}** *(Livre)*")
+
+    st.markdown("---")
+
+    # Filtra apenas os horários livres para o campo de seleção
     horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
 
     if horarios_livres:
-        horario_escolhido = st.selectbox("Horários Disponíveis:", horarios_livres)
+        horario_escolhido = st.selectbox(
+            "Selecione um Horário Livre para Agendar:", 
+            options=horarios_livres,
+            format_func=lambda x: f"🟢 {x} (Disponível)"
+        )
     else:
-        st.error("⚠️ Todos os horários para este dia já estão ocupados! Por favor, escolha outra data.")
+        st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outro dia.")
         horario_escolhido = None
 
     enviar = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
