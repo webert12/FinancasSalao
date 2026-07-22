@@ -68,7 +68,15 @@ def buscar_horarios_ocupados(salao_id, data_str):
                 text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), 
                 {"user": salao_clean, "dt": data_str}
             )
-            return [str(row[0]).strip() for row in result.fetchall()]
+            ocupados = []
+            for row in result.fetchall():
+                val = str(row[0]).strip()
+                # Trata formatos como '08:00:00' gravados pelo PostgreSQL convertendo para '08:00'
+                if len(val) >= 5 and ":" in val:
+                    ocupados.append(val[:5])
+                else:
+                    ocupados.append(val)
+            return ocupados
     except Exception:
         return []
 
@@ -138,12 +146,12 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
     data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
     data_str = data_escolhida.strftime("%Y-%m-%d")
 
-    # --- CONSULTA E EXIBIÇÃO DOS HORÁRIOS EM CORES ---
+    # Busca os horários ocupados no banco de dados
     ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
 
     st.markdown("---")
     st.subheader("📅 Status dos Horários do Dia")
-    st.caption("🟢 **Verde:** Horário Livre | 🔴 **Vermelho:** Horário Ocupado")
+    st.caption("🟢 **Verde:** Livre | 🔴 **Vermelho:** Indisponível")
 
     # Exibição do grid visual de horários
     cols = st.columns(3)
@@ -156,18 +164,18 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
 
     st.markdown("---")
 
-    # Filtra apenas os horários livres para o campo de seleção
-    horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
+    # Monta as opções do seletor incluindo instrução padrão e lista completa com status
+    opcoes_horario = ["-- Selecione o Horário --"]
+    for h in HORARIOS_DISPONIVEIS:
+        if h in ocupados:
+            opcoes_horario.append(f"🔴 {h} - (INDISPONÍVEL / OCUPADO)")
+        else:
+            opcoes_horario.append(f"🟢 {h} - (DISPONÍVEL)")
 
-    if horarios_livres:
-        horario_escolhido = st.selectbox(
-            "Selecione um Horário Livre para Agendar:", 
-            options=horarios_livres,
-            format_func=lambda x: f"🟢 {x} (Disponível)"
-        )
-    else:
-        st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outro dia.")
-        horario_escolhido = None
+    horario_selecionado = st.selectbox(
+        "Selecione o Horário para Agendar:", 
+        options=opcoes_horario
+    )
 
     enviar = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
 
@@ -177,24 +185,35 @@ if enviar:
         st.warning("⚠️ Por favor, preencha seu nome e WhatsApp.")
     elif not servico_escolhido:
         st.error("⚠️ Selecione um serviço válido.")
-    elif not horario_escolhido:
-        st.error("⚠️ Escolha um horário disponível antes de confirmar.")
+    elif horario_selecionado == "-- Selecione o Horário --":
+        st.warning("⚠️ Escolha um horário na lista acima antes de confirmar.")
+    elif "🔴" in horario_selecionado or "INDISPONÍVEL" in horario_selecionado:
+        hora_ext = horario_selecionado.split()[1]
+        st.error(f"❌ O horário **{hora_ext}** já foi reservado! Por favor, escolha um horário com a marcação verde (🟢).")
     else:
-        try:
-            salvar_agendamento(
-                salao_id=salao_id_clean,
-                cliente_nome=nome_cliente,
-                cliente_contato=telefone_cliente,
-                servico_nome=servico_escolhido,
-                data_str=data_str,
-                hora=horario_escolhido
-            )
-            
-            st.success(f"🎉 Agendamento confirmado com sucesso, {nome_cliente}!")
-            st.balloons()
-            st.info(
-                f"📅 **Data:** {data_escolhida.strftime('%d/%m/%Y')} às **{horario_escolhido}**\n\n"
-                f"✂️ **Serviço:** {servico_escolhido}"
-            )
-        except Exception as e:
-            st.error(f"Ocorreu um erro ao salvar o agendamento: {e}")
+        # Extrai a hora limpa ex: "08:00"
+        hora_limpa = horario_selecionado.split()[1]
+        
+        # Dupla checagem no banco de dados antes de efetivar o agendamento
+        ocupados_agora = buscar_horarios_ocupados(salao_id_clean, data_str)
+        if hora_limpa in ocupados_agora:
+            st.error(f"❌ O horário **{hora_limpa}** acabou de ser reservado por outra pessoa. Por favor, escolha outro horário.")
+        else:
+            try:
+                salvar_agendamento(
+                    salao_id=salao_id_clean,
+                    cliente_nome=nome_cliente,
+                    cliente_contato=telefone_cliente,
+                    servico_nome=servico_escolhido,
+                    data_str=data_str,
+                    hora=hora_limpa
+                )
+                
+                st.success(f"🎉 Agendamento confirmado com sucesso, {nome_cliente}!")
+                st.balloons()
+                st.info(
+                    f"📅 **Data:** {data_escolhida.strftime('%d/%m/%Y')} às **{hora_limpa}**\n\n"
+                    f"✂️ **Serviço:** {servico_escolhido}"
+                )
+            except Exception as e:
+                st.error(f"Ocorreu um erro ao salvar o agendamento: {e}")
