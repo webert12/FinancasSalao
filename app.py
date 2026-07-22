@@ -30,46 +30,52 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- CUSTOMIZACÃO CSS: REMOVE ÍCONES DO STREAMLIT E MANTÉM O MENU LATERAL ---
+# --- CUSTOMIZAÇÃO CSS: REMOVE ÍCONES/BADGES E PRESERVA O BOTÃO DO MENU ---
 st.markdown("""
     <style>
-        /* Oculta menu padrao, botoes de deploy e rodapé do Streamlit */
+        /* 1. OCULTA APENAS O MENU PADRÃO E FERRAMENTAS DO GITHUB/DEPLOY */
         #MainMenu {visibility: hidden !important; display: none !important;}
-        footer {visibility: hidden !important; display: none !important;}
-        [data-testid="stFooter"] {display: none !important;}
+        [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+        [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
+        [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
         .stDeployButton {display: none !important;}
-        
-        /* Oculta a barra de ferramentas do GitHub/Streamlit no topo */
-        [data-testid="stToolbar"] {display: none !important;}
-        [data-testid="stStatusWidget"] {display: none !important;}
-        
-        /* Oculta completamente o selo/ícone flutuante do Streamlit Cloud (Canto inferior) */
-        [data-testid="stViewerBadge"] {display: none !important;}
-        .viewerBadge_container__16308 {display: none !important;}
-        div[class*="viewerBadge"] {display: none !important;}
-        div[class*="styles_viewerBadge"] {display: none !important;}
-        a[href*="streamlit.io"] {display: none !important;}
 
-        /* MANTÉM VISÍVEL O BOTÃO DO MENU LATERAL (CONFIGURAÇÕES) */
-        [data-testid="collapsedControl"] {
-            display: block !important;
-            visibility: visible !important;
+        /* Mantém o cabeçalho transparente para permitir a exibição do botão de menu lateral */
+        header[data-testid="stHeader"] {
+            background-color: transparent !important;
             z-index: 999999 !important;
         }
 
-        /* Ajuste do topo do conteúdo */
-        div[class*="stAppViewBlockContainer"] {
-            padding-top: 1rem !important;
-            padding-bottom: 1rem !important;
+        /* FORÇA A EXIBIÇÃO DO BOTÃO DE ABRIR/FECHAR A BARRA LATERAL (CONFIGURAÇÕES) */
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+            z-index: 1000000 !important;
+        }
+
+        /* 2. REMOÇÃO COMPLETA DO RODAPÉ E DO SELO/BADGE FLUTUANTE DO STREAMLIT (CANTO INFERIOR) */
+        footer {visibility: hidden !important; display: none !important;}
+        [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
+        
+        [data-testid="stViewerBadge"],
+        .viewerBadge_container__16308,
+        div[class*="viewerBadge"],
+        div[class*="styles_viewerBadge"],
+        a[href*="streamlit.io"],
+        iframe[title*="streamlit"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* 3. AJUSTE DE ESPAÇAMENTO DO CONTEÚDO PRINCIPAL */
+        .main .block-container {
+            padding-top: 1.5rem !important;
+            padding-bottom: 0rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
-
-# --- EXIBIÇÃO DA LOGO NO TOPO DO SISTEMA (SE EXISTIR NO PROJETO) ---
-if os.path.exists("logo.png"):
-    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2:
-        st.image("logo.png", use_container_width=True)
 
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
@@ -375,6 +381,12 @@ def gerar_pdf_contabilidade(df, mes_ref):
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
+
+# --- RENDERIZAÇÃO DA LOGO NO TOPO DO SISTEMA ---
+if os.path.exists("logo.png"):
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.image("logo.png", use_container_width=True)
 
 # ==============================================================================
 # --- ROTA PÚBLICA EXCLUSIVA PARA O CLIENTE (?salao=nome) ---
