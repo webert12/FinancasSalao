@@ -26,30 +26,6 @@ TZ = ZoneInfo("America/Sao_Paulo")
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# --- FUNÇÃO BOTÃO WHATSAPP (DEEP LINK NATIVO PARA MOBILE) ---
-def renderizar_botao_whatsapp(texto, url):
-    # Uso de target="_top" é fundamental para celulares não bloquearem a ação como popup
-    return f"""
-    <a href="{url}" target="_top" style="
-        display: block;
-        width: 100%;
-        text-align: center;
-        background-color: #25D366;
-        color: white !important;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        text-decoration: none;
-        font-weight: 600;
-        font-family: sans-serif;
-        border: none;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-        cursor: pointer;
-    ">
-        {texto}
-    </a>
-    """
-
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
 
@@ -607,9 +583,9 @@ base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstr
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-# MONTAGEM DA MENSAGEM COM PROTOCOLO NATIVO DO WHATSAPP (whatsapp://)
+# MONTAGEM DA MENSAGEM COM PROTOCOLO WEB DO WHATSAPP
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
-wa_url_geral = f"whatsapp://send?text={urllib.parse.quote(mensagem_whatsapp)}"
+wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
@@ -716,8 +692,8 @@ with tab_agend:
     
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        # Injeção de Botão HTML com Deep Link Nativo
-        st.markdown(renderizar_botao_whatsapp("📲 Compartilhar Link no WhatsApp", wa_url_geral), unsafe_allow_html=True)
+        # Injeção de Botão Nativo do Streamlit
+        st.link_button("📲 Compartilhar Link no WhatsApp", wa_url_geral, use_container_width=True)
 
     df_agendamentos = carregar_agendamentos()
 
@@ -751,10 +727,10 @@ with tab_agend:
                     num_clean = '55' + num_clean
                 
                 msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
-                wa_direct = f"whatsapp://send?phone={num_clean}&text={msg_cli}"
+                wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
                 
-                # Renderiza o Botão HTML Absoluto
-                st.markdown(renderizar_botao_whatsapp("💬 Falar com Cliente no WhatsApp", wa_direct), unsafe_allow_html=True)
+                # Renderiza o Botão Nativo do Streamlit
+                st.link_button("💬 Falar com Cliente no WhatsApp", wa_direct, use_container_width=True)
             else:
                 st.info("Telefone não informado.")
 
@@ -772,8 +748,8 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # Injeção de Botão HTML na Sidebar
-    st.markdown(renderizar_botao_whatsapp("📲 Enviar Link no WhatsApp", wa_url_geral), unsafe_allow_html=True)
+    # Injeção de Botão Nativo do Streamlit na Sidebar
+    st.link_button("📲 Enviar Link no WhatsApp", wa_url_geral, use_container_width=True)
 
     st.markdown("---")
 
