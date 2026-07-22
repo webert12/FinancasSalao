@@ -71,7 +71,6 @@ def buscar_horarios_ocupados(salao_id, data_str):
             ocupados = []
             for row in result.fetchall():
                 val = str(row[0]).strip()
-                # Trata formatos como '08:00:00' gravados pelo PostgreSQL convertendo para '08:00'
                 if len(val) >= 5 and ":" in val:
                     ocupados.append(val[:5])
                 else:
@@ -146,58 +145,43 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
     data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
     data_str = data_escolhida.strftime("%Y-%m-%d")
 
-    # Busca os horários ocupados no banco de dados
+    # Consulta no banco de dados para checar quais horários estão ocupados nessa data
     ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
 
-    st.markdown("---")
-    st.subheader("📅 Status dos Horários do Dia")
-    st.caption("🟢 **Verde:** Livre | 🔴 **Vermelho:** Indisponível")
-
-    # Exibição do grid visual de horários
-    cols = st.columns(3)
-    for index, hora in enumerate(HORARIOS_DISPONIVEIS):
-        col = cols[index % 3]
-        if hora in ocupados:
-            col.markdown(f"🔴 ~~**{hora}**~~ *(Ocupado)*")
-        else:
-            col.markdown(f"🟢 **{hora}** *(Livre)*")
-
-    st.markdown("---")
-
-    # Monta as opções do seletor incluindo instrução padrão e lista completa com status
+    # Monta a lista de opções exibindo a cor/status de cada horário
     opcoes_horario = ["-- Selecione o Horário --"]
     for h in HORARIOS_DISPONIVEIS:
         if h in ocupados:
-            opcoes_horario.append(f"🔴 {h} - (INDISPONÍVEL / OCUPADO)")
+            opcoes_horario.append(f"🔴 {h} - (RESERVADO)")
         else:
             opcoes_horario.append(f"🟢 {h} - (DISPONÍVEL)")
 
     horario_selecionado = st.selectbox(
-        "Selecione o Horário para Agendar:", 
+        "Escolha o Horário Desejado:", 
         options=opcoes_horario
     )
 
     enviar = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
 
-# --- 7. PROCESSAMENTO DO FORMULÁRIO ---
+# --- 7. PROCESSAMENTO E VALIDAÇÃO DO FORMULÁRIO ---
 if enviar:
     if not nome_cliente or not telefone_cliente:
         st.warning("⚠️ Por favor, preencha seu nome e WhatsApp.")
     elif not servico_escolhido:
         st.error("⚠️ Selecione um serviço válido.")
     elif horario_selecionado == "-- Selecione o Horário --":
-        st.warning("⚠️ Escolha um horário na lista acima antes de confirmar.")
-    elif "🔴" in horario_selecionado or "INDISPONÍVEL" in horario_selecionado:
+        st.warning("⚠️ Por favor, escolha um horário na lista acima.")
+    elif "🔴" in horario_selecionado or "RESERVADO" in horario_selecionado:
         hora_ext = horario_selecionado.split()[1]
-        st.error(f"❌ O horário **{hora_ext}** já foi reservado! Por favor, escolha um horário com a marcação verde (🟢).")
+        st.error(f"❌ O horário **{hora_ext}** já possui uma reserva confirmada para esta data. Por favor, selecione outro horário com a indicação verde (🟢).")
     else:
-        # Extrai a hora limpa ex: "08:00"
+        # Extrai o formato limpo (ex: "08:00")
         hora_limpa = horario_selecionado.split()[1]
         
-        # Dupla checagem no banco de dados antes de efetivar o agendamento
+        # Checagem dupla no banco de dados antes de efetivar
         ocupados_agora = buscar_horarios_ocupados(salao_id_clean, data_str)
         if hora_limpa in ocupados_agora:
-            st.error(f"❌ O horário **{hora_limpa}** acabou de ser reservado por outra pessoa. Por favor, escolha outro horário.")
+            st.error(f"❌ O horário **{hora_limpa}** acabou de ser reservado nesta data por outro cliente. Escolha outro horário.")
         else:
             try:
                 salvar_agendamento(
