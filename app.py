@@ -9,6 +9,7 @@ import hashlib
 from io import BytesIO
 import urllib.parse
 import re
+import decimal  # Importado para tratar valores numéricos do PostgreSQL
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -255,7 +256,6 @@ def deletar_movimentacao_fluxo(id_registro):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
 
-# --- CORREÇÃO DA LEITURA DE AGENDAMENTOS ---
 def carregar_agendamentos():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
@@ -276,14 +276,26 @@ def deletar_agendamento(id_agendamento):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
+# --- FUNÇÃO CORRIGIDA DE GERAR BACKUP JSON ---
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
+
     if not df_f.empty:
-        df_f['Data'] = df_f['Data'].dt.strftime('%Y-%m-%d')
-        fluxo_dict = df_f.to_dict(orient="records")
+        df_copy = df_f.copy()
+        if 'Data' in df_copy.columns:
+            df_copy['Data'] = df_copy['Data'].dt.strftime('%Y-%m-%d')
+        fluxo_dict = df_copy.to_dict(orient="records")
     else:
         fluxo_dict = []
+
+    # Serializador para tratar Decimal, Timestamp, etc.
+    def custom_serializer(obj):
+        if isinstance(obj, (decimal.Decimal, float)):
+            return float(obj)
+        if isinstance(obj, (datetime, pd.Timestamp)):
+            return obj.strftime('%Y-%m-%d')
+        return str(obj)
 
     dados_backup = {
         "sistema": "Fio&Caixa",
@@ -292,7 +304,7 @@ def gerar_backup_json_completo():
         "catalogo_servicos": carregar_servicos(),
         "historico_financeiro": fluxo_dict
     }
-    return json.dumps(dados_backup, indent=4, ensure_ascii=False)
+    return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -794,7 +806,13 @@ with st.sidebar:
     with st.expander("📦 Central de Backups"):
         st.write("Baixar salvaguarda dos dados em formato JSON:")
         backup_dados = gerar_backup_json_completo()
-        st.download_button(label="📥 Baixar Backup (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d/%m/%Y')}.json", mime="application/json", use_container_width=True)
+        st.download_button(
+            label="📥 Baixar Backup (.json)", 
+            data=backup_dados, 
+            file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
+            mime="application/json", 
+            use_container_width=True
+        )
 
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False
