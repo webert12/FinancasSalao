@@ -320,7 +320,7 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    # OCULTAÇÃO ABSOLUTA DE ELEMENTOS DO STREAMLIT E DE NAVEGAÇÃO
+    # OCULTAÇÃO ABSOLUTA DE ELEMENTOS DO STREAMLIT, CABEÇALHOS, ANCORAS E LINKS
     st.markdown("""
     <style>
         #MainMenu {visibility: hidden !important; display: none !important;}
@@ -332,6 +332,8 @@ if salao_url:
         [data-testid="stToolbar"] {display: none !important;}
         [data-testid="stFooter"] {display: none !important;}
         .stDeployButton {display:none !important;}
+        a.header-anchor {display: none !important;}
+        [data-testid="stHeaderActionElements"] {display: none !important;}
         div[class*="stAppViewBlockContainer"] {padding-top: 1rem !important;}
     </style>
     """, unsafe_allow_html=True)
@@ -350,7 +352,7 @@ if salao_url:
 
     st.subheader(f"✂️ Agendamento - {nome_salao_formatado}")
 
-    # FORMULÁRIO ÚNICO E LIMPO
+    # FORMULÁRIO ÚNICO E LIMPO (NOME, WHATSAPP, SERVIÇO, DATA, HORÁRIO, CONFIRMAÇÃO)
     with st.form("form_agendamento_cliente", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
@@ -413,7 +415,7 @@ if salao_url:
             except Exception as e:
                 st.error(f"Erro ao salvar agendamento: {e}")
 
-    # PARADA OBRIGATÓRIA - IMPEDE QUE QUALQUER OUTRA LINHA DE CÓDIGO APAREÇA NA TELA
+    # PARADA OBRIGATÓRIA - IMPEDE QUE QUALQUER OUTRA LINHA DE CÓDIGO APAREÇA NA TELA DO CLIENTE
     st.stop()
 
 # ==============================================================================
@@ -582,8 +584,9 @@ base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstr
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
+# --- CORREÇÃO DO LINK DO WHATSAPP ---
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
-wa_url = f"https://wa.me/?text={urllib.parse.quote(mensagem_whatsapp)}"
+wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
@@ -690,7 +693,11 @@ with tab_agend:
     
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">📲 Compartilhar Link no WhatsApp</button></a>', unsafe_allow_html=True)
+        # --- BOTÃO WHATSAPP CORRIGIDO ---
+        st.markdown(
+            f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 16px;">📲 Compartilhar Link no WhatsApp</a>',
+            unsafe_allow_html=True
+        )
 
     df_agendamentos = carregar_agendamentos()
 
@@ -721,7 +728,11 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:15px;">📲 Enviar Link no WhatsApp</button></a>', unsafe_allow_html=True)
+    # --- BOTÃO WHATSAPP SIDEBAR CORRIGIDO ---
+    st.markdown(
+        f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; margin-bottom: 15px;">📲 Enviar Link no WhatsApp</a>',
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
 
