@@ -30,10 +30,10 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- CUSTOMIZAÇÃO CSS: LIMPEZA TOTAL (WHITE-LABEL) + BOTÃO DE CONFIG VISÍVEL ---
+# --- CUSTOMIZAÇÃO CSS: LIMPEZA TOTAL E POSICIONAMENTO DO BOTÃO ---
 st.markdown("""
     <style>
-        /* 1. OCULTA RODAPÉ COMPLETAMENTE */
+        /* 1. EXTERMÍNIO DE MARCAS D'ÁGUA, GITHUB E RODAPÉ (Círculo Vermelho) */
         footer, [data-testid="stFooter"], .stFooter {
             display: none !important;
             visibility: hidden !important;
@@ -42,45 +42,55 @@ st.markdown("""
             padding: 0px !important;
         }
 
-        /* 2. OCULTA MENU PADRÃO, DEPLOY E BADGES DO STREAMLIT/GITHUB */
-        #MainMenu {visibility: hidden !important; display: none !important;}
-        [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-        [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
-        .stDeployButton {display: none !important;}
+        /* Oculta Menu Padrão e botão de Deploy */
+        #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
+            visibility: hidden !important; 
+            display: none !important;
+        }
         
-        /* Oculta o selo de "Manage App" ou ícone do GitHub no canto inferior */
+        /* Força Bruta contra os selos "Manage App" e ícones flutuantes do Streamlit/GitHub */
+        div[class^="viewerBadge_"], 
+        div[class^="styles_viewerBadge_"],
         .viewerBadge_container__16308,
-        div[class*="viewerBadge"],
-        div[class*="styles_viewerBadge"],
-        a[href*="streamlit.io"],
+        .viewerBadge_link__1PBvw,
+        a[href^="https://streamlit.io"],
+        a[href*="github"],
+        #manage-app-button,
         iframe[title*="streamlit"] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
             pointer-events: none !important;
+            z-index: -99999 !important;
         }
 
-        /* 3. HEADER TRANSPARENTE PARA NÃO BLOQUEAR CLIQUES */
+        /* Header Transparente para não criar faixas estranhas no topo */
         header[data-testid="stHeader"] {
             background-color: transparent !important;
             box-shadow: none !important;
         }
 
-        /* 4. GARANTE QUE O BOTÃO DE ABRIR A BARRA LATERAL (CONFIGURAÇÕES) FIQUE VISÍVEL E CLICÁVEL */
+        /* 2. BOTÃO DE CONFIGURAÇÕES NO TOPO DIREITO (Círculo Azul) */
         [data-testid="collapsedControl"] {
             display: flex !important;
             visibility: visible !important;
-            z-index: 999999 !important;
+            position: fixed !important; /* Desprende o botão do layout padrão */
+            top: 15px !important;       /* Distância do topo */
+            right: 15px !important;     /* Joga o botão para a DIREITA */
+            left: auto !important;      /* Anula a posição padrão na ESQUERDA */
+            z-index: 999999 !important; /* Garante que fique acima do banner */
             background-color: #ffffff !important;
-            border: 1px solid #cccccc !important;
-            border-radius: 6px !important;
-            box-shadow: 0px 2px 6px rgba(0,0,0,0.15) !important;
-            padding: 2px !important;
+            border: 2px solid #29b6f6 !important; /* Bordinha azul para combinar com o app */
+            border-radius: 8px !important;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.3) !important; /* Sombra para dar destaque */
+            padding: 5px !important;
         }
 
-        /* Ajuste de espaçamento para o conteúdo não sobrepor o topo */
+        /* Afasta o conteúdo principal para baixo para o botão não sobrepor o banner */
         .main .block-container {
-            padding-top: 3.5rem !important;
+            padding-top: 4.5rem !important;
             padding-bottom: 2rem !important;
         }
     </style>
