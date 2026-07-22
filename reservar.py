@@ -26,6 +26,17 @@ except Exception as e:
     st.error(f"Erro ao conectar ao banco de dados: {e}")
     st.stop()
 
+# --- CORREÇÃO AUTOMÁTICA DE ESTRUTURA DO BANCO ---
+def ajustar_estrutura_banco():
+    try:
+        with engine.begin() as conn:
+            # Remove a obrigatoriedade NOT NULL de 'cliente_telefone' caso ela exista no PostgreSQL
+            conn.execute(text("ALTER TABLE agendamentos ALTER COLUMN cliente_telefone DROP NOT NULL;"))
+    except Exception:
+        pass
+
+ajustar_estrutura_banco()
+
 # --- 3. HORÁRIOS PADRÃO DE ATENDIMENTO ---
 HORARIOS_DISPONIVEIS = [
     "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
@@ -48,7 +59,6 @@ def carregar_servicos_salao(salao_id):
                 return {row[0]: float(row[1]) for row in rows}
     except Exception:
         pass
-    # Serviços padrão caso o salão ainda não tenha cadastrado serviços
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo (Corte + Barba)": 50.00}
 
 def buscar_horarios_ocupados(salao_id, data_str):
@@ -65,21 +75,42 @@ def buscar_horarios_ocupados(salao_id, data_str):
 
 def salvar_agendamento(salao_id, cliente_nome, cliente_contato, servico_nome, data_str, hora):
     salao_clean = urllib.parse.unquote(str(salao_id)).strip().lower()
+    contato_clean = cliente_contato.strip()
+    nome_clean = cliente_nome.strip()
+
     with engine.begin() as conn:
-        conn.execute(
-            text("""
-                INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
-                VALUES (:user, :nome, :contato, :servico, :data, :hora)
-            """),
-            {
-                "user": salao_clean,
-                "nome": cliente_nome.strip(),
-                "contato": cliente_contato.strip(),
-                "servico": servico_nome,
-                "data": data_str,
-                "hora": hora
-            }
-        )
+        # Tenta gravar em ambas as colunas (cliente_contato e cliente_telefone) para garantir total compatibilidade
+        try:
+            conn.execute(
+                text("""
+                    INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, cliente_telefone, servico_nome, data, hora)
+                    VALUES (:user, :nome, :contato, :contato, :servico, :data, :hora)
+                """),
+                {
+                    "user": salao_clean,
+                    "nome": nome_clean,
+                    "contato": contato_clean,
+                    "servico": servico_nome,
+                    "data": data_str,
+                    "hora": hora
+                }
+            )
+        except Exception:
+            # Caso a coluna cliente_telefone não exista no banco, grava na estrutura simples
+            conn.execute(
+                text("""
+                    INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
+                    VALUES (:user, :nome, :contato, :servico, :data, :hora)
+                """),
+                {
+                    "user": salao_clean,
+                    "nome": nome_clean,
+                    "contato": contato_clean,
+                    "servico": servico_nome,
+                    "data": data_str,
+                    "hora": hora
+                }
+            )
 
 # --- 5. PARÂMETROS DA URL E IDENTIFICAÇÃO DO SALÃO ---
 query_params = st.query_params
@@ -91,7 +122,6 @@ nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title(
 st.title("✂️ Agendamento Online")
 st.write(f"Seja bem-vindo ao sistema de agendamento de **{nome_salao_formatado}**.")
 
-# Carrega os serviços dinâmicos cadastrados pelo salão no banco
 servicos_disponiveis = carregar_servicos_salao(salao_id_clean)
 
 with st.form("form_agendamento_cliente", clear_on_submit=True):
@@ -111,7 +141,6 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
     data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
     data_str = data_escolhida.strftime("%Y-%m-%d")
 
-    # Verifica os horários já agendados para este salão e data
     ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
     horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
 
