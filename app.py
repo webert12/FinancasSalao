@@ -147,9 +147,10 @@ def atualizar_url_sistema(url):
 def carregar_usuarios():
     try:
         with engine.connect() as conn:
-            df = pd.read_sql("SELECT * FROM usuarios", conn)
-            if not df.empty:
-                return {row['id']: dict(row) for _, row in df.iterrows()}
+            result = conn.execute(text("SELECT id, senha, email, tipo, vencimento, status FROM usuarios"))
+            rows = result.fetchall()
+            if rows:
+                return {row[0]: {"id": row[0], "senha": row[1], "email": row[2], "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
     except:
         pass
     return {}
@@ -178,12 +179,13 @@ def salvar_usuarios(usuarios_dict):
             })
 
 def carregar_servicos_por_salao(salao_id):
-    salao_id_clean = str(salao_id).strip().lower() if salao_id else "padrao"
+    salao_id_clean = urllib.parse.unquote(str(salao_id)).strip().lower() if salao_id else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": salao_id_clean})
-            if not df.empty:
-                return {row['nome']: float(row['preco']) for _, row in df.iterrows()}
+            result = conn.execute(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), {"user": salao_id_clean})
+            rows = result.fetchall()
+            if rows:
+                return {row[0]: float(row[1]) for row in rows}
     except:
         pass
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
@@ -217,11 +219,12 @@ def carregar_fluxo():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), conn, params={"user": usuario})
-            if not df.empty:
-                df = df.rename(columns={"data": "Data", "tipo": "Tipo", "descricao": "Descrição", "valor": "Valor"})
+            result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
+            rows = result.fetchall()
+            if rows:
+                df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
                 df['Data'] = pd.to_datetime(df['Data'])
-                return df[['id', 'Data', 'Tipo', 'Descrição', 'Valor']]
+                return df
     except:
         pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
@@ -252,16 +255,20 @@ def deletar_movimentacao_fluxo(id_registro):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
 
+# --- CORREÇÃO DA LEITURA DE AGENDAMENTOS ---
 def carregar_agendamentos():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), conn, params={"user": usuario})
-            if not df.empty:
-                df = df.rename(columns={"cliente_nome": "Cliente", "cliente_contato": "Contato/WhatsApp", "servico_nome": "Serviço", "data": "Data", "hora": "Horário"})
-                return df
-    except:
-        pass
+            result = conn.execute(
+                text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"),
+                {"user": usuario}
+            )
+            rows = result.fetchall()
+            if rows:
+                return pd.DataFrame(rows, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
+    except Exception as e:
+        st.error(f"Erro ao buscar agendamentos: {e}")
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
 def deletar_agendamento(id_agendamento):
@@ -319,7 +326,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # ==============================================================================
-# --- ROTA PÚBLICA 100% EXCLUSIVA E CLEAN PARA O CLIENTE (?salao=nome) ---
+# --- ROTA PÚBLICA EXCLUSIVA PARA O CLIENTE (?salao=nome) ---
 # ==============================================================================
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
@@ -340,7 +347,7 @@ if salao_url:
     </style>
     """, unsafe_allow_html=True)
 
-    salao_id_clean = str(salao_url).strip().lower()
+    salao_id_clean = urllib.parse.unquote(str(salao_url)).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
 
     HORARIOS_DISPONIVEIS = [
@@ -369,12 +376,11 @@ if salao_url:
 
         try:
             with engine.connect() as conn:
-                df_ocupados = pd.read_sql(
+                result = conn.execute(
                     text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), 
-                    conn, 
-                    params={"user": salao_id_clean, "dt": data_str}
+                    {"user": salao_id_clean, "dt": data_str}
                 )
-                ocupados = df_ocupados['hora'].tolist() if not df_ocupados.empty else []
+                ocupados = [r[0] for r in result.fetchall()]
         except:
             ocupados = []
 
@@ -690,9 +696,13 @@ with tab0:
 with tab_agend:
     st.subheader("📅 Agendamentos de Clientes")
     
+    col_ag_title, col_ag_ref = st.columns([3, 1])
+    with col_ag_ref:
+        if st.button("🔄 Atualizar Lista", use_container_width=True):
+            st.rerun()
+
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        # Botão Nativo em HTML direcionado para APK WebView (abre direto o App do WhatsApp)
         st.markdown(f"""
         <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
             📲 Compartilhar Link no WhatsApp
@@ -730,7 +740,6 @@ with tab_agend:
                 msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
                 wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
                 
-                # Botão HTML Direto para o WebView do APK
                 st.markdown(f"""
                 <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;box-sizing:border-box;">
                     💬 Falar com Cliente no WhatsApp
@@ -753,7 +762,6 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # Botão HTML Direto para o WebView do APK na Sidebar
     st.markdown(f"""
     <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
         📲 Enviar Link no WhatsApp
