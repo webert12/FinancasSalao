@@ -30,20 +30,46 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- OCULTAR CABEÇALHO, RODAPÉ E BOTOES DO STREAMLIT (GLOBAL) ---
+# --- CUSTOMIZACÃO CSS: REMOVE ÍCONES DO STREAMLIT E MANTÉM O MENU LATERAL ---
 st.markdown("""
     <style>
+        /* Oculta menu padrao, botoes de deploy e rodapé do Streamlit */
         #MainMenu {visibility: hidden !important; display: none !important;}
         footer {visibility: hidden !important; display: none !important;}
-        header {visibility: hidden !important; display: none !important;}
-        [data-testid="stHeader"] {display: none !important;}
-        [data-testid="stToolbar"] {display: none !important;}
         [data-testid="stFooter"] {display: none !important;}
         .stDeployButton {display: none !important;}
-        /* Ajuste do topo da página após a remoção do cabeçalho nativo */
-        div[class*="stAppViewBlockContainer"] {padding-top: 1rem !important;}
+        
+        /* Oculta a barra de ferramentas do GitHub/Streamlit no topo */
+        [data-testid="stToolbar"] {display: none !important;}
+        [data-testid="stStatusWidget"] {display: none !important;}
+        
+        /* Oculta completamente o selo/ícone flutuante do Streamlit Cloud (Canto inferior) */
+        [data-testid="stViewerBadge"] {display: none !important;}
+        .viewerBadge_container__16308 {display: none !important;}
+        div[class*="viewerBadge"] {display: none !important;}
+        div[class*="styles_viewerBadge"] {display: none !important;}
+        a[href*="streamlit.io"] {display: none !important;}
+
+        /* MANTÉM VISÍVEL O BOTÃO DO MENU LATERAL (CONFIGURAÇÕES) */
+        [data-testid="collapsedControl"] {
+            display: block !important;
+            visibility: visible !important;
+            z-index: 999999 !important;
+        }
+
+        /* Ajuste do topo do conteúdo */
+        div[class*="stAppViewBlockContainer"] {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
+
+# --- EXIBIÇÃO DA LOGO NO TOPO DO SISTEMA (SE EXISTIR NO PROJETO) ---
+if os.path.exists("logo.png"):
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.image("logo.png", use_container_width=True)
 
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
@@ -579,6 +605,8 @@ if st.session_state.eh_admin:
             st.rerun()
 
     with st.sidebar:
+        if os.path.exists("logo.png"):
+            st.image("logo.png", use_container_width=True)
         if st.button("🚪 Sair do Modo ADM", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
@@ -763,7 +791,6 @@ with tab_agend:
         else:
             st.info("Telefone não informado.")
 
-        # ESPAÇADOR DE 15PX ENTRE OS BOTÕES
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
         # BOTÃO 2: Concluir / Remover Agendamento
@@ -776,6 +803,9 @@ with tab_agend:
         st.info("Nenhum agendamento pendente no momento.")
 
 with st.sidebar:
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
+        
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
