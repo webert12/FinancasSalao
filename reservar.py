@@ -5,9 +5,9 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import create_engine, text
 import urllib.parse
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA E FUSO HORÁRIO ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA E FUSO HORÁRIO (BRASÍLIA) ---
 st.set_page_config(page_title="Agendamento Online", page_icon="✂️", layout="centered")
-TZ = ZoneInfo("America/Sao_Paulo")
+TZ_BR = ZoneInfo("America/Sao_Paulo")
 
 # --- 2. CONEXÃO COM O BANCO DE DADOS POSTGRESQL ---
 if "DB_URL" in st.secrets:
@@ -142,16 +142,26 @@ with st.form("form_agendamento_cliente", clear_on_submit=True):
         st.warning("Nenhum serviço disponível no momento.")
         servico_escolhido = None
 
-    data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
+    # Captura a data e hora atual do Fuso de Brasília
+    agora_br = datetime.now(TZ_BR)
+    hoje_str = agora_br.strftime("%Y-%m-%d")
+    hora_atual_str = agora_br.strftime("%H:%M")
+
+    data_escolhida = st.date_input("Escolha o Dia:", min_value=agora_br.date())
     data_str = data_escolhida.strftime("%Y-%m-%d")
 
-    # Consulta no banco de dados para checar quais horários estão ocupados nessa data
+    # Busca no banco de dados os horários agendados para este salão e data
     ocupados = buscar_horarios_ocupados(salao_id_clean, data_str)
 
-    # Monta a lista de opções exibindo a cor/status de cada horário
+    # Monta a lista dinâmica de horários analisando hora retroativa e banco
     opcoes_horario = ["-- Selecione o Horário --"]
     for h in HORARIOS_DISPONIVEIS:
-        if h in ocupados:
+        eh_passado = (data_str == hoje_str) and (h <= hora_atual_str)
+        eh_reservado = h in ocupados
+
+        if eh_passado:
+            opcoes_horario.append(f"🔴 {h} - (HORÁRIO JÁ PASSOU)")
+        elif eh_reservado:
             opcoes_horario.append(f"🔴 {h} - (RESERVADO)")
         else:
             opcoes_horario.append(f"🟢 {h} - (DISPONÍVEL)")
@@ -171,14 +181,17 @@ if enviar:
         st.error("⚠️ Selecione um serviço válido.")
     elif horario_selecionado == "-- Selecione o Horário --":
         st.warning("⚠️ Por favor, escolha um horário na lista acima.")
-    elif "🔴" in horario_selecionado or "RESERVADO" in horario_selecionado:
+    elif "🔴" in horario_selecionado:
         hora_ext = horario_selecionado.split()[1]
-        st.error(f"❌ O horário **{hora_ext}** já possui uma reserva confirmada para esta data. Por favor, selecione outro horário com a indicação verde (🟢).")
+        if "HORÁRIO JÁ PASSOU" in horario_selecionado:
+            st.error(f"❌ O horário **{hora_ext}** já passou para a data de hoje. Escolha um horário futuro.")
+        else:
+            st.error(f"❌ O horário **{hora_ext}** já possui uma reserva confirmada para esta data. Escolha um horário verde (🟢).")
     else:
-        # Extrai o formato limpo (ex: "08:00")
+        # Extrai o formato do horário (ex: "08:00")
         hora_limpa = horario_selecionado.split()[1]
         
-        # Checagem dupla no banco de dados antes de efetivar
+        # Checagem em tempo real antes de gravar no banco de dados
         ocupados_agora = buscar_horarios_ocupados(salao_id_clean, data_str)
         if hora_limpa in ocupados_agora:
             st.error(f"❌ O horário **{hora_limpa}** acabou de ser reservado nesta data por outro cliente. Escolha outro horário.")
