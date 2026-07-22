@@ -61,7 +61,6 @@ except Exception as e:
 # --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
-        # 1. Tabela admin_config
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS admin_config (
                 id INT PRIMARY KEY,
@@ -75,7 +74,6 @@ def inicializar_banco():
         except:
             pass
 
-        # 2. Tabela usuarios
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id TEXT PRIMARY KEY,
@@ -87,7 +85,6 @@ def inicializar_banco():
             );
         """))
 
-        # 3. Tabela servicos
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS servicos (
                 id SERIAL PRIMARY KEY,
@@ -97,7 +94,6 @@ def inicializar_banco():
             );
         """))
 
-        # 4. Tabela fluxo_caixa
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS fluxo_caixa (
                 id SERIAL PRIMARY KEY,
@@ -109,7 +105,6 @@ def inicializar_banco():
             );
         """))
 
-        # 5. Tabela agendamentos
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id SERIAL PRIMARY KEY,
@@ -333,13 +328,13 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # ==============================================================================
-# --- ROTA PÚBLICA DE AGENDAMENTO PARA O CLIENTE (?salao=nome_do_usuario) ---
+# --- ROTA PÚBLICA EXCLUSIVA DE AGENDAMENTO PARA O CLIENTE (?salao=nome_do_usuario) ---
 # ==============================================================================
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    # OCULTAÇÃO TOTAL DA INTERFACE DO STREAMLIT (NÃO PERMITE ACESSAR BARRA LATERAL OU PAINEL)
+    # OCULTAÇÃO TOTAL DE NAVEGAÇÕES/SIDEBAR/PAINEL ADMINISTRATIVO
     st.markdown("""
     <style>
         #MainMenu {visibility: hidden !important;}
@@ -362,7 +357,7 @@ if salao_url:
         }
         .header-title {
             color: #d4af37;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: bold;
             margin: 0;
         }
@@ -380,7 +375,7 @@ if salao_url:
     st.markdown(f"""
     <div class="header-card">
         <div class="header-title">✂️ {nome_salao_formatado}</div>
-        <div class="header-subtitle">Agende seu horário de forma simples e rápida</div>
+        <div class="header-subtitle">Escolha o dia e horário para seu agendamento</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -393,33 +388,59 @@ if salao_url:
 
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
-    with st.form("form_cliente_agendamento"):
+    # 1. Seleção da Data
+    col_date, col_space = st.columns([1, 1])
+    with col_date:
+        data_escolhida = st.date_input("📅 Selecione a Data:", min_value=datetime.now(TZ).date())
+    data_str = data_escolhida.strftime("%Y-%m-%d")
+
+    # Busca agendamentos do dia para atualizar a grade visual
+    try:
+        with engine.connect() as conn:
+            df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_id_clean, "dt": data_str})
+            ocupados = df_ocupados['hora'].tolist() if not df_ocupados.empty else []
+    except:
+        ocupados = []
+
+    # 2. TABELA VISUAL DE HORÁRIOS DO DIA
+    st.subheader(f"📋 Tabela de Horários - {data_escolhida.strftime('%d/%m/%Y')}")
+    
+    # Monta a tabela de horários (Livre / Ocupado)
+    tabela_horarios = []
+    for h in HORARIOS_DISPONIVEIS:
+        status = "🔴 Ocupado" if h in ocupados else "🟢 Livre"
+        tabela_horarios.append({"Horário": h, "Disponibilidade": status})
+    
+    df_grade = pd.DataFrame(tabela_horarios)
+    
+    # Exibe a tabela visual para o cliente
+    st.dataframe(
+        df_grade,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.markdown("---")
+    st.subheader("✍️ Preencha seus dados para Reservar:")
+
+    horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
+
+    # 3. Form de Agendamento
+    with st.form("form_cliente_agendamento", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
         
         if servicos_salao:
-            servico_escolhido = st.selectbox("Escolha o Serviço Desejado:", list(servicos_salao.keys()))
+            servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys()))
             st.caption(f"💰 Valor: R$ {servicos_salao[servico_escolhido]:.2f}")
         else:
             st.warning("Este salão ainda não cadastrou serviços no sistema.")
             servico_escolhido = None
 
-        data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
-        data_str = data_escolhida.strftime("%Y-%m-%d")
-
-        try:
-            with engine.connect() as conn:
-                df_ocupados = pd.read_sql(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), conn, params={"user": salao_id_clean, "dt": data_str})
-                ocupados = df_ocupados['hora'].tolist() if not df_ocupados.empty else []
-        except:
-            ocupados = []
-
-        horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
-
         if horarios_livres:
-            horario_escolhido = st.selectbox("Horários Disponíveis:", horarios_livres)
+            horario_escolhido = st.selectbox("Escolha um Horário Livre:", horarios_livres)
         else:
-            st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outro dia.")
+            st.error("⚠️ Todos os horários para esta data já foram preenchidos! Escolha outra data no campo acima.")
             horario_escolhido = None
 
         enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
@@ -443,16 +464,22 @@ if salao_url:
                         "data": data_str,
                         "hora": horario_escolhido
                     })
-                st.success(f"🎉 Perfeito, {nome_cliente}! Seu agendamento foi confirmado.")
+                st.success(f"🎉 Agendamento confirmado com sucesso, {nome_cliente}!")
                 st.balloons()
                 st.info(f"📅 **Data:** {data_escolhida.strftime('%d/%m/%Y')} às **{horario_escolhido}**\n✂️ **Serviço:** {servico_escolhido}")
+                
+                # Aguarda 2.5 segundos para o cliente ver a mensagem e recarrega limpando a tela/atualizando a tabela
+                time.sleep(2.5)
+                st.rerun()
+
             except Exception as e:
                 st.error(f"Erro ao registrar o agendamento: {e}")
                 
+    # BLOQUEIO ABSOLUTO: impede a renderização de qualquer tela de login ou painel para o cliente
     st.stop()
 
 # ==============================================================================
-# --- CONTROLE DE ACESSO (SALAO / ADMIN) ---
+# --- CONTROLE DE ACESSO (PAINEL DO SALAO / ADMIN) ---
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
@@ -621,7 +648,7 @@ nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
 wa_url = f"https://wa.me/?text={urllib.parse.quote(mensagem_whatsapp)}"
 
-# --- ABAS PRINCIPAIS (TELA INICIAL LIMPA) ---
+# --- ABAS PRINCIPAIS DO DONO DO SALÃO ---
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 with tab1:
@@ -722,11 +749,11 @@ with tab0:
             st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# GESTÃO DOS AGENDAMENTOS E LINK DIRETO DO CLIENTE
+# GESTÃO DOS AGENDAMENTOS (VISÃO DO DONO DO SALÃO)
 with tab_agend:
     st.subheader("📅 Agendamentos de Clientes")
     
-    with st.expander("🔗 Seu Link Único para Enviar a Clientes", expanded=False):
+    with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
         st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">📲 Compartilhar Link no WhatsApp</button></a>', unsafe_allow_html=True)
 
@@ -760,7 +787,6 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # Botão Direto do WhatsApp no Menu Lateral
     st.markdown(f'<a href="{wa_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:15px;">📲 Enviar Link no WhatsApp</button></a>', unsafe_allow_html=True)
 
     st.markdown("---")
