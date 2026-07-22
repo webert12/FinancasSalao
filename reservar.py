@@ -158,7 +158,3 @@ if enviar:
         st.success(f"🎉 Agendamento confirmado com sucesso, {nome_cliente}!")
         st.balloons()
         st.info(f"📅 **Data:** {data_escolhida.strftime('%d/%m/%Y')} às **{horario_escolhido}**\n✂️ **Serviço:** {servico_escolhido}")
-
-# Rodapé discreto para acesso do dono
-st.divider()
-st.caption("É dono do salão? [Acesse seu painel administrativo aqui](?painel=true&salao=" + salao_atual + ")")
