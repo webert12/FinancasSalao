@@ -57,7 +57,11 @@ def set_background_com_logo(image_path):
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* 2. REGRA DE OURO REFORÇADA: TUDO DENTRO DE COLUNAS, ABAS, CAIXAS E FORMS = TEXTO ESCURO */
+            /* 2. REGRA DE OURO REFORÇADA: TUDO DENTRO DE COLUNAS, ABAS, CAIXAS E FORMS = TEXTO ESCURO E FUNDO CLARO */
+            [data-testid="column"], [data-testid="stForm"], [data-testid="stExpander"], [data-testid="stTabs"], [data-testid="stMetric"], .embedded-form-container {{
+                color: #111111 !important;
+            }}
+
             [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
             [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6, 
             [data-testid="column"] p, [data-testid="column"] span, [data-testid="column"] label, [data-testid="column"] div,
@@ -67,40 +71,38 @@ def set_background_com_logo(image_path):
             [data-testid="stTabs"] *,
             .embedded-form-container *,
             [data-testid="stDataFrame"] *,
-            .stButton > button,
             input, select, textarea, div[data-baseweb="select"] * {{
-                color: #000000 !important;
+                color: #111111 !important;
                 text-shadow: none !important;
             }}
 
-            /* Forçar fundo claro e bordas para o bloco de Ações Rápidas (Novo Atendimento, etc) */
-            .embedded-form-container {{
-                background-color: #f8f9fa !important;
+            /* Forçar fundo claro nítido para blocos, cartões e colunas estruturais */
+            .embedded-form-container, [data-testid="stMetric"], [data-testid="stExpander"] {{
+                background-color: #fcfcfc !important;
                 padding: 15px !important;
                 border-radius: 8px !important;
-                margin-top: 10px !important;
+                border: 1px solid rgba(0, 0, 0, 0.15) !important;
                 box-shadow: 0px 4px 6px rgba(0,0,0,0.1) !important;
             }}
 
-            /* Forçar o fundo dos cartões de Métricas (Dashboard) para branco */
-            [data-testid="stMetric"] {{
-                background-color: #ffffff !important;
-                padding: 15px !important;
-                border-radius: 8px !important;
-                border: 1px solid rgba(0, 0, 0, 0.1) !important;
-            }}
-
-            /* Exceção: Botões Primários (Vermelhos/Destaque) precisam manter o texto branco */
-            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {{
+            /* Exceção: Botões Primários (Vermelhos/Destaque) precisam manter o fundo destacado e texto branco */
+            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {
                 background-color: #ff4b4b !important;
                 color: #ffffff !important;
                 border: none !important;
-            }}
+            }
+
+            /* Botões secundários com contraste legível */
+            .stButton > button:not([kind="primary"]) {
+                background-color: #ffffff !important;
+                color: #111111 !important;
+                border: 1px solid #cccccc !important;
+            }
 
             /* Barra lateral translúcida elegante */
-            [data-testid="stSidebar"] {{
+            [data-testid="stSidebar"] {
                 background-color: rgba(14, 17, 23, 0.95) !important;
-            }}
+            }
             </style>
             """,
             unsafe_allow_html=True
