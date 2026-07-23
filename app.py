@@ -50,34 +50,86 @@ def set_background_com_logo(image_path):
                 background-attachment: fixed !important;
             }}
             
-            /* Textos 100% visíveis com sombra forte */
-            .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .stApp span, .stApp div[data-testid="stMarkdownContainer"] {{
+            /* 1. Textos base 100% visíveis com sombra forte para o fundo escuro */
+            .stApp h1, .stApp h2, .stApp h3, .stApp label, div[data-testid="stMarkdownContainer"] > p {{
                 color: #ffffff !important;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* Força visibilidade e fundo escuro em tabelas e dataframes para o texto nunca sumir */
+            /* 2. CORREÇÃO DE CONTRASTE: Elementos Claros com Texto Preto */
+            /* Caixas de Código e Links */
+            [data-testid="stCodeBlock"], [data-testid="stCodeBlock"] code, [data-testid="stCodeBlock"] pre, [data-testid="stCodeBlock"] span {{
+                background-color: #f4f4f4 !important;
+                color: #000000 !important;
+                text-shadow: none !important;
+            }}
+            
+            /* Expanders (Caixas que abrem e fecham como a do link) */
+            [data-testid="stExpander"] {{
+                background-color: rgba(255, 255, 255, 0.95) !important;
+                border-radius: 8px !important;
+            }}
+            [data-testid="stExpander"] p, [data-testid="stExpander"] span, [data-testid="stExpander"] summary, [data-testid="stExpander"] div {{
+                color: #000000 !important;
+                text-shadow: none !important;
+            }}
+
+            /* Inputs e Formulários */
+            input, select, textarea, .stTextInput input, .stNumberInput input, .stSelectbox select, .stDateInput input {{
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                text-shadow: none !important;
+                -webkit-text-fill-color: #000000 !important;
+            }}
+
+            /* Tabelas e Dataframes (Fundo Claro com Texto Preto) */
             [data-testid="stDataFrame"] {{
-                background-color: rgba(20, 20, 20, 0.85) !important;
+                background-color: #ffffff !important;
                 border-radius: 8px !important;
                 padding: 5px !important;
             }}
-            
-            /* Ajusta células da tabela para fundo escuro e texto branco */
+            [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td, [data-testid="stDataFrame"] span, [data-testid="stDataFrame"] div, [data-testid="stDataFrame"] p {{
+                background-color: transparent !important;
+                color: #000000 !important;
+                text-shadow: none !important;
+            }}
             [data-testid="stDataFrame"] th {{
-                background-color: #111111 !important;
+                background-color: #e0e0e0 !important;
+                font-weight: bold !important;
+            }}
+            
+            /* Botões Padrões (Brancos com texto preto) */
+            .stButton > button {{
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                border: 1px solid #cccccc !important;
+                text-shadow: none !important;
+            }}
+            .stButton > button p {{
+                color: #000000 !important;
+                text-shadow: none !important;
+            }}
+            
+            /* Botões Primários (Vermelhos/Destaque com texto branco) */
+            .stButton > button[kind="primary"] {{
+                background-color: #ff4b4b !important;
+                color: #ffffff !important;
+                border: none !important;
+            }}
+            .stButton > button[kind="primary"] p {{
                 color: #ffffff !important;
             }}
             
-            /* Cards de métricas com fundo escuro sólido para legibilidade perfeita */
+            /* Cards de métricas com fundo claro para leitura perfeita */
             [data-testid="stMetric"] {{
-                background-color: rgba(25, 25, 25, 0.85) !important;
+                background-color: rgba(255, 255, 255, 0.95) !important;
                 padding: 15px !important;
                 border-radius: 8px !important;
-                border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                border: 1px solid rgba(0, 0, 0, 0.1) !important;
             }}
             [data-testid="stMetricLabel"] p, [data-testid="stMetricValue"] {{
-                color: #ffffff !important;
+                color: #000000 !important;
+                text-shadow: none !important;
             }}
             
             /* Barra lateral translúcida elegante */
