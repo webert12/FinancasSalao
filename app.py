@@ -190,7 +190,7 @@ def inicializar_banco():
 try:
     inicializar_banco()
 except Exception as e:
-    st.error(f"Erro ao estruturar tabelas automáticas no Supabase: {e}")
+    st.error(f"Erro ao estruturar tabelas automáticas: {e}")
     st.stop()
 
 # --- FUNÇÕES DE PERSISTÊNCIA ---
@@ -364,25 +364,20 @@ def gerar_backup_json_completo():
     }
     return json.dumps(dados_backup, indent=4, ensure_ascii=False)
 
-# --- INICIALIZAÇÃO DE ESTADOS ---
-if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
-if 'autenticado' not in st.session_state: st.session_state.autenticado = False
-if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
-if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
-if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
-
+# --- FUNÇÃO DE GERAÇÃO DO PDF ---
 def gerar_pdf_contabilidade(df, mes_ref):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#d4af37"), spaceAfter=15)
-    story.append(Paragraph(f"Fio&Caixa - Relatório para Contabilidade ({mes_ref})", title_style))
+    story.append(Paragraph(f"Fio&Caixa - Relatório de Movimentações ({mes_ref})", title_style))
 
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
     for _, row in df.iterrows():
         dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
         table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
+        
     t = Table(table_data, colWidths=[75, 60, 265, 80])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#22252a")),
@@ -395,27 +390,12 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-def gerar_pdf_recibo(descricao, valor, data_str, nome_salao):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    story = []
-    styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle('ReciboTitle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor("#d4af37"), alignment=1, spaceAfter=10)
-    sub_style = ParagraphStyle('ReciboSub', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor("#cccccc"), alignment=1, spaceAfter=20)
-    normal_style = ParagraphStyle('ReciboText', parent=styles['Normal'], fontSize=12, textColor=colors.HexColor("#ffffff"), spaceAfter=12)
-    
-    story.append(Paragraph(f"<b>{nome_salao}</b>", title_style))
-    story.append(Paragraph("COMPROVANTE DE PAGAMENTO / ATENDIMENTO", sub_style))
-    story.append(Paragraph("<hr/>", normal_style))
-    story.append(Paragraph(f"<b>Data:</b> {data_str}", normal_style))
-    story.append(Paragraph(f"<b>Descrição:</b> {descricao}", normal_style))
-    story.append(Paragraph(f"<b>Valor:</b> R$ {valor:.2f}", normal_style))
-    story.append(Paragraph("<br/><br/><i>Obrigado pela preferência! Volte sempre.</i>", ParagraphStyle('Foot', parent=normal_style, alignment=1, textColor=colors.HexColor("#888888"))))
-    
-    doc.build(story)
-    buffer.seek(0)
-    return buffer.getvalue()
+# --- INICIALIZAÇÃO DE ESTADOS ---
+if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
+if 'autenticado' not in st.session_state: st.session_state.autenticado = False
+if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
+if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
+if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 
 # ==============================================================================
 # --- ROTA PÚBLICA 100% EXCLUSIVA E CLEAN PARA O CLIENTE (?salao=nome) ---
@@ -697,7 +677,7 @@ nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
 wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
-tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
+tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico e Relatórios"])
 
 with tab1:
     st.subheader("📊 Resumo Financeiro Estruturado")
@@ -725,16 +705,9 @@ with tab0:
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
                     st.success("Atendimento lançado com sucesso!")
-                    # Disponibilizar recibo imediato
-                    pdf_recibo_novo = gerar_pdf_recibo(f"Atendimento: {servico_selecionado}", preco_final, data_entrada.strftime('%d/%m/%Y'), nome_salao_titulo)
-                    st.download_button(
-                        label="📄 Baixar Recibo em PDF",
-                        data=pdf_recibo_novo,
-                        file_name=f"recibo_{data_entrada.strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
                     time.sleep(1)
+                    st.session_state.formulario_ativo = 'none'
+                    st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
     with col_b:
@@ -836,6 +809,66 @@ with tab_agend:
     else:
         st.info("Nenhum agendamento pendente no momento.")
 
+with tab2:
+    # AQUI ESTÃO OS BOTÕES DE DOWNLOAD INTEGRADOS NA ABA HISTÓRICO 
+    st.subheader("📜 Histórico de Transações e Exportação para Contador")
+    if not df_fluxo_caixa.empty:
+        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
+        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
+
+        modo_filtro = st.radio("Escolha como deseja filtrar os dados para baixar:", ["Por Mês Fechado", "Por Período Customizado (Escolher Datas)"], horizontal=True)
+        
+        if modo_filtro == "Por Mês Fechado":
+            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+            mes_escolhido = st.selectbox("📅 Selecione o Mês de referência:", ["Ver Tudo"] + meses)
+            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+            texto_pdf = mes_escolhido
+            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
+        else:
+            col_dt1, col_dt2 = st.columns(2)
+            with col_dt1:
+                dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
+            with col_dt2:
+                dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
+            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
+            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
+            nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
+
+        if not df_exibicao.empty:
+            st.markdown("### 📥 Opções de Exportação")
+            col_down1, col_down2 = st.columns(2)
+            with col_down1:
+                # FUNÇÃO DE DOWNLOAD CSV
+                csv_data = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
+                st.download_button(label="📄 Baixar Planilha CSV (Contador/Excel)", data=csv_data, file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
+            
+            with col_down2:
+                # FUNÇÃO DE DOWNLOAD PDF
+                pdf_data = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
+                st.download_button(label="📕 Baixar Relatório em PDF", data=pdf_data, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+            
+            st.markdown("---")
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
+            
+            if 'Mês/Ano' in df_vis.columns:
+                df_vis = df_vis.drop(columns=['Mês/Ano'])
+            if 'id' in df_vis.columns:
+                df_vis = df_vis.drop(columns=['id'])
+
+            def colorir(row):
+                if row['Tipo'] == 'Entrada':
+                    return ['background-color: #0F3D1F; color: #D4EDDA'] * 4  
+                elif row['Tipo'] == 'Saída':
+                    return ['background-color: #3D0F16; color: #F8D7DA'] * 4  
+                return ['background-color: #423202; color: #FFF3CD'] * 4      
+            
+            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+        else:
+            st.info("Nenhuma movimentação encontrada para o período selecionado.")
+    else:
+        st.info("Nenhuma movimentação financeira registrada.")
+
 with st.sidebar:
     if os.path.exists("fundo.png"):
         st.image("fundo.png", use_container_width=True)
@@ -881,70 +914,3 @@ with st.sidebar:
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False
         st.rerun()
-
-with tab2:
-    st.subheader("📜 Histórico de Transações e Exportação para Contador")
-    if not df_fluxo_caixa.empty:
-        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-
-        modo_filtro = st.radio("Escolha como deseja filtrar os dados para baixar:", ["Por Mês Fechado", "Por Período Customizado (Escolher Datas)"], horizontal=True)
-        if modo_filtro == "Por Mês Fechado":
-            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-            mes_escolhido = st.selectbox("📅 Selecione o Mês de referência:", ["Ver Tudo"] + meses)
-            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-            texto_pdf = mes_escolhido
-            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
-        else:
-            col_dt1, col_dt2 = st.columns(2)
-            with col_dt1:
-                dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
-            with col_dt2:
-                dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
-            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
-            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} ate {dt_fim.strftime('%d/%m/%Y')}"
-            nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
-
-        if not df_exibicao.empty:
-            col_down1, col_down2 = st.columns(2)
-            with col_down1:
-                st.download_button(label="📄 Baixar Arquivo CSV para Contador", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
-            with col_down2:
-                st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
-            
-            st.markdown("---")
-            st.markdown("### 🖨️ Gerar Recibo PDF de um Atendimento Específico")
-            entradas_recentes = df_exibicao[df_exibicao['Tipo'] == 'Entrada']
-            if not entradas_recentes.empty:
-                opcoes_recibos = {f"{row['Data'].strftime('%d/%m/%Y')} - {row['Descrição']} (R$ {row['Valor']:.2f})": row for _, row in entradas_recentes.iterrows()}
-                recib_sel = st.selectbox("Selecione o atendimento para emitir recibo:", list(opcoes_recibos.keys()))
-                dados_rec = opcoes_recibos[recib_sel]
-                
-                pdf_recibo_hist = gerar_pdf_recibo(dados_rec['Descrição'], dados_rec['Valor'], dados_rec['Data'].strftime('%d/%m/%Y'), nome_salao_titulo)
-                st.download_button(
-                    label="📥 Baixar Recibo PDF deste Atendimento",
-                    data=pdf_recibo_hist,
-                    file_name=f"recibo_{dados_rec['Data'].strftime('%Y%m%d')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-
-            st.markdown("---")
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            if 'Mês/Ano' in df_vis.columns:
-                df_vis = df_vis.drop(columns=['Mês/Ano'])
-            if 'id' in df_vis.columns:
-                df_vis = df_vis.drop(columns=['id'])
-
-            def colorir(row):
-                if row['Tipo'] == 'Entrada':
-                    return ['background-color: #0F3D1F; color: #D4EDDA'] * 4  
-                elif row['Tipo'] == 'Saída':
-                    return ['background-color: #3D0F16; color: #F8D7DA'] * 4  
-                return ['background-color: #423202; color: #FFF3CD'] * 4      
-            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-        else:
-            st.info("Nenhuma movimentação encontrada para o período selecionado.")
-    else:
-        st.info("Nenhuma movimentação financeira registrada.")
