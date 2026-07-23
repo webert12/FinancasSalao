@@ -42,7 +42,6 @@ st.markdown("""
     }
 
     /* 3. CORREÇÃO DOS BOTÕES (Login, Agendamento, Ações Rápidas) */
-    /* Garante que o botão tenha fundo escuro e borda */
     [data-testid="stButton"] > button,
     [data-testid="stFormSubmitButton"] > button,
     [data-testid="stDownloadButton"] > button,
@@ -51,7 +50,6 @@ st.markdown("""
         border: 1px solid #555555 !important;
     }
     
-    /* Garante que TODO O TEXTO dentro do botão seja branco (Resolve o bug do invisível) */
     [data-testid="stButton"] > button *,
     [data-testid="stFormSubmitButton"] > button *,
     [data-testid="stDownloadButton"] > button *,
@@ -60,13 +58,12 @@ st.markdown("""
         font-weight: bold !important;
     }
 
-    /* Efeito ao passar o mouse */
     [data-testid="stFormSubmitButton"] > button:hover {
         background-color: #333333 !important;
         border-color: #888888 !important;
     }
 
-    /* 4. Inputs de Formulário (Nome, Senha, Datas, etc) */
+    /* 4. Inputs de Formulário */
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input,
     [data-testid="stDateInput"] input,
@@ -76,17 +73,17 @@ st.markdown("""
         border: 1px solid #444444 !important;
     }
 
-    /* 5. CORREÇÃO DA CAIXA DE CÓDIGO (Link de Agendamento) */
+    /* 5. CORREÇÃO DA CAIXA DE CÓDIGO */
     [data-testid="stCodeBlock"] {
         background-color: #111111 !important;
         border: 1px solid #333333 !important;
     }
     [data-testid="stCodeBlock"] code, [data-testid="stCodeBlock"] span {
-        color: #4DB8FF !important; /* Azul claro para leitura perfeita do link */
+        color: #4DB8FF !important;
         background-color: transparent !important;
     }
 
-    /* 6. Caixas de Aviso e Alertas (Success, Error, Warning) */
+    /* 6. Caixas de Aviso e Alertas */
     [data-testid="stAlert"] {
         background-color: #111111 !important;
         border: 1px solid #444444 !important;
@@ -106,12 +103,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- ADICIONAR LOGO GLOBAL (APLICATIVO COMPLETO) ---
+# --- ADICIONAR LOGO GLOBAL ---
 if os.path.exists("fundo.png"):
     try:
         st.logo("fundo.png")
     except AttributeError:
-        pass # Fallback caso a versão do Streamlit seja mais antiga
+        pass
 
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
@@ -398,6 +395,28 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
+def gerar_pdf_recibo(descricao, valor, data_str, nome_salao):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('ReciboTitle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor("#d4af37"), alignment=1, spaceAfter=10)
+    sub_style = ParagraphStyle('ReciboSub', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor("#cccccc"), alignment=1, spaceAfter=20)
+    normal_style = ParagraphStyle('ReciboText', parent=styles['Normal'], fontSize=12, textColor=colors.HexColor("#ffffff"), spaceAfter=12)
+    
+    story.append(Paragraph(f"<b>{nome_salao}</b>", title_style))
+    story.append(Paragraph("COMPROVANTE DE PAGAMENTO / ATENDIMENTO", sub_style))
+    story.append(Paragraph("<hr/>", normal_style))
+    story.append(Paragraph(f"<b>Data:</b> {data_str}", normal_style))
+    story.append(Paragraph(f"<b>Descrição:</b> {descricao}", normal_style))
+    story.append(Paragraph(f"<b>Valor:</b> R$ {valor:.2f}", normal_style))
+    story.append(Paragraph("<br/><br/><i>Obrigado pela preferência! Volte sempre.</i>", ParagraphStyle('Foot', parent=normal_style, alignment=1, textColor=colors.HexColor("#888888"))))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 # ==============================================================================
 # --- ROTA PÚBLICA 100% EXCLUSIVA E CLEAN PARA O CLIENTE (?salao=nome) ---
 # ==============================================================================
@@ -405,7 +424,6 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    # OCULTAÇÃO ABSOLUTA DE ELEMENTOS DO STREAMLIT, CABEÇALHOS, ANCORAS E LINKS
     st.markdown("""
     <style>
         #MainMenu {visibility: hidden !important; display: none !important;}
@@ -504,7 +522,7 @@ if salao_url:
     st.stop()
 
 # ==============================================================================
-# --- CONTROLE DE ACESSO INTERNO (EXCLUSIVO PARA O DONO DO SALÃO / ADMIN) ---
+# --- CONTROLE DE ACESSO INTERNO ---
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
@@ -706,8 +724,17 @@ with tab0:
                 data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
-                    st.session_state.formulario_ativo = 'none'
-                    st.rerun()
+                    st.success("Atendimento lançado com sucesso!")
+                    # Disponibilizar recibo imediato
+                    pdf_recibo_novo = gerar_pdf_recibo(f"Atendimento: {servico_selecionado}", preco_final, data_entrada.strftime('%d/%m/%Y'), nome_salao_titulo)
+                    st.download_button(
+                        label="📄 Baixar Recibo em PDF",
+                        data=pdf_recibo_novo,
+                        file_name=f"recibo_{data_entrada.strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    time.sleep(1)
             st.markdown('</div>', unsafe_allow_html=True)
 
     with col_b:
@@ -884,6 +911,24 @@ with tab2:
                 st.download_button(label="📄 Baixar Arquivo CSV para Contador", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
             with col_down2:
                 st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+            
+            st.markdown("---")
+            st.markdown("### 🖨️ Gerar Recibo PDF de um Atendimento Específico")
+            entradas_recentes = df_exibicao[df_exibicao['Tipo'] == 'Entrada']
+            if not entradas_recentes.empty:
+                opcoes_recibos = {f"{row['Data'].strftime('%d/%m/%Y')} - {row['Descrição']} (R$ {row['Valor']:.2f})": row for _, row in entradas_recentes.iterrows()}
+                recib_sel = st.selectbox("Selecione o atendimento para emitir recibo:", list(opcoes_recibos.keys()))
+                dados_rec = opcoes_recibos[recib_sel]
+                
+                pdf_recibo_hist = gerar_pdf_recibo(dados_rec['Descrição'], dados_rec['Valor'], dados_rec['Data'].strftime('%d/%m/%Y'), nome_salao_titulo)
+                st.download_button(
+                    label="📥 Baixar Recibo PDF deste Atendimento",
+                    data=pdf_recibo_hist,
+                    file_name=f"recibo_{dados_rec['Data'].strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
             st.markdown("---")
             df_vis = df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
