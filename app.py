@@ -7,13 +7,14 @@ import json
 import time
 import hashlib
 from io import BytesIO
+import urllib.parse
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
 
 # --- Relatórios e Segurança ---
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
@@ -25,16 +26,7 @@ def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Gestão Financeira - Salão", layout="wide", page_icon="✂️")
-                                                                      # --- INJEÇÃO DE CSS CUSTOMIZADO ---
-st.markdown("""
-<style>
-/* Customizações visuais profissionais */
-.reportview-container {
-    background: #0e1117;
-}
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
 
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
@@ -57,7 +49,6 @@ except Exception as e:
 # --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
-        # 1. Tabela admin_config
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS admin_config (
                 id INT PRIMARY KEY,
@@ -71,7 +62,6 @@ def inicializar_banco():
         except:
             pass
 
-        # 2. Tabela usuarios
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id TEXT PRIMARY KEY,
@@ -82,14 +72,7 @@ def inicializar_banco():
                 status TEXT
             );
         """))
-        # Garante de forma segura que as novas colunas existam caso a tabela já estivesse criada no Supabase
-        for col, col_type in [("email", "TEXT"), ("status", "TEXT")]:
-            try:
-                conn.execute(text(f"ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS {col} {col_type};"))
-            except:
-                pass
 
-        # 3. Tabela servicos
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS servicos (
                 id SERIAL PRIMARY KEY,
@@ -99,7 +82,6 @@ def inicializar_banco():
             );
         """))
 
-        # 4. Tabela fluxo_caixa
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS fluxo_caixa (
                 id SERIAL PRIMARY KEY,
@@ -111,7 +93,6 @@ def inicializar_banco():
             );
         """))
 
-        # 5. Tabela agendamentos
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id SERIAL PRIMARY KEY,
@@ -123,11 +104,6 @@ def inicializar_banco():
                 hora TEXT NOT NULL
             );
         """))
-        # Força a criação da coluna de contato caso a tabela já existisse no Supabase sem ela
-        try:
-            conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cliente_contato TEXT;"))
-        except:
-            pass
 
 try:
     inicializar_banco()
@@ -200,22 +176,23 @@ def salvar_usuarios(usuarios_dict):
                 "status": v["status"]
             })
 
-def carregar_servicos():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
-    return carregar_servicos_por_salao(usuario)
-
 def carregar_servicos_por_salao(salao_id):
+    salao_id_clean = str(salao_id).strip().lower() if salao_id else "padrao"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": salao_id})
+            df = pd.read_sql(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), conn, params={"user": salao_id_clean})
             if not df.empty:
                 return {row['nome']: float(row['preco']) for _, row in df.iterrows()}
     except:
         pass
     return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
-def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
+def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    return carregar_servicos_por_salao(usuario)
+
+def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
             conn.execute(text("""
@@ -231,12 +208,12 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
             """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
 
 def deletar_servico_banco(nome):
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
 
 def carregar_fluxo():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
             df = pd.read_sql(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user"), conn, params={"user": usuario})
@@ -249,7 +226,7 @@ def carregar_fluxo():
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.begin() as conn:
         conn.execute(text("""
@@ -258,7 +235,7 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
         """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
     with engine.begin() as conn:
         conn.execute(text("""
@@ -271,7 +248,7 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
 
 # --- FUNÇÕES DE AGENDAMENTO ---
 def carregar_agendamentos():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
         with engine.connect() as conn:
             df = pd.read_sql(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), conn, params={"user": usuario})
@@ -283,10 +260,10 @@ def carregar_agendamentos():
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
 def deletar_agendamento(id_agendamento):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM agendamentos WHERE id = :id"), {"id": int(id_agendamento)})
+        conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
-# --- FUNÇÃO DE EXPORTAÇÃO DE BACKUP SEGURO ---
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
@@ -312,7 +289,6 @@ if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = N
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 
-# --- GERAÇÃO DE PDF ---
 def gerar_pdf_contabilidade(df, mes_ref):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
@@ -338,7 +314,112 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # ==============================================================================
-# --- CONTROLE DE ACESSO (SALAO / ADMIN) ---
+# --- ROTA PÚBLICA 100% EXCLUSIVA E CLEAN PARA O CLIENTE (?salao=nome) ---
+# ==============================================================================
+query_params = st.query_params
+salao_url = query_params.get("salao", None)
+
+if salao_url:
+    # OCULTAÇÃO ABSOLUTA DE ELEMENTOS DO STREAMLIT, CABEÇALHOS, ANCORAS E LINKS
+    st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden !important; display: none !important;}
+        footer {visibility: hidden !important; display: none !important;}
+        header {visibility: hidden !important; display: none !important;}
+        [data-testid="stSidebar"] {display: none !important;}
+        [data-testid="collapsedControl"] {display: none !important;}
+        [data-testid="stHeader"] {display: none !important;}
+        [data-testid="stToolbar"] {display: none !important;}
+        [data-testid="stFooter"] {display: none !important;}
+        .stDeployButton {display:none !important;}
+        a.header-anchor {display: none !important;}
+        [data-testid="stHeaderActionElements"] {display: none !important;}
+        div[class*="stAppViewBlockContainer"] {padding-top: 1rem !important;}
+    </style>
+    """, unsafe_allow_html=True)
+
+    salao_id_clean = str(salao_url).strip().lower()
+    nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
+
+    HORARIOS_DISPONIVEIS = [
+        "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
+        "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
+        "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", 
+        "18:00", "18:30", "19:00"
+    ]
+
+    servicos_salao = carregar_servicos_por_salao(salao_id_clean)
+
+    st.subheader(f"✂️ Agendamento - {nome_salao_formatado}")
+
+    # FORMULÁRIO ÚNICO E LIMPO (NOME, WHATSAPP, SERVIÇO, DATA, HORÁRIO, CONFIRMAÇÃO)
+    with st.form("form_agendamento_cliente", clear_on_submit=True):
+        nome_cliente = st.text_input("Seu Nome Completo:")
+        telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
+        
+        if servicos_salao:
+            servico_escolhido = st.selectbox("Escolha o Serviço Desejado:", list(servicos_salao.keys()))
+        else:
+            st.warning("Nenhum serviço disponível no momento.")
+            servico_escolhido = None
+
+        data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
+        data_str = data_escolhida.strftime("%Y-%m-%d")
+
+        # Buscar horários ocupados para a data
+        try:
+            with engine.connect() as conn:
+                df_ocupados = pd.read_sql(
+                    text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), 
+                    conn, 
+                    params={"user": salao_id_clean, "dt": data_str}
+                )
+                ocupados = df_ocupados['hora'].tolist() if not df_ocupados.empty else []
+        except:
+            ocupados = []
+
+        horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
+
+        if horarios_livres:
+            horario_escolhido = st.selectbox("Horários Disponíveis:", horarios_livres)
+        else:
+            st.error("Sem horários disponíveis nesta data. Escolha outro dia.")
+            horario_escolhido = None
+
+        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
+
+    if enviar_agendamento:
+        if not nome_cliente or not telefone_cliente:
+            st.warning("⚠️ Preencha seu nome e telefone para contato.")
+        elif not horario_escolhido or not servico_escolhido:
+            st.error("⚠️ Escolha um serviço e horário válidos.")
+        else:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
+                        VALUES (:user, :nome, :contato, :servico, :data, :hora)
+                    """), {
+                        "user": salao_id_clean,
+                        "nome": nome_cliente.strip(),
+                        "contato": telefone_cliente.strip(),
+                        "servico": servico_escolhido,
+                        "data": data_str,
+                        "hora": horario_escolhido
+                    })
+                st.success(f"🎉 Agendamento confirmado para {nome_cliente}!")
+                st.balloons()
+                time.sleep(2)
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Erro ao salvar agendamento: {e}")
+
+    # PARADA OBRIGATÓRIA - IMPEDE QUE QUALQUER OUTRA LINHA DE CÓDIGO APAREÇA NA TELA DO CLIENTE
+    st.stop()
+
+# ==============================================================================
+# --- CONTROLE DE ACESSO INTERNO (EXCLUSIVO PARA O DONO DO SALÃO / ADMIN) ---
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
@@ -481,7 +562,7 @@ if st.session_state.eh_admin:
             st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO CLIENTE (SALAO LOGADO) ---
+# --- INTERFACE 2: PAINEL DO SALÃO LOGADO ---
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 
@@ -499,23 +580,14 @@ if not df_fluxo_caixa.empty:
 else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
-# ==============================================================================
-# 🔗 GERAÇÃO DINÂMICA DO LINK DE AGENDAMENTO
-# ==============================================================================
-base_url = url_sistema_salva if url_sistema_salva else "https://fioecaixa-agendar.streamlit.app"
+base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
+nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-st.markdown("""
-<div style="background-color: #1e2127; padding: 15px; border-radius: 10px; border-left: 5px solid #d4af37; margin-bottom: 20px;">
-    <h4 style="color: #d4af37; margin: 0 0 10px 0;">🔗 Link de Agendamento dos seus Clientes</h4>
-    <p style="color: #ffffff; font-size: 14px; margin: 0 0 10px 0;">
-        Copie o link abaixo para enviar aos seus clientes no WhatsApp ou colocar no perfil do Instagram. Eles agendarão direto <b>sem senha e sem erro</b>!
-    </p>
-</div>
-""", unsafe_allow_html=True)
-st.code(link_clientes, language="text")
+# --- CORREÇÃO DO LINK DO WHATSAPP ---
+mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
+wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
-# --- ABAS PRINCIPAIS ---
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 with tab1:
@@ -528,8 +600,7 @@ with tab1:
     st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
 
 with tab0:
-    st.markdown('<div class="caixa-header">Fio&Caixa</div>', unsafe_allow_html=True)
-    st.markdown('<div class="acoes-rapidas">Ações rápidas</div>', unsafe_allow_html=True)
+    st.markdown('### 🚀 Ações Rápidas')
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
 
     with col_a:
@@ -617,31 +688,52 @@ with tab0:
             st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# GESTÃO DOS AGENDAMENTOS RECEBIDOS DOS CLIENTES
 with tab_agend:
-    st.subheader("📅 Próximos Agendamentos Realizados por Clientes")
+    st.subheader("📅 Agendamentos de Clientes")
+    
+    with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
+        st.code(link_clientes, language="text")
+        # --- BOTÃO WHATSAPP CORRIGIDO ---
+        st.markdown(
+            f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 16px;">📲 Compartilhar Link no WhatsApp</a>',
+            unsafe_allow_html=True
+        )
+
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        st.dataframe(df_agendamentos.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
+        df_display = df_agendamentos.copy()
+        try:
+            df_display['Data'] = pd.to_datetime(df_display['Data']).dt.strftime('%d/%m/%Y')
+        except:
+            pass
+            
+        st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
 
         st.markdown("---")
-        st.write("🔧 **Gerenciar Agendamentos**")
+        st.write("🔧 **Gerenciar / Concluir Agendamento**")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
-        agend_selecionado = st.selectbox("Selecione um agendamento para concluir/remover:", list(opcoes_agend.keys()))
+        agend_selecionado = st.selectbox("Selecione para concluir/remover:", list(opcoes_agend.keys()))
 
-        if st.button("Remover / Concluir Agendamento Selecionado", type="primary"):
+        if st.button("Concluir / Remover Agendamento", type="primary"):
             deletar_agendamento(opcoes_agend[agend_selecionado])
-            st.success("Agendamento atualizado com sucesso!")
+            st.success("Agendamento concluído com sucesso!")
             time.sleep(0.5)
             st.rerun()
     else:
-        st.info("Nenhum agendamento pendente no momento. Divulgue seu link para receber reservas!")
+        st.info("Nenhum agendamento pendente no momento.")
 
 with st.sidebar:
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
+    
+    # --- BOTÃO WHATSAPP SIDEBAR CORRIGIDO ---
+    st.markdown(
+        f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; margin-bottom: 15px;">📲 Enviar Link no WhatsApp</a>',
+        unsafe_allow_html=True
+    )
+
     st.markdown("---")
 
     opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
@@ -654,7 +746,7 @@ with st.sidebar:
     if st.button("Salvar Alteração", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço updated!")
+            st.success("Serviço atualizado!")
             time.sleep(0.5)
             st.rerun()
 
@@ -666,10 +758,9 @@ with st.sidebar:
 
     st.markdown("---")
     with st.expander("📦 Central de Backups"):
-        st.write("Seus dados estão em segurança na nuvem do Supabase, mas você pode baixar uma cópia completa de salvaguarda quando desejar.")
+        st.write("Baixar salvaguarda dos dados em formato JSON:")
         backup_dados = gerar_backup_json_completo()
-        st.download_button( label="📥 Baixar Backup Geral (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d/%m/%Y')}.json", mime="application/json", use_container_width=True )
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.download_button(label="📥 Baixar Backup (.json)", data=backup_dados, file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d/%m/%Y')}.json", mime="application/json", use_container_width=True)
 
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state.autenticado = False
