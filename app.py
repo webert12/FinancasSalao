@@ -57,9 +57,10 @@ def set_background_com_logo(image_path):
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* 2. REGRA DE OURO: TUDO DENTRO DE COLUNAS, ABAS, CAIXAS E FORMS = TEXTO ESCURO */
-            /* Isso afeta o "Novo Atendimento", Métricas, Tabelas e Sanfonas */
-            [data-testid="column"] *,
+            /* 2. REGRA DE OURO REFORÇADA: TUDO DENTRO DE COLUNAS, ABAS, CAIXAS E FORMS = TEXTO ESCURO */
+            [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
+            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6, 
+            [data-testid="column"] p, [data-testid="column"] span, [data-testid="column"] label, [data-testid="column"] div,
             [data-testid="stForm"] *,
             [data-testid="stExpander"] *,
             [data-testid="stMetric"] *,
