@@ -29,20 +29,15 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
 
-# --- INJEÇÃO DE CSS (CORREÇÃO ABSOLUTA DE BOTÕES E TEXTOS INVISÍVEIS) ---
+# --- INJEÇÃO DE CSS ---
 st.markdown("""
 <style>
-    /* 1. Fundo de toda a aplicação (Preto absoluto) */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stSidebar"], .main {
         background-color: #000000 !important;
     }
-
-    /* 2. Textos globais básicos */
     .stMarkdown, p, h1, h2, h3, h4, h5, h6, label {
         color: #FFFFFF !important;
     }
-
-    /* 3. CORREÇÃO DOS BOTÕES (Login, Agendamento, Ações Rápidas) */
     [data-testid="stButton"] > button,
     [data-testid="stFormSubmitButton"] > button,
     [data-testid="stDownloadButton"] > button,
@@ -50,7 +45,6 @@ st.markdown("""
         background-color: #1E1E1E !important;
         border: 1px solid #555555 !important;
     }
-    
     [data-testid="stButton"] > button *,
     [data-testid="stFormSubmitButton"] > button *,
     [data-testid="stDownloadButton"] > button *,
@@ -58,13 +52,10 @@ st.markdown("""
         color: #FFFFFF !important;
         font-weight: bold !important;
     }
-
     [data-testid="stFormSubmitButton"] > button:hover {
         background-color: #333333 !important;
         border-color: #888888 !important;
     }
-
-    /* 4. Inputs de Formulário */
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input,
     [data-testid="stDateInput"] input,
@@ -73,8 +64,6 @@ st.markdown("""
         color: #FFFFFF !important;
         border: 1px solid #444444 !important;
     }
-
-    /* 5. CORREÇÃO DA CAIXA DE CÓDIGO */
     [data-testid="stCodeBlock"] {
         background-color: #111111 !important;
         border: 1px solid #333333 !important;
@@ -83,8 +72,6 @@ st.markdown("""
         color: #4DB8FF !important;
         background-color: transparent !important;
     }
-
-    /* 6. Caixas de Aviso e Alertas */
     [data-testid="stAlert"] {
         background-color: #111111 !important;
         border: 1px solid #444444 !important;
@@ -92,33 +79,27 @@ st.markdown("""
     [data-testid="stAlert"] div, [data-testid="stAlert"] p, [data-testid="stAlert"] span {
         color: #FFFFFF !important;
     }
-
-    /* 7. Abas de Navegação */
     button[data-baseweb="tab"] p {
         color: #888888 !important;
     }
     button[data-baseweb="tab"][aria-selected="true"] p {
         color: #FFFFFF !important;
     }
-
 </style>
 """, unsafe_allow_html=True)
 
-# --- ADICIONAR LOGO GLOBAL ---
 if os.path.exists("fundo.png"):
     try:
         st.logo("fundo.png")
     except AttributeError:
         pass
 
-# --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
     st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets do Streamlit Cloud.")
     st.stop()
 
-# --- Inicialização da Engine de Banco de Dados ---
 @st.cache_resource
 def init_connection(url):
     return create_engine(url, pool_pre_ping=True)
@@ -129,7 +110,6 @@ except Exception as e:
     st.error(f"Erro crítico ao instanciar o motor do banco de dados: {e}")
     st.stop()
 
-# --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
         conn.execute(text("""
@@ -194,7 +174,6 @@ except Exception as e:
     st.error(f"Erro ao estruturar tabelas automáticas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
 def carregar_admin_hashes():
     try:
         with engine.connect() as conn:
@@ -329,7 +308,6 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
             WHERE id = :id AND usuario_id = :user
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
 
-# --- FUNÇÕES DE AGENDAMENTO ---
 def carregar_agendamentos():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     try:
@@ -365,7 +343,6 @@ def gerar_backup_json_completo():
     }
     return json.dumps(dados_backup, indent=4, ensure_ascii=False)
 
-# --- FUNÇÃO DE GERAÇÃO DO PDF ---
 def gerar_pdf_contabilidade(df, mes_ref):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
@@ -391,39 +368,49 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- FUNÇÃO AUXILIAR PARA DOWNLOAD COMPATÍVEL COM WEBVIEW/APK ---
+# --- NOVO BOTÃO DE DOWNLOAD COM JS PURO (COMPATÍVEL COM WEBVIEW/APK) ---
 def criar_botao_download_apk(dados_bytes, nome_arquivo, tipo_mime, texto_botao):
     b64 = base64.b64encode(dados_bytes).decode()
-    tag_html = f'''
-    <a href="data:{tipo_mime};base64,{b64}" download="{nome_arquivo}" style="
-        display: block;
-        width: 100%;
-        background-color: #1E1E1E;
-        color: #FFFFFF !important;
-        text-align: center;
-        padding: 0.6rem 1rem;
-        border-radius: 0.5rem;
-        border: 1px solid #555555;
-        font-weight: bold;
-        text-decoration: none;
-        box-sizing: border-box;
-        margin-bottom: 0.5rem;
-    ">
-        {texto_botao}
-    </a>
-    '''
-    st.markdown(tag_html, unsafe_allow_html=True)
+    html_code = f"""
+    <div>
+        <button onclick="
+            var b64Data = '{b64}';
+            var byteCharacters = atob(b64Data);
+            var byteNumbers = new Array(byteCharacters.length);
+            for (var i = 0; i < byteCharacters.length; i++) {{
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }}
+            var byteArray = new Uint8Array(byteNumbers);
+            var blob = new Blob([byteArray], {{type: '{tipo_mime}'}});
+            
+            var link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = '{nome_arquivo}';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        " style="
+            background-color: #1E1E1E;
+            color: #FFFFFF;
+            border: 1px solid #555555;
+            padding: 0.5rem 1rem;
+            text-align: center;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            font-size: 14px;
+        ">{texto_botao}</button>
+    </div>
+    """
+    st.markdown(html_code, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 
-# ==============================================================================
-# --- ROTA PÚBLICA 100% EXCLUSIVA E CLEAN PARA O CLIENTE (?salao=nome) ---
-# ==============================================================================
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
@@ -525,9 +512,6 @@ if salao_url:
 
     st.stop()
 
-# ==============================================================================
-# --- CONTROLE DE ACESSO INTERNO ---
-# ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
 
@@ -613,7 +597,6 @@ if not st.session_state.autenticado:
         st.rerun()
     st.stop()
 
-# --- INTERFACE 1: ADMINISTRADOR MESTRE ---
 if st.session_state.eh_admin:
     st.title("👑 Central do Administrador")
     tab_cad, tab_ger, tab_config = st.tabs(["➕ Cadastrar/Renovar", "⚙️ Gerenciar Salões", "🔧 Configurações do Sistema"])
@@ -676,7 +659,6 @@ if st.session_state.eh_admin:
             st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO SALÃO LOGADO ---
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 
