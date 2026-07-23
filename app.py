@@ -10,6 +10,7 @@ from io import BytesIO
 import urllib.parse
 import re
 import decimal
+import base64
 import streamlit.components.v1 as components
 
 # --- Bibliotecas de Conexão Direta SQL ---
@@ -30,6 +31,37 @@ def hash_password(password):
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
+
+# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO FULL SCREEN ---
+def set_background_com_logo(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        # O linear-gradient aplica uma película escura (75% de opacidade) sobre a imagem 
+        # para garantir que os textos do app não sumam no fundo. Ajuste o 0.75 se quiser mais claro ou escuro.
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("data:image/png;base64,{encoded_string}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            /* Deixa a barra lateral translúcida para manter a elegância */
+            [data-testid="stSidebar"] {{
+                background-color: rgba(14, 17, 23, 0.85) !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+# Aplica o background chamando o arquivo logo.png
+set_background_com_logo("logo.png")
 
 # --- CUSTOMIZAÇÃO CSS E JAVASCRIPT: EXTERMÍNIO TOTAL DE RODAPÉ, GITHUB E STREAMLIT ---
 st.markdown("""
@@ -91,6 +123,7 @@ st.markdown("""
         .main .block-container {
             padding-top: 4.5rem !important;
             padding-bottom: 2rem !important;
+            background-color: transparent !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -435,6 +468,8 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 # --- RENDERIZAÇÃO DA LOGO NO TOPO DO SISTEMA ---
+# Mantida caso ainda queira que a logo apareça no topo da tela normalmente, além do fundo. 
+# Se achar que ficou redundante com o fundo, você pode remover ou comentar essas duas linhas abaixo.
 if os.path.exists("logo.png"):
     st.image("logo.png", use_container_width=True)
 
