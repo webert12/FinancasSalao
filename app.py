@@ -50,88 +50,52 @@ def set_background_com_logo(image_path):
                 background-attachment: fixed !important;
             }}
             
-            /* 1. Textos base 100% visíveis com sombra forte para o fundo escuro */
-            .stApp h1, .stApp h2, .stApp h3, .stApp label, div[data-testid="stMarkdownContainer"] > p {{
+            /* 1. TEXTOS SOLTOS NO FUNDO DA TELA (Títulos globais e Parágrafos fora de caixas) */
+            .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, 
+            div[data-testid="stMarkdownContainer"] > p {{
                 color: #ffffff !important;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* 2. CORREÇÃO DE CONTRASTE: Elementos Claros com Texto Preto */
-            /* Caixas de Código e Links */
-            [data-testid="stCodeBlock"], [data-testid="stCodeBlock"] code, [data-testid="stCodeBlock"] pre, [data-testid="stCodeBlock"] span {{
-                background-color: #f4f4f4 !important;
-                color: #000000 !important;
-                text-shadow: none !important;
-            }}
-            
-            /* Expanders (Caixas que abrem e fecham como a do link) */
-            [data-testid="stExpander"] {{
-                background-color: rgba(255, 255, 255, 0.95) !important;
-                border-radius: 8px !important;
-            }}
-            [data-testid="stExpander"] p, [data-testid="stExpander"] span, [data-testid="stExpander"] summary, [data-testid="stExpander"] div {{
+            /* 2. REGRA DE OURO: TUDO DENTRO DE COLUNAS, ABAS, CAIXAS E FORMS = TEXTO ESCURO */
+            /* Isso afeta o "Novo Atendimento", Métricas, Tabelas e Sanfonas */
+            [data-testid="column"] *,
+            [data-testid="stForm"] *,
+            [data-testid="stExpander"] *,
+            [data-testid="stMetric"] *,
+            [data-testid="stTabs"] *,
+            .embedded-form-container *,
+            [data-testid="stDataFrame"] *,
+            .stButton > button,
+            input, select, textarea, div[data-baseweb="select"] * {{
                 color: #000000 !important;
                 text-shadow: none !important;
             }}
 
-            /* Inputs e Formulários */
-            input, select, textarea, .stTextInput input, .stNumberInput input, .stSelectbox select, .stDateInput input {{
-                background-color: #ffffff !important;
-                color: #000000 !important;
-                text-shadow: none !important;
-                -webkit-text-fill-color: #000000 !important;
+            /* Forçar fundo claro e bordas para o bloco de Ações Rápidas (Novo Atendimento, etc) */
+            .embedded-form-container {{
+                background-color: #f8f9fa !important;
+                padding: 15px !important;
+                border-radius: 8px !important;
+                margin-top: 10px !important;
+                box-shadow: 0px 4px 6px rgba(0,0,0,0.1) !important;
             }}
 
-            /* Tabelas e Dataframes (Fundo Claro com Texto Preto) */
-            [data-testid="stDataFrame"] {{
-                background-color: #ffffff !important;
-                border-radius: 8px !important;
-                padding: 5px !important;
-            }}
-            [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td, [data-testid="stDataFrame"] span, [data-testid="stDataFrame"] div, [data-testid="stDataFrame"] p {{
-                background-color: transparent !important;
-                color: #000000 !important;
-                text-shadow: none !important;
-            }}
-            [data-testid="stDataFrame"] th {{
-                background-color: #e0e0e0 !important;
-                font-weight: bold !important;
-            }}
-            
-            /* Botões Padrões (Brancos com texto preto) */
-            .stButton > button {{
-                background-color: #ffffff !important;
-                color: #000000 !important;
-                border: 1px solid #cccccc !important;
-                text-shadow: none !important;
-            }}
-            .stButton > button p {{
-                color: #000000 !important;
-                text-shadow: none !important;
-            }}
-            
-            /* Botões Primários (Vermelhos/Destaque com texto branco) */
-            .stButton > button[kind="primary"] {{
-                background-color: #ff4b4b !important;
-                color: #ffffff !important;
-                border: none !important;
-            }}
-            .stButton > button[kind="primary"] p {{
-                color: #ffffff !important;
-            }}
-            
-            /* Cards de métricas com fundo claro para leitura perfeita */
+            /* Forçar o fundo dos cartões de Métricas (Dashboard) para branco */
             [data-testid="stMetric"] {{
-                background-color: rgba(255, 255, 255, 0.95) !important;
+                background-color: #ffffff !important;
                 padding: 15px !important;
                 border-radius: 8px !important;
                 border: 1px solid rgba(0, 0, 0, 0.1) !important;
             }}
-            [data-testid="stMetricLabel"] p, [data-testid="stMetricValue"] {{
-                color: #000000 !important;
-                text-shadow: none !important;
+
+            /* Exceção: Botões Primários (Vermelhos/Destaque) precisam manter o texto branco */
+            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {{
+                background-color: #ff4b4b !important;
+                color: #ffffff !important;
+                border: none !important;
             }}
-            
+
             /* Barra lateral translúcida elegante */
             [data-testid="stSidebar"] {{
                 background-color: rgba(14, 17, 23, 0.95) !important;
