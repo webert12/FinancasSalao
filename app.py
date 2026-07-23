@@ -28,39 +28,69 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
 
-# --- INJEÇÃO DE CSS E TEMA ESCURO (FUNDO NEGRO E TEXTO BRANCO) ---
+# --- INJEÇÃO DE CSS (CORREÇÃO DE BOTÕES INVISÍVEIS E BLOCOS BRANCOS) ---
 st.markdown("""
 <style>
-    /* Fundo negro da aplicação */
+    /* Fundo negro global */
     .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
         background-color: #000000 !important;
     }
-    /* Textos em branco para ficarem visíveis */
+    
+    /* Textos padrão em branco */
     h1, h2, h3, h4, h5, h6, p, label, div, span, li, .stMarkdown {
         color: #FFFFFF !important;
     }
-    /* Ajustes para inputs, selects e caixas de texto para combinarem com fundo escuro */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stNumberInput input, .stDateInput input {
+    
+    /* Inputs e Caixas de Texto */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stNumberInput input, .stDateInput input, textarea {
         background-color: #111111 !important;
         color: #FFFFFF !important;
         border: 1px solid #444444 !important;
     }
-    /* Ajuste para botões */
-    .stButton>button {
+    
+    /* CORREÇÃO: Forçar TODOS os botões a ficarem escuros com texto branco */
+    button[data-baseweb="button"], 
+    div[data-testid="stFormSubmitButton"] > button, 
+    div[data-testid="stDownloadButton"] > button,
+    .stButton > button {
         background-color: #222222 !important;
         color: #FFFFFF !important;
         border: 1px solid #555555 !important;
+        transition: 0.3s;
     }
-    /* Ajuste de abas */
+    
+    /* Efeito ao passar o mouse no botão */
+    button[data-baseweb="button"]:hover, 
+    div[data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #444444 !important;
+        border-color: #777777 !important;
+    }
+
+    /* CORREÇÃO: Blocos de Código (Onde fica o link na aba Agendamentos) */
+    [data-testid="stCodeBlock"], pre, code {
+        background-color: #1A1A1A !important;
+        color: #4DB8FF !important; /* Azul claro para destacar o link */
+        border: 1px solid #333333 !important;
+    }
+
+    /* Alertas e Caixas de Aviso (Success, Error, Info, Warning) */
+    [data-testid="stAlert"] {
+        background-color: #1A1A1A !important;
+        color: #FFFFFF !important;
+        border-left: 5px solid #555555 !important;
+    }
+
+    /* Abas de Navegação (Dashboard, Início, etc) */
     button[data-baseweb="tab"] {
         background-color: transparent !important;
-        color: #AAAAAA !important;
+        color: #888888 !important;
     }
     button[data-baseweb="tab"][aria-selected="true"] {
         color: #FFFFFF !important;
         border-bottom-color: #FFFFFF !important;
     }
-    /* Forçar a tabela do dataframe a usar cores escuras e texto branco */
+    
+    /* Tabelas */
     [data-testid="stDataFrame"] {
         background-color: #111111 !important;
     }
@@ -387,7 +417,6 @@ if salao_url:
     salao_id_clean = str(salao_url).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
 
-    # --- ADICIONA A LOGO NA PÁGINA DO CLIENTE ---
     if os.path.exists("fundo.png"):
         st.image("fundo.png", use_container_width=True)
 
@@ -402,7 +431,6 @@ if salao_url:
 
     st.subheader(f"✂️ Agendamento - {nome_salao_formatado}")
 
-    # FORMULÁRIO ÚNICO E LIMPO (NOME, WHATSAPP, SERVIÇO, DATA, HORÁRIO, CONFIRMAÇÃO)
     with st.form("form_agendamento_cliente", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
@@ -416,7 +444,6 @@ if salao_url:
         data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
 
-        # Buscar horários ocupados para a data
         try:
             with engine.connect() as conn:
                 df_ocupados = pd.read_sql(
@@ -465,7 +492,6 @@ if salao_url:
             except Exception as e:
                 st.error(f"Erro ao salvar agendamento: {e}")
 
-    # PARADA OBRIGATÓRIA - IMPEDE QUE QUALQUER OUTRA LINHA DE CÓDIGO APAREÇA NA TELA DO CLIENTE
     st.stop()
 
 # ==============================================================================
@@ -518,7 +544,6 @@ if not st.session_state.autenticado:
                     st.rerun()
         st.stop()
 
-    # --- ADICIONA A LOGO NA PÁGINA DE LOGIN ---
     if os.path.exists("fundo.png"):
         col_espaco1, col_logo, col_espaco2 = st.columns([1, 2, 1])
         with col_logo:
@@ -613,7 +638,6 @@ if st.session_state.eh_admin:
             st.rerun()
 
     with st.sidebar:
-        # --- ADICIONA LOGO NA SIDEBAR DO ADMIN ---
         if os.path.exists("fundo.png"):
             st.image("fundo.png", use_container_width=True)
         if st.button("🚪 Sair do Modo ADM", use_container_width=True):
@@ -643,7 +667,6 @@ base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstr
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-# --- CORREÇÃO DO LINK DO WHATSAPP ---
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
 wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
@@ -675,7 +698,6 @@ with tab0:
                 if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
                     inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
                     st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -692,7 +714,6 @@ with tab0:
                 if descricao_saida and valor_saida > 0:
                     inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
                     st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -711,7 +732,6 @@ with tab0:
                     if nome_devedor:
                         inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                         st.session_state.formulario_ativo = 'none'
-                        time.sleep(0.5)
                         st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -731,7 +751,6 @@ with tab0:
                     nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
                     dar_baixa_fiado_direta(id_alterar, nova_desc)
                     st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
                     st.rerun()
             else:
                 st.info("Sem fiados pendentes.")
@@ -752,7 +771,6 @@ with tab_agend:
     
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        # --- BOTÃO WHATSAPP CORRIGIDO ---
         st.markdown(
             f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 16px;">📲 Compartilhar Link no WhatsApp</a>',
             unsafe_allow_html=True
@@ -783,7 +801,6 @@ with tab_agend:
         st.info("Nenhum agendamento pendente no momento.")
 
 with st.sidebar:
-    # --- ADICIONA LOGO NA SIDEBAR DO DASHBOARD ---
     if os.path.exists("fundo.png"):
         st.image("fundo.png", use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -792,7 +809,6 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    # --- BOTÃO WHATSAPP SIDEBAR CORRIGIDO ---
     st.markdown(
         f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; margin-bottom: 15px;">📲 Enviar Link no WhatsApp</a>',
         unsafe_allow_html=True
@@ -869,10 +885,10 @@ with tab2:
 
             def colorir(row):
                 if row['Tipo'] == 'Entrada':
-                    return ['background-color: #0F3D1F; color: #D4EDDA'] * 4  # Ajustado para fundo escuro
+                    return ['background-color: #0F3D1F; color: #D4EDDA'] * 4  
                 elif row['Tipo'] == 'Saída':
-                    return ['background-color: #3D0F16; color: #F8D7DA'] * 4  # Ajustado para fundo escuro
-                return ['background-color: #423202; color: #FFF3CD'] * 4      # Ajustado para fundo escuro
+                    return ['background-color: #3D0F16; color: #F8D7DA'] * 4  
+                return ['background-color: #423202; color: #FFF3CD'] * 4      
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
         else:
             st.info("Nenhuma movimentação encontrada para o período selecionado.")
