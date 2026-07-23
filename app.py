@@ -29,10 +29,10 @@ TZ = ZoneInfo("America/Sao_Paulo")
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# --- CONFIGURAÇÃO DA PÁGINA (WIDE PARA TELA FIXA E SEM ROLAGEM EXCESSIVA) ---
-st.set_page_config(page_title="Agendamento", layout="wide", page_icon="✂️")
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Sistema de Gestão", layout="wide", page_icon="✂️")
 
-# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO E ESTILOS DE CONTRASTE PERSONALIZADO ---
+# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO LIMPA ---
 def set_background_com_logo(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
@@ -41,86 +41,18 @@ def set_background_com_logo(image_path):
         st.markdown(
             f"""
             <style>
-            /* Fundo fixo sem repetição. Overlay ESCURO para que a logo não atrapalhe a leitura */
+            /* Fundo fixo sem repetição com Overlay ESCURO mantendo o tema moderno */
             .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url("data:image/png;base64,{encoded_string}") !important;
+                background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("data:image/png;base64,{encoded_string}") !important;
                 background-size: cover !important;
                 background-position: center center !important;
                 background-repeat: no-repeat !important;
                 background-attachment: fixed !important;
             }}
             
-            /* 1. TEXTOS GERAIS (Títulos e textos soltos no fundo) EM BRANCO */
-            .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-            .stApp p, .stApp span, .stApp label {{
-                color: #ffffff !important;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
-            }}
-            
-            /* 2. INVERSÃO: CAIXAS, COLUNAS, TABELAS E FORMULÁRIOS COM FUNDO CLARO */
-            /* Isolando o conteúdo em blocos brancos para a logo não interferir */
-            [data-testid="column"], [data-testid="stForm"], [data-testid="stExpander"], 
-            [data-testid="stMetric"], .embedded-form-container, [data-testid="stDataFrame"], 
-            table, [data-testid="stTabs"] {{
-                background-color: rgba(255, 255, 255, 0.95) !important;
-                border-radius: 10px !important;
-                padding: 15px !important;
-                box-shadow: 0px 4px 12px rgba(0,0,0,0.6) !important;
-                border: 1px solid #dddddd !important;
-            }}
-
-            /* 3. TEXTOS DENTRO DAS CAIXAS/COLUNAS/TABELAS/STRINGS OBRIGATORIAMENTE EM PRETO */
-            [data-testid="column"] *, [data-testid="stForm"] *, [data-testid="stExpander"] *, 
-            [data-testid="stMetric"] *, .embedded-form-container *, [data-testid="stDataFrame"] *, 
-            table *, tr *, th *, td *, [data-testid="stTabs"] *,
-            input, select, textarea, div[data-baseweb="select"] * {{
-                color: #000000 !important;
-                text-shadow: none !important;
-            }}
-
-            /* Evita caixas duplicadas dentro de colunas para manter o layout limpo */
-            [data-testid="column"] > div > div, [data-testid="stForm"] > div > div {{
-                background-color: transparent !important;
-                box-shadow: none !important;
-                border: none !important;
-                padding: 0px !important;
-            }}
-
-            /* 4. CAIXAS DE INPUT/STRINGS COM FUNDO BRANCO E BORDA CINZA */
-            input, select, textarea, div[data-baseweb="select"] {{
-                background-color: #ffffff !important;
-                border: 1px solid #999999 !important;
-                border-radius: 5px !important;
-            }}
-
-            /* 5. BOTÕES */
-            /* Botões Primários (Mantém o fundo vermelho/azul de destaque e texto branco) */
-            .stButton > button[kind="primary"] {{
-                background-color: #ff4b4b !important;
-                color: #ffffff !important;
-                border: none !important;
-            }}
-            .stButton > button[kind="primary"] * {{
-                color: #ffffff !important;
-            }}
-
-            /* Botões Secundários (Fundo claro, borda cinza, texto preto) */
-            .stButton > button:not([kind="primary"]) {{
-                background-color: #f0f2f6 !important;
-                color: #000000 !important;
-                border: 1px solid #aaaaaa !important;
-            }}
-            .stButton > button:not([kind="primary"]) * {{
-                color: #000000 !important;
-            }}
-
-            /* 6. BARRA LATERAL (Sidebar) INVERTIDA: Fundo claro com textos pretos */
-            [data-testid="stSidebar"] {{
-                background-color: rgba(255, 255, 255, 0.95) !important;
-            }}
-            [data-testid="stSidebar"] * {{
-                color: #000000 !important;
-                text-shadow: none !important;
+            /* Textos padronizados para garantir a leitura sobre o fundo */
+            h1, h2, h3, h4, h5, h6, p, label {{
+                color: #FFFFFF !important;
             }}
             </style>
             """,
@@ -130,7 +62,7 @@ def set_background_com_logo(image_path):
 # Aplica o background chamando o arquivo logo.png
 set_background_com_logo("logo.png")
 
-# --- CUSTOMIZAÇÃO CSS PARA FIXAR LAYOUT E EVITAR BUG DE TELAS ---
+# --- CUSTOMIZAÇÃO CSS PARA FIXAR LAYOUT ---
 st.markdown("""
     <style>
         /* Remove rodapés e marcas nativas */
@@ -163,7 +95,11 @@ st.markdown("""
             padding-top: 3.5rem !important;
             padding-bottom: 1rem !important;
             max-width: 98% !important;
-            background-color: transparent !important;
+        }
+        
+        /* Ajuste sutil para os botões ficarem redondos */
+        .stButton>button {
+            border-radius: 8px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -773,85 +709,80 @@ with tab0:
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_atendimento' else 'new_atendimento'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_atendimento':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            if list(servicos.keys()):
-                servico_selecionado = st.selectbox("Serviço realizado:", list(servicos.keys()), key="f_atend_serv")
-                preco_final = st.number_input("Valor Cobrado (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
-                data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
-                if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
-                    inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
-                    st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                if list(servicos.keys()):
+                    servico_selecionado = st.selectbox("Serviço realizado:", list(servicos.keys()), key="f_atend_serv")
+                    preco_final = st.number_input("Valor Cobrado (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
+                    data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
+                    if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
+                        inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
+                        st.session_state.formulario_ativo = 'none'
+                        time.sleep(0.5)
+                        st.rerun()
 
     with col_b:
         if st.button("🛍️ Nova despesa ❯", key="btn_venda", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_venda' else 'new_venda'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_venda':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            descricao_saida = st.text_input("Descrição:", key="f_venda_desc")
-            valor_saida = st.number_input("Valor (R$):", min_value=0.0, step=5.0, key="f_venda_val")
-            data_saida = st.date_input("Data:", datetime.now(TZ).date(), key="f_venda_dt")
-            if st.button("Confirmar despesa", type="primary", key="f_venda_save", use_container_width=True):
-                if descricao_saida and valor_saida > 0:
-                    inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
-                    st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                descricao_saida = st.text_input("Descrição:", key="f_venda_desc")
+                valor_saida = st.number_input("Valor (R$):", min_value=0.0, step=5.0, key="f_venda_val")
+                data_saida = st.date_input("Data:", datetime.now(TZ).date(), key="f_venda_dt")
+                if st.button("Confirmar despesa", type="primary", key="f_venda_save", use_container_width=True):
+                    if descricao_saida and valor_saida > 0:
+                        inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
+                        st.session_state.formulario_ativo = 'none'
+                        time.sleep(0.5)
+                        st.rerun()
 
     with col_c:
         if st.button("💰 Marcar fiado ❯", key="btn_receber", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_receber' else 'new_receber'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_receber':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            if list(servicos.keys()):
-                nome_devedor = st.text_input("Cliente:", key="f_fiado_nome")
-                servico_pendente = st.selectbox("Serviço:", list(servicos.keys()), key="f_fiado_serv")
-                preco_final_p = st.number_input("Valor:", value=float(servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
-                data_pendencia = st.date_input("Data:", datetime.now(TZ).date(), key="f_fiado_dt")
-                if st.button("Salvar Fiado", type="primary", key="f_fiado_save", use_container_width=True):
-                    if nome_devedor:
-                        inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
-                        st.session_state.formulario_ativo = 'none'
-                        time.sleep(0.5)
-                        st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                if list(servicos.keys()):
+                    nome_devedor = st.text_input("Cliente:", key="f_fiado_nome")
+                    servico_pendente = st.selectbox("Serviço:", list(servicos.keys()), key="f_fiado_serv")
+                    preco_final_p = st.number_input("Valor:", value=float(servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
+                    data_pendencia = st.date_input("Data:", datetime.now(TZ).date(), key="f_fiado_dt")
+                    if st.button("Salvar Fiado", type="primary", key="f_fiado_save", use_container_width=True):
+                        if nome_devedor:
+                            inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
+                            st.session_state.formulario_ativo = 'none'
+                            time.sleep(0.5)
+                            st.rerun()
 
     with col_d:
         if st.button("💸 Receber fiado ❯", key="btn_pagar", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
             st.rerun()
         if st.session_state.formulario_ativo == 'new_pagar':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
-            if not df_pendencias.empty:
-                opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
-                pendencia_selecionada = st.selectbox("Selecione:", list(opcoes_pendentes.keys()), key="f_pago_sel")
-                if st.button("Dar Baixa", type="primary", key="f_pago_save", use_container_width=True):
-                    id_alterar = opcoes_pendentes[pendencia_selecionada]
-                    row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
-                    nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
-                    dar_baixa_fiado_direta(id_alterar, nova_desc)
-                    st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
-                    st.rerun()
-            else:
-                st.info("Sem fiados pendentes.")
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
+                if not df_pendencias.empty:
+                    opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
+                    pendencia_selecionada = st.selectbox("Selecione:", list(opcoes_pendentes.keys()), key="f_pago_sel")
+                    if st.button("Dar Baixa", type="primary", key="f_pago_save", use_container_width=True):
+                        id_alterar = opcoes_pendentes[pendencia_selecionada]
+                        row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
+                        nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
+                        dar_baixa_fiado_direta(id_alterar, nova_desc)
+                        st.session_state.formulario_ativo = 'none'
+                        time.sleep(0.5)
+                        st.rerun()
+                else:
+                    st.info("Sem fiados pendentes.")
 
     with col_e:
         if st.button("📊 Ver relatórios ❯", key="btn_relatorios", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'view_relatorios' else 'view_relatorios'
             st.rerun()
         if st.session_state.formulario_ativo == 'view_relatorios':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            st.metric("Líquido Diário", f"R$ {lucro_dia:.2f}")
-            st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                st.metric("Líquido Diário", f"R$ {lucro_dia:.2f}")
+                st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
 
 with tab_agend:
     st.subheader("📅 Agendamentos de Clientes")
@@ -863,11 +794,8 @@ with tab_agend:
 
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
-        st.markdown(f"""
-        <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
-            📲 Compartilhar Link no WhatsApp
-        </a>
-        """, unsafe_allow_html=True)
+        # Substituído por botão nativo do Streamlit
+        st.link_button("📲 Compartilhar Link no WhatsApp", wa_url_geral, type="primary", use_container_width=True)
 
     df_agendamentos = carregar_agendamentos()
 
@@ -890,7 +818,7 @@ with tab_agend:
         
         num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
 
-        # BOTÃO 1: Falar com o cliente no WhatsApp
+        # BOTÃO 1: Falar com o cliente no WhatsApp (Nativo)
         if num_clean:
             if not num_clean.startswith('55') and len(num_clean) <= 11:
                 num_clean = '55' + num_clean
@@ -898,11 +826,7 @@ with tab_agend:
             msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
             wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
             
-            st.markdown(f"""
-            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;box-sizing:border-box;">
-                💬 Falar com Cliente no WhatsApp
-            </a>
-            """, unsafe_allow_html=True)
+            st.link_button("💬 Falar com Cliente no WhatsApp", wa_direct, use_container_width=True)
         else:
             st.info("Telefone não informado.")
 
@@ -922,11 +846,8 @@ with st.sidebar:
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
     
-    st.markdown(f"""
-    <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
-        📲 Enviar Link no WhatsApp
-    </a>
-    """, unsafe_allow_html=True)
+    # Substituído por botão nativo do Streamlit
+    st.link_button("📲 Enviar Link no WhatsApp", wa_url_geral, type="primary", use_container_width=True)
 
     st.markdown("---")
 
