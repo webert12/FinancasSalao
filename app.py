@@ -28,6 +28,52 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
 
+# --- INJEÇÃO DE CSS E TEMA ESCURO (FUNDO NEGRO E TEXTO BRANCO) ---
+st.markdown("""
+<style>
+    /* Fundo negro da aplicação */
+    .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
+        background-color: #000000 !important;
+    }
+    /* Textos em branco para ficarem visíveis */
+    h1, h2, h3, h4, h5, h6, p, label, div, span, li, .stMarkdown {
+        color: #FFFFFF !important;
+    }
+    /* Ajustes para inputs, selects e caixas de texto para combinarem com fundo escuro */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stNumberInput input, .stDateInput input {
+        background-color: #111111 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #444444 !important;
+    }
+    /* Ajuste para botões */
+    .stButton>button {
+        background-color: #222222 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #555555 !important;
+    }
+    /* Ajuste de abas */
+    button[data-baseweb="tab"] {
+        background-color: transparent !important;
+        color: #AAAAAA !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #FFFFFF !important;
+        border-bottom-color: #FFFFFF !important;
+    }
+    /* Forçar a tabela do dataframe a usar cores escuras e texto branco */
+    [data-testid="stDataFrame"] {
+        background-color: #111111 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- ADICIONAR LOGO GLOBAL (APLICATIVO COMPLETO) ---
+if os.path.exists("fundo.png"):
+    try:
+        st.logo("fundo.png")
+    except AttributeError:
+        pass # Fallback caso a versão do Streamlit seja mais antiga
+
 # --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
@@ -341,6 +387,10 @@ if salao_url:
     salao_id_clean = str(salao_url).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
 
+    # --- ADICIONA A LOGO NA PÁGINA DO CLIENTE ---
+    if os.path.exists("fundo.png"):
+        st.image("fundo.png", use_container_width=True)
+
     HORARIOS_DISPONIVEIS = [
         "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
         "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
@@ -468,6 +518,12 @@ if not st.session_state.autenticado:
                     st.rerun()
         st.stop()
 
+    # --- ADICIONA A LOGO NA PÁGINA DE LOGIN ---
+    if os.path.exists("fundo.png"):
+        col_espaco1, col_logo, col_espaco2 = st.columns([1, 2, 1])
+        with col_logo:
+            st.image("fundo.png", use_container_width=True)
+
     st.title("✂️ Sistema de Gestão - Login")
     tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
     with st.form("form_login"):
@@ -557,6 +613,9 @@ if st.session_state.eh_admin:
             st.rerun()
 
     with st.sidebar:
+        # --- ADICIONA LOGO NA SIDEBAR DO ADMIN ---
+        if os.path.exists("fundo.png"):
+            st.image("fundo.png", use_container_width=True)
         if st.button("🚪 Sair do Modo ADM", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
@@ -724,6 +783,11 @@ with tab_agend:
         st.info("Nenhum agendamento pendente no momento.")
 
 with st.sidebar:
+    # --- ADICIONA LOGO NA SIDEBAR DO DASHBOARD ---
+    if os.path.exists("fundo.png"):
+        st.image("fundo.png", use_container_width=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
@@ -805,10 +869,10 @@ with tab2:
 
             def colorir(row):
                 if row['Tipo'] == 'Entrada':
-                    return ['background-color: #d4edda; color: #155724'] * 4
+                    return ['background-color: #0F3D1F; color: #D4EDDA'] * 4  # Ajustado para fundo escuro
                 elif row['Tipo'] == 'Saída':
-                    return ['background-color: #f8d7da; color: #721c24'] * 4
-                return ['background-color: #fff3cd; color: #856404'] * 4
+                    return ['background-color: #3D0F16; color: #F8D7DA'] * 4  # Ajustado para fundo escuro
+                return ['background-color: #423202; color: #FFF3CD'] * 4      # Ajustado para fundo escuro
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
         else:
             st.info("Nenhuma movimentação encontrada para o período selecionado.")
