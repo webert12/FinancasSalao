@@ -8,6 +8,7 @@ import time
 import hashlib
 from io import BytesIO
 import urllib.parse
+import base64
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -389,6 +390,29 @@ def gerar_pdf_contabilidade(df, mes_ref):
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
+
+# --- FUNÇÃO AUXILIAR PARA DOWNLOAD COMPATÍVEL COM WEBVIEW/APK ---
+def criar_botao_download_apk(dados_bytes, nome_arquivo, tipo_mime, texto_botao):
+    b64 = base64.b64encode(dados_bytes).decode()
+    tag_html = f'''
+    <a href="data:{tipo_mime};base64,{b64}" download="{nome_arquivo}" style="
+        display: block;
+        width: 100%;
+        background-color: #1E1E1E;
+        color: #FFFFFF !important;
+        text-align: center;
+        padding: 0.6rem 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #555555;
+        font-weight: bold;
+        text-decoration: none;
+        box-sizing: border-box;
+        margin-bottom: 0.5rem;
+    ">
+        {texto_botao}
+    </a>
+    '''
+    st.markdown(tag_html, unsafe_allow_html=True)
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
@@ -810,7 +834,6 @@ with tab_agend:
         st.info("Nenhum agendamento pendente no momento.")
 
 with tab2:
-    # AQUI ESTÃO OS BOTÕES DE DOWNLOAD INTEGRADOS NA ABA HISTÓRICO 
     st.subheader("📜 Histórico de Transações e Exportação para Contador")
     if not df_fluxo_caixa.empty:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
@@ -835,17 +858,16 @@ with tab2:
             nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
 
         if not df_exibicao.empty:
-            st.markdown("### 📥 Opções de Exportação")
+            st.markdown("### 📥 Opções de Exportação (Compatível com App e Navegador)")
             col_down1, col_down2 = st.columns(2)
+            
             with col_down1:
-                # FUNÇÃO DE DOWNLOAD CSV
-                csv_data = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
-                st.download_button(label="📄 Baixar Planilha CSV (Contador/Excel)", data=csv_data, file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
+                csv_bytes = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
+                criar_botao_download_apk(csv_bytes, f"{nome_arq}.csv", "text/csv", "📄 Baixar Planilha CSV")
             
             with col_down2:
-                # FUNÇÃO DE DOWNLOAD PDF
-                pdf_data = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
-                st.download_button(label="📕 Baixar Relatório em PDF", data=pdf_data, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+                pdf_bytes = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
+                criar_botao_download_apk(pdf_bytes, f"{nome_arq}.pdf", "application/pdf", "📕 Baixar Relatório PDF")
             
             st.markdown("---")
             df_vis = df_exibicao.sort_index(ascending=False).copy()
