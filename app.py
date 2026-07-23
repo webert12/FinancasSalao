@@ -32,29 +32,40 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
 
-# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO FULL SCREEN ---
+# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO FULL SCREEN CORRIGIDA ---
 def set_background_com_logo(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
         
-        # O linear-gradient aplica uma película escura sobre a imagem 
-        # para garantir que os textos do app não sumam no fundo. Ajuste o 0.8 se quiser mais claro ou escuro.
+        # O linear-gradient agora está em 0.6 (mais claro).
+        # Adicionei text-shadow e cores claras para os textos ficarem bem legíveis sobre a logo.
         st.markdown(
             f"""
             <style>
-            /* Fundo principal pegando Login, Sistema e todas as telas */
+            /* Fundo principal cravado e sem repetição */
             .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url("data:image/png;base64,{encoded_string}");
-                background-size: cover;
-                background-position: center;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
+                background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("data:image/png;base64,{encoded_string}") !important;
+                background-size: cover !important;
+                background-position: center center !important;
+                background-repeat: no-repeat !important;
+                background-attachment: fixed !important;
             }}
             
-            /* Deixa a barra lateral levemente translúcida para manter a elegância */
+            /* Clareia e destaca os textos gerais, títulos e rótulos para máxima leitura */
+            .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .stApp div[data-testid="stMarkdownContainer"] {{
+                color: #ffffff !important;
+                text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.9) !important;
+            }}
+            
+            /* Mantém as caixas de texto e botões com cor original para não bugar a leitura interna deles */
+            input, select, textarea, [data-testid="stWidgetLabel"] p {{
+                text-shadow: none !important;
+            }}
+            
+            /* Deixa a barra lateral levemente translúcida para manter a elegância sem perder a leitura */
             [data-testid="stSidebar"] {{
-                background-color: rgba(14, 17, 23, 0.85) !important;
+                background-color: rgba(14, 17, 23, 0.90) !important;
             }}
             </style>
             """,
@@ -64,43 +75,16 @@ def set_background_com_logo(image_path):
 # Aplica o background chamando o arquivo logo.png
 set_background_com_logo("logo.png")
 
-# --- CUSTOMIZAÇÃO CSS E JAVASCRIPT: EXTERMÍNIO TOTAL DE RODAPÉ, GITHUB E STREAMLIT ---
+# --- CUSTOMIZAÇÃO CSS SEGURA (SEM BUGAR A TELA DE LOGIN) ---
 st.markdown("""
     <style>
-        /* 1. REMOÇÃO DE RODAPÉS E MARCAS NATIVAS */
+        /* 1. REMOÇÃO SUAVE DE RODAPÉS E MARCAS NATIVAS (Sem quebrar a interface) */
         footer, [data-testid="stFooter"], .stFooter, 
         #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
             display: none !important;
-            visibility: hidden !important;
-            height: 0px !important;
-            margin: 0px !important;
-            padding: 0px !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
         }
         
-        /* Seletores agressivos contra selos de deploy, badges e GitHub */
-        div[class*="viewerBadge"], 
-        div[class*="styles_viewerBadge"],
-        div[class*="viewerBadge_container"],
-        a[href*="streamlit.io"],
-        a[href*="github"],
-        #manage-app-button {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            width: 0 !important;
-            height: 0 !important;
-            pointer-events: none !important;
-            z-index: -999999 !important;
-        }
-
-        header[data-testid="stHeader"] {
-            background-color: transparent !important;
-            box-shadow: none !important;
-        }
-
-        /* 2. BOTÃO DE CONFIGURAÇÕES FIXO NO CANTO SUPERIOR DIREITO (Acima do Banner) */
+        /* 2. BOTÃO DE CONFIGURAÇÕES FIXO NO CANTO SUPERIOR DIREITO */
         [data-testid="collapsedControl"] {
             display: flex !important;
             visibility: visible !important;
@@ -109,10 +93,10 @@ st.markdown("""
             right: 15px !important;     
             left: auto !important;      
             z-index: 9999999 !important; 
-            background-color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.9) !important;
             border: 2px solid #29b6f6 !important;
             border-radius: 50% !important;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.4) !important;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.6) !important;
             padding: 8px !important;
             width: 45px !important;
             height: 45px !important;
@@ -120,7 +104,6 @@ st.markdown("""
             justify-content: center !important;
         }
 
-        /* Afasta o conteúdo principal para o topo para acomodar o botão livremente */
         .main .block-container {
             padding-top: 4.5rem !important;
             padding-bottom: 2rem !important;
@@ -129,12 +112,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- SCRIPT JAVASCRIPT DE VARREDURA E DESTRUIÇÃO EM TEMPO REAL ---
+# --- SCRIPT JAVASCRIPT OTIMIZADO PARA NÃO DUPLICAR TELAS ---
 components.html("""
     <script>
         function removeUnwantedElements() {
             const selectors = [
-                'iframe[title*="streamlit"]',
                 'div[class*="viewerBadge"]',
                 'a[href*="streamlit.io"]',
                 'a[href*="github"]',
@@ -147,18 +129,8 @@ components.html("""
                     el.remove();
                 });
             });
-
-            // Varre todos os elementos buscando textos indesejados no rodapé/canto inferior
-            const allElements = document.querySelectorAll('div, a, span');
-            allElements.forEach(el => {
-                if (el.innerText && (el.innerText.includes('Made with Streamlit') || el.innerText.includes('Deploy with GitHub'))) {
-                    el.remove();
-                }
-            });
         }
-
-        // Executa a cada 500ms para garantir que NADA apareça após atualizações de tela
-        setInterval(removeUnwantedElements, 500);
+        setInterval(removeUnwantedElements, 1000);
     </script>
 """, height=0, width=0)
 
