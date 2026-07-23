@@ -28,72 +28,81 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")                                                    
 
-# --- INJEÇÃO DE CSS (CORREÇÃO DE BOTÕES INVISÍVEIS E BLOCOS BRANCOS) ---
+# --- INJEÇÃO DE CSS (CORREÇÃO ABSOLUTA DE BOTÕES E TEXTOS INVISÍVEIS) ---
 st.markdown("""
 <style>
-    /* Fundo negro global */
-    .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
+    /* 1. Fundo de toda a aplicação (Preto absoluto) */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stSidebar"], .main {
         background-color: #000000 !important;
     }
-    
-    /* Textos padrão em branco */
-    h1, h2, h3, h4, h5, h6, p, label, div, span, li, .stMarkdown {
+
+    /* 2. Textos globais básicos */
+    .stMarkdown, p, h1, h2, h3, h4, h5, h6, label {
         color: #FFFFFF !important;
     }
+
+    /* 3. CORREÇÃO DOS BOTÕES (Login, Agendamento, Ações Rápidas) */
+    /* Garante que o botão tenha fundo escuro e borda */
+    [data-testid="stButton"] > button,
+    [data-testid="stFormSubmitButton"] > button,
+    [data-testid="stDownloadButton"] > button,
+    button[data-baseweb="button"] {
+        background-color: #1E1E1E !important;
+        border: 1px solid #555555 !important;
+    }
     
-    /* Inputs e Caixas de Texto */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stNumberInput input, .stDateInput input, textarea {
+    /* Garante que TODO O TEXTO dentro do botão seja branco (Resolve o bug do invisível) */
+    [data-testid="stButton"] > button *,
+    [data-testid="stFormSubmitButton"] > button *,
+    [data-testid="stDownloadButton"] > button *,
+    button[data-baseweb="button"] * {
+        color: #FFFFFF !important;
+        font-weight: bold !important;
+    }
+
+    /* Efeito ao passar o mouse */
+    [data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #333333 !important;
+        border-color: #888888 !important;
+    }
+
+    /* 4. Inputs de Formulário (Nome, Senha, Datas, etc) */
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stDateInput"] input,
+    [data-testid="stSelectbox"] div[data-baseweb="select"] {
         background-color: #111111 !important;
         color: #FFFFFF !important;
         border: 1px solid #444444 !important;
     }
-    
-    /* CORREÇÃO: Forçar TODOS os botões a ficarem escuros com texto branco */
-    button[data-baseweb="button"], 
-    div[data-testid="stFormSubmitButton"] > button, 
-    div[data-testid="stDownloadButton"] > button,
-    .stButton > button {
-        background-color: #222222 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #555555 !important;
-        transition: 0.3s;
-    }
-    
-    /* Efeito ao passar o mouse no botão */
-    button[data-baseweb="button"]:hover, 
-    div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #444444 !important;
-        border-color: #777777 !important;
-    }
 
-    /* CORREÇÃO: Blocos de Código (Onde fica o link na aba Agendamentos) */
-    [data-testid="stCodeBlock"], pre, code {
-        background-color: #1A1A1A !important;
-        color: #4DB8FF !important; /* Azul claro para destacar o link */
+    /* 5. CORREÇÃO DA CAIXA DE CÓDIGO (Link de Agendamento) */
+    [data-testid="stCodeBlock"] {
+        background-color: #111111 !important;
         border: 1px solid #333333 !important;
     }
-
-    /* Alertas e Caixas de Aviso (Success, Error, Info, Warning) */
-    [data-testid="stAlert"] {
-        background-color: #1A1A1A !important;
-        color: #FFFFFF !important;
-        border-left: 5px solid #555555 !important;
+    [data-testid="stCodeBlock"] code, [data-testid="stCodeBlock"] span {
+        color: #4DB8FF !important; /* Azul claro para leitura perfeita do link */
+        background-color: transparent !important;
     }
 
-    /* Abas de Navegação (Dashboard, Início, etc) */
-    button[data-baseweb="tab"] {
-        background-color: transparent !important;
+    /* 6. Caixas de Aviso e Alertas (Success, Error, Warning) */
+    [data-testid="stAlert"] {
+        background-color: #111111 !important;
+        border: 1px solid #444444 !important;
+    }
+    [data-testid="stAlert"] div, [data-testid="stAlert"] p, [data-testid="stAlert"] span {
+        color: #FFFFFF !important;
+    }
+
+    /* 7. Abas de Navegação */
+    button[data-baseweb="tab"] p {
         color: #888888 !important;
     }
-    button[data-baseweb="tab"][aria-selected="true"] {
+    button[data-baseweb="tab"][aria-selected="true"] p {
         color: #FFFFFF !important;
-        border-bottom-color: #FFFFFF !important;
     }
-    
-    /* Tabelas */
-    [data-testid="stDataFrame"] {
-        background-color: #111111 !important;
-    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -772,7 +781,7 @@ with tab_agend:
     with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
         st.code(link_clientes, language="text")
         st.markdown(
-            f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 16px;">📲 Compartilhar Link no WhatsApp</a>',
+            f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white !important; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 16px;">📲 Compartilhar Link no WhatsApp</a>',
             unsafe_allow_html=True
         )
 
@@ -810,7 +819,7 @@ with st.sidebar:
     st.title(f"✂️ {nome_salao}")
     
     st.markdown(
-        f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; margin-bottom: 15px;">📲 Enviar Link no WhatsApp</a>',
+        f'<a href="{wa_url}" target="_blank" style="display: block; width: 100%; text-align: center; background-color: #25D366; color: white !important; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; margin-bottom: 15px;">📲 Enviar Link no WhatsApp</a>',
         unsafe_allow_html=True
     )
 
