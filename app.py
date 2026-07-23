@@ -50,15 +50,16 @@ def set_background_com_logo(image_path):
                 background-attachment: fixed !important;
             }}
             
-            /* 1. TÍTULOS (h1 a h6) SEMPRE EM BRANCO COM SOMBRA */
+            /* 1. TÍTULOS (h1 a h6) E GERAL QUE ESTAVAM EM PRETO AGORA EM BRANCO */
             .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
             [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
-            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6 {{
+            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6,
+            .stApp p, .stApp span, .stApp label, .stApp div {{
                 color: #ffffff !important;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* 2. PARÁGRAFOS, LABELS, SPANS E TEXTOS GERAIS EM PRETO */
+            /* 2. TEXTOS ESPECÍFICOS DENTRO DE COLUNAS, TABELAS, CAIXAS, FORMULÁRIOS EM PRETO */
             [data-testid="column"] p, [data-testid="column"] span, [data-testid="column"] label, [data-testid="column"] div,
             [data-testid="stForm"] *,
             [data-testid="stExpander"] *,
@@ -66,7 +67,9 @@ def set_background_com_logo(image_path):
             [data-testid="stTabs"] *,
             .embedded-form-container *,
             [data-testid="stMarkdownContainer"] > p,
-            input, select, textarea, div[data-baseweb="select"] * {{
+            input, select, textarea, div[data-baseweb="select"] *,
+            [data-testid="stDataFrame"] *,
+            table *, tr *, th *, td * {{
                 color: #111111 !important;
                 text-shadow: none !important;
             }}
