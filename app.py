@@ -38,20 +38,21 @@ def set_background_com_logo(image_path):
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
         
-        # O linear-gradient aplica uma película escura (75% de opacidade) sobre a imagem 
-        # para garantir que os textos do app não sumam no fundo. Ajuste o 0.75 se quiser mais claro ou escuro.
+        # O linear-gradient aplica uma película escura sobre a imagem 
+        # para garantir que os textos do app não sumam no fundo. Ajuste o 0.8 se quiser mais claro ou escuro.
         st.markdown(
             f"""
             <style>
+            /* Fundo principal pegando Login, Sistema e todas as telas */
             .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("data:image/png;base64,{encoded_string}");
+                background-image: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url("data:image/png;base64,{encoded_string}");
                 background-size: cover;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
             }}
             
-            /* Deixa a barra lateral translúcida para manter a elegância */
+            /* Deixa a barra lateral levemente translúcida para manter a elegância */
             [data-testid="stSidebar"] {{
                 background-color: rgba(14, 17, 23, 0.85) !important;
             }}
@@ -129,7 +130,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- SCRIPT JAVASCRIPT DE VARREDURA E DESTRUIÇÃO EM TEMPO REAL ---
-# Remove dinamicamente qualquer iframe, badge ou elemento do Github/Streamlit que tente nascer no APK
 components.html("""
     <script>
         function removeUnwantedElements() {
@@ -467,11 +467,6 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- RENDERIZAÇÃO DA LOGO NO TOPO DO SISTEMA ---
-# Mantida caso ainda queira que a logo apareça no topo da tela normalmente, além do fundo. 
-# Se achar que ficou redundante com o fundo, você pode remover ou comentar essas duas linhas abaixo.
-if os.path.exists("logo.png"):
-    st.image("logo.png", use_container_width=True)
 
 # ==============================================================================
 # --- ROTA PÚBLICA EXCLUSIVA PARA O CLIENTE (?salao=nome) ---
@@ -702,8 +697,6 @@ if st.session_state.eh_admin:
             st.rerun()
 
     with st.sidebar:
-        if os.path.exists("logo.png"):
-            st.image("logo.png", use_container_width=True)
         if st.button("🚪 Sair do Modo ADM", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
@@ -900,9 +893,6 @@ with tab_agend:
         st.info("Nenhum agendamento pendente no momento.")
 
 with st.sidebar:
-    if os.path.exists("logo.png"):
-        st.image("logo.png", use_container_width=True)
-        
     st.header("⚙️ Configurações")
     nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.title(f"✂️ {nome_salao}")
