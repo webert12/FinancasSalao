@@ -31,7 +31,7 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Sistema de Gestão", layout="wide", page_icon="✂️")
 
-# --- CUSTOMIZAÇÃO CSS LIMPA (Foco em legibilidade e padrão APK) ---
+# --- CUSTOMIZAÇÃO CSS (Foco em legibilidade APK + Logo de Fundo) ---
 st.markdown("""
     <style>
         /* Remove rodapés e marcas nativas */
@@ -55,6 +55,16 @@ st.markdown("""
             padding-top: 2.5rem !important;
             padding-bottom: 2rem !important;
             max-width: 100% !important;
+        }
+
+        /* Logo de Fundo Discreta */
+        [data-testid="stSidebar"]::before {
+            content: "";
+            display: block;
+            height: 120px;
+            background: url('https://raw.githubusercontent.com/seu-usuario/seu-repo/main/logo.png') no-repeat center center;
+            background-size: contain;
+            margin-bottom: 15px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -717,7 +727,7 @@ with tab0:
             st.info("Nenhum fiado pendente no momento.")
 
 with tab_agend:
-    st.subheader("Agendamentos")
+    st.subheader("Gerenciamento de Agendamentos")
     st.text("Link para clientes agendarem:")
     st.code(link_clientes, language="text")
     st.link_button("Compartilhar link no WhatsApp", wa_url_geral, use_container_width=True)
@@ -733,8 +743,9 @@ with tab_agend:
             
         st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
 
+        st.markdown("---")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']}": row['id'] for _, row in df_agendamentos.iterrows()}
-        agend_selecionado = st.selectbox("Gerenciar Agendamento:", list(opcoes_agend.keys()))
+        agend_selecionado = st.selectbox("Selecionar Agendamento para Ação:", list(opcoes_agend.keys()))
         id_sel = opcoes_agend[agend_selecionado]
         
         row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
@@ -746,7 +757,7 @@ with tab_agend:
             msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}, confirmando seu horário para {row_ag['Data']} às {row_ag['Horário']}.")
             st.link_button("Chamar Cliente no WhatsApp", f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}", use_container_width=True)
 
-        if st.button("Concluir/Remover Agendamento", use_container_width=True):
+        if st.button("Concluir / Remover Agendamento", use_container_width=True):
             deletar_agendamento(id_sel)
             st.success("Removido com sucesso!")
             time.sleep(0.5)
