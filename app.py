@@ -29,43 +29,60 @@ TZ = ZoneInfo("America/Sao_Paulo")
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Agendamento", layout="centered", page_icon="✂️")
+# --- CONFIGURAÇÃO DA PÁGINA (WIDE PARA TELA FIXA E SEM ROLAGEM EXCESSIVA) ---
+st.set_page_config(page_title="Agendamento", layout="wide", page_icon="✂️")
 
-# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO FULL SCREEN CORRIGIDA ---
+# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO E ESTILOS DE CONTRASTE TOTAL ---
 def set_background_com_logo(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
         
-        # O linear-gradient agora está em 0.6 (mais claro).
-        # Adicionei text-shadow e cores claras para os textos ficarem bem legíveis sobre a logo.
         st.markdown(
             f"""
             <style>
-            /* Fundo principal cravado e sem repetição */
+            /* Fundo fixo sem repetição */
             .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("data:image/png;base64,{encoded_string}") !important;
+                background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("data:image/png;base64,{encoded_string}") !important;
                 background-size: cover !important;
                 background-position: center center !important;
                 background-repeat: no-repeat !important;
                 background-attachment: fixed !important;
             }}
             
-            /* Clareia e destaca os textos gerais, títulos e rótulos para máxima leitura */
-            .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .stApp div[data-testid="stMarkdownContainer"] {{
+            /* Textos 100% visíveis com sombra forte */
+            .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .stApp span, .stApp div[data-testid="stMarkdownContainer"] {{
                 color: #ffffff !important;
-                text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.9) !important;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* Mantém as caixas de texto e botões com cor original para não bugar a leitura interna deles */
-            input, select, textarea, [data-testid="stWidgetLabel"] p {{
-                text-shadow: none !important;
+            /* Força visibilidade e fundo escuro em tabelas e dataframes para o texto nunca sumir */
+            [data-testid="stDataFrame"] {{
+                background-color: rgba(20, 20, 20, 0.85) !important;
+                border-radius: 8px !important;
+                padding: 5px !important;
             }}
             
-            /* Deixa a barra lateral levemente translúcida para manter a elegância sem perder a leitura */
+            /* Ajusta células da tabela para fundo escuro e texto branco */
+            [data-testid="stDataFrame"] th {{
+                background-color: #111111 !important;
+                color: #ffffff !important;
+            }}
+            
+            /* Cards de métricas com fundo escuro sólido para legibilidade perfeita */
+            [data-testid="stMetric"] {{
+                background-color: rgba(25, 25, 25, 0.85) !important;
+                padding: 15px !important;
+                border-radius: 8px !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            }}
+            [data-testid="stMetricLabel"] p, [data-testid="stMetricValue"] {{
+                color: #ffffff !important;
+            }}
+            
+            /* Barra lateral translúcida elegante */
             [data-testid="stSidebar"] {{
-                background-color: rgba(14, 17, 23, 0.90) !important;
+                background-color: rgba(14, 17, 23, 0.95) !important;
             }}
             </style>
             """,
@@ -75,16 +92,16 @@ def set_background_com_logo(image_path):
 # Aplica o background chamando o arquivo logo.png
 set_background_com_logo("logo.png")
 
-# --- CUSTOMIZAÇÃO CSS SEGURA (SEM BUGAR A TELA DE LOGIN) ---
+# --- CUSTOMIZAÇÃO CSS PARA FIXAR LAYOUT E EVITAR BUG DE TELAS ---
 st.markdown("""
     <style>
-        /* 1. REMOÇÃO SUAVE DE RODAPÉS E MARCAS NATIVAS (Sem quebrar a interface) */
+        /* Remove rodapés e marcas nativas */
         footer, [data-testid="stFooter"], .stFooter, 
         #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
             display: none !important;
         }
         
-        /* 2. BOTÃO DE CONFIGURAÇÕES FIXO NO CANTO SUPERIOR DIREITO */
+        /* Botão de configurações fixo no canto superior direito */
         [data-testid="collapsedControl"] {
             display: flex !important;
             visibility: visible !important;
@@ -105,14 +122,15 @@ st.markdown("""
         }
 
         .main .block-container {
-            padding-top: 4.5rem !important;
-            padding-bottom: 2rem !important;
+            padding-top: 3.5rem !important;
+            padding-bottom: 1rem !important;
+            max-width: 98% !important;
             background-color: transparent !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# --- SCRIPT JAVASCRIPT OTIMIZADO PARA NÃO DUPLICAR TELAS ---
+# --- SCRIPT JAVASCRIPT DE PROTEÇÃO DE TELA ---
 components.html("""
     <script>
         function removeUnwantedElements() {
@@ -123,11 +141,8 @@ components.html("""
                 'footer',
                 '#manage-app-button'
             ];
-            
             selectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => {
-                    el.remove();
-                });
+                document.querySelectorAll(sel).forEach(el => { el.remove(); });
             });
         }
         setInterval(removeUnwantedElements, 1000);
@@ -943,7 +958,7 @@ with tab2:
             with col_down2:
                 st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
             st.markdown("---")
-            df_vis = df_exexibicao if 'df_exexibicao' in locals() else df_exibicao.sort_index(ascending=False).copy()
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
             if 'Mês/Ano' in df_vis.columns:
                 df_vis = df_vis.drop(columns=['Mês/Ano'])
@@ -952,10 +967,11 @@ with tab2:
 
             def colorir(row):
                 if row['Tipo'] == 'Entrada':
-                    return ['background-color: #d4edda; color: #155724'] * 4
+                    return ['background-color: #1b4d3e; color: #ffffff'] * 4
                 elif row['Tipo'] == 'Saída':
-                    return ['background-color: #f8d7da; color: #721c24'] * 4
-                return ['background-color: #fff3cd; color: #856404'] * 4
+                    return ['background-color: #5c1d1d; color: #ffffff'] * 4
+                return ['background-color: #5c4d1d; color: #ffffff'] * 4
+            
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
             
             st.markdown("---")
