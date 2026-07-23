@@ -41,70 +41,86 @@ def set_background_com_logo(image_path):
         st.markdown(
             f"""
             <style>
-            /* Fundo fixo sem repetição */
+            /* Fundo fixo sem repetição. Overlay ESCURO para que a logo não atrapalhe a leitura */
             .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("data:image/png;base64,{encoded_string}") !important;
+                background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url("data:image/png;base64,{encoded_string}") !important;
                 background-size: cover !important;
                 background-position: center center !important;
                 background-repeat: no-repeat !important;
                 background-attachment: fixed !important;
             }}
             
-            /* 1. TÍTULOS (h1 a h6) E GERAL QUE ESTAVAM EM PRETO AGORA EM BRANCO */
+            /* 1. TEXTOS GERAIS (Títulos e textos soltos no fundo) EM BRANCO */
             .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-            [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
-            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6,
-            .stApp p, .stApp span, .stApp label, .stApp div {{
+            .stApp p, .stApp span, .stApp label {{
                 color: #ffffff !important;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* 2. TEXTOS ESPECÍFICOS DENTRO DE COLUNAS, TABELAS, CAIXAS, FORMULÁRIOS EM PRETO */
-            [data-testid="column"] p, [data-testid="column"] span, [data-testid="column"] label, [data-testid="column"] div,
-            [data-testid="stForm"] *,
-            [data-testid="stExpander"] *,
-            [data-testid="stMetric"] *,
-            [data-testid="stTabs"] *,
-            .embedded-form-container *,
-            [data-testid="stMarkdownContainer"] > p,
-            input, select, textarea, div[data-baseweb="select"] *,
-            [data-testid="stDataFrame"] *,
-            table *, tr *, th *, td * {{
-                color: #111111 !important;
+            /* 2. INVERSÃO: CAIXAS, COLUNAS, TABELAS E FORMULÁRIOS COM FUNDO CLARO */
+            /* Isolando o conteúdo em blocos brancos para a logo não interferir */
+            [data-testid="column"], [data-testid="stForm"], [data-testid="stExpander"], 
+            [data-testid="stMetric"], .embedded-form-container, [data-testid="stDataFrame"], 
+            table, [data-testid="stTabs"] {{
+                background-color: rgba(255, 255, 255, 0.95) !important;
+                border-radius: 10px !important;
+                padding: 15px !important;
+                box-shadow: 0px 4px 12px rgba(0,0,0,0.6) !important;
+                border: 1px solid #dddddd !important;
+            }}
+
+            /* 3. TEXTOS DENTRO DAS CAIXAS/COLUNAS/TABELAS/STRINGS OBRIGATORIAMENTE EM PRETO */
+            [data-testid="column"] *, [data-testid="stForm"] *, [data-testid="stExpander"] *, 
+            [data-testid="stMetric"] *, .embedded-form-container *, [data-testid="stDataFrame"] *, 
+            table *, tr *, th *, td *, [data-testid="stTabs"] *,
+            input, select, textarea, div[data-baseweb="select"] * {{
+                color: #000000 !important;
                 text-shadow: none !important;
             }}
 
-            /* 3. REMOÇÃO DE FUNDOS (Sem blocos ou cartões atrás dos textos) */
-            .embedded-form-container, [data-testid="stMetric"], [data-testid="stExpander"], [data-testid="column"], [data-testid="stForm"] {{
+            /* Evita caixas duplicadas dentro de colunas para manter o layout limpo */
+            [data-testid="column"] > div > div, [data-testid="stForm"] > div > div {{
                 background-color: transparent !important;
-                border: none !important;
                 box-shadow: none !important;
+                border: none !important;
                 padding: 0px !important;
             }}
 
-            /* Exceção: Botões Primários (Vermelhos/Destaque) precisam manter o fundo destacado e texto branco */
-            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {{
+            /* 4. CAIXAS DE INPUT/STRINGS COM FUNDO BRANCO E BORDA CINZA */
+            input, select, textarea, div[data-baseweb="select"] {{
+                background-color: #ffffff !important;
+                border: 1px solid #999999 !important;
+                border-radius: 5px !important;
+            }}
+
+            /* 5. BOTÕES */
+            /* Botões Primários (Mantém o fundo vermelho/azul de destaque e texto branco) */
+            .stButton > button[kind="primary"] {{
                 background-color: #ff4b4b !important;
                 color: #ffffff !important;
                 border: none !important;
             }}
-
-            /* Botões secundários com contraste legível */
-            .stButton > button:not([kind="primary"]) {{
-                background-color: rgba(255, 255, 255, 0.9) !important;
-                color: #111111 !important;
-                border: 1px solid #cccccc !important;
-            }}
-
-            /* Barra lateral translúcida elegante */
-            [data-testid="stSidebar"] {{
-                background-color: rgba(14, 17, 23, 0.95) !important;
-            }}
-            [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
+            .stButton > button[kind="primary"] * {{
                 color: #ffffff !important;
             }}
-            [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {{
-                color: #eeeeee !important;
+
+            /* Botões Secundários (Fundo claro, borda cinza, texto preto) */
+            .stButton > button:not([kind="primary"]) {{
+                background-color: #f0f2f6 !important;
+                color: #000000 !important;
+                border: 1px solid #aaaaaa !important;
+            }}
+            .stButton > button:not([kind="primary"]) * {{
+                color: #000000 !important;
+            }}
+
+            /* 6. BARRA LATERAL (Sidebar) INVERTIDA: Fundo claro com textos pretos */
+            [data-testid="stSidebar"] {{
+                background-color: rgba(255, 255, 255, 0.95) !important;
+            }}
+            [data-testid="stSidebar"] * {{
+                color: #000000 !important;
+                text-shadow: none !important;
             }}
             </style>
             """,
