@@ -32,7 +32,7 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA (WIDE PARA TELA FIXA E SEM ROLAGEM EXCESSIVA) ---
 st.set_page_config(page_title="Agendamento", layout="wide", page_icon="✂️")
 
-# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO E ESTILOS DE CONTRASTE TOTAL ---
+# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO E ESTILOS DE CONTRASTE PERSONALIZADO ---
 def set_background_com_logo(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
@@ -43,66 +43,66 @@ def set_background_com_logo(image_path):
             <style>
             /* Fundo fixo sem repetição */
             .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("data:image/png;base64,{encoded_string}") !important;
+                background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("data:image/png;base64,{encoded_string}") !important;
                 background-size: cover !important;
                 background-position: center center !important;
                 background-repeat: no-repeat !important;
                 background-attachment: fixed !important;
             }}
             
-            /* 1. TEXTOS SOLTOS NO FUNDO DA TELA (Títulos globais e Parágrafos fora de caixas) */
-            .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, 
-            div[data-testid="stMarkdownContainer"] > p {{
+            /* 1. TÍTULOS (h1 a h6) SEMPRE EM BRANCO COM SOMBRA */
+            .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+            [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
+            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6 {{
                 color: #ffffff !important;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
             }}
             
-            /* 2. REGRA DE OURO REFORÇADA: TUDO DENTRO DE COLUNAS, ABAS, CAIXAS E FORMS = TEXTO ESCURO E FUNDO CLARO */
-            [data-testid="column"], [data-testid="stForm"], [data-testid="stExpander"], [data-testid="stTabs"], [data-testid="stMetric"], .embedded-form-container {{
-                color: #111111 !important;
-            }}
-
-            [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
-            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6, 
+            /* 2. PARÁGRAFOS, LABELS, SPANS E TEXTOS GERAIS EM PRETO */
             [data-testid="column"] p, [data-testid="column"] span, [data-testid="column"] label, [data-testid="column"] div,
             [data-testid="stForm"] *,
             [data-testid="stExpander"] *,
             [data-testid="stMetric"] *,
             [data-testid="stTabs"] *,
             .embedded-form-container *,
-            [data-testid="stDataFrame"] *,
+            [data-testid="stMarkdownContainer"] > p,
             input, select, textarea, div[data-baseweb="select"] * {{
                 color: #111111 !important;
                 text-shadow: none !important;
             }}
 
-            /* Forçar fundo claro nítido para blocos, cartões e colunas estruturais */
-            .embedded-form-container, [data-testid="stMetric"], [data-testid="stExpander"] {{
-                background-color: #fcfcfc !important;
-                padding: 15px !important;
-                border-radius: 8px !important;
-                border: 1px solid rgba(0, 0, 0, 0.15) !important;
-                box-shadow: 0px 4px 6px rgba(0,0,0,0.1) !important;
+            /* 3. REMOÇÃO DE FUNDOS (Sem blocos ou cartões atrás dos textos) */
+            .embedded-form-container, [data-testid="stMetric"], [data-testid="stExpander"], [data-testid="column"], [data-testid="stForm"] {{
+                background-color: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0px !important;
             }}
 
             /* Exceção: Botões Primários (Vermelhos/Destaque) precisam manter o fundo destacado e texto branco */
-            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {
+            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {{
                 background-color: #ff4b4b !important;
                 color: #ffffff !important;
                 border: none !important;
-            }
+            }}
 
             /* Botões secundários com contraste legível */
-            .stButton > button:not([kind="primary"]) {
-                background-color: #ffffff !important;
+            .stButton > button:not([kind="primary"]) {{
+                background-color: rgba(255, 255, 255, 0.9) !important;
                 color: #111111 !important;
                 border: 1px solid #cccccc !important;
-            }
+            }}
 
             /* Barra lateral translúcida elegante */
-            [data-testid="stSidebar"] {
+            [data-testid="stSidebar"] {{
                 background-color: rgba(14, 17, 23, 0.95) !important;
-            }
+            }}
+            [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
+                color: #ffffff !important;
+            }}
+            [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {{
+                color: #eeeeee !important;
+            }}
             </style>
             """,
             unsafe_allow_html=True
@@ -986,10 +986,10 @@ with tab2:
 
             def colorir(row):
                 if row['Tipo'] == 'Entrada':
-                    return ['background-color: #1b4d3e; color: #ffffff'] * 4
+                    return ['background-color: rgba(27, 77, 62, 0.85); color: #ffffff'] * 4
                 elif row['Tipo'] == 'Saída':
-                    return ['background-color: #5c1d1d; color: #ffffff'] * 4
-                return ['background-color: #5c4d1d; color: #ffffff'] * 4
+                    return ['background-color: rgba(92, 29, 29, 0.85); color: #ffffff'] * 4
+                return ['background-color: rgba(92, 77, 29, 0.85); color: #ffffff'] * 4
             
             st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
             
