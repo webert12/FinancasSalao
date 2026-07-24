@@ -368,39 +368,27 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- NOVO BOTÃO DE DOWNLOAD COM JS PURO (COMPATÍVEL COM WEBVIEW/APK) ---
+# --- BOTÃO DE DOWNLOAD OTIMIZADO PARA WEBVIEW / APK ---
 def criar_botao_download_apk(dados_bytes, nome_arquivo, tipo_mime, texto_botao):
     b64 = base64.b64encode(dados_bytes).decode()
+    data_uri = f"data:{tipo_mime};base64,{b64}"
+    
     html_code = f"""
-    <div>
-        <button onclick="
-            var b64Data = '{b64}';
-            var byteCharacters = atob(b64Data);
-            var byteNumbers = new Array(byteCharacters.length);
-            for (var i = 0; i < byteCharacters.length; i++) {{
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }}
-            var byteArray = new Uint8Array(byteNumbers);
-            var blob = new Blob([byteArray], {{type: '{tipo_mime}'}});
-            
-            var link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = '{nome_arquivo}';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        " style="
+    <div style="width: 100%;">
+        <a href="{data_uri}" download="{nome_arquivo}" style="
+            display: block;
+            width: 100%;
             background-color: #1E1E1E;
-            color: #FFFFFF;
+            color: #FFFFFF !important;
             border: 1px solid #555555;
-            padding: 0.5rem 1rem;
+            padding: 0.6rem 1rem;
             text-align: center;
             border-radius: 0.5rem;
-            cursor: pointer;
+            text-decoration: none;
             font-weight: bold;
-            width: 100%;
             font-size: 14px;
-        ">{texto_botao}</button>
+            box-sizing: border-box;
+        ">{texto_botao}</a>
     </div>
     """
     st.markdown(html_code, unsafe_allow_html=True)
