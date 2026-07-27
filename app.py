@@ -34,20 +34,20 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
-# --- DESIGN & CSS PROFISSIONAL COM ALTO CONTRASTE ---
+# --- DESIGN & CSS ULTRA PREMIUM ---
 def set_background_com_logo(image_path):
     encoded_string = ""
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_style = f'background-image: linear-gradient(rgba(13, 17, 23, 0.92), rgba(13, 17, 23, 0.95)), url("data:image/png;base64,{encoded_string}") !important;'
+        bg_style = f'background-image: linear-gradient(180deg, rgba(30, 5, 8, 0.85) 0%, rgba(10, 13, 18, 0.96) 100%), url("data:image/png;base64,{encoded_string}") !important;'
     else:
-        bg_style = 'background-color: #0d1117 !important;'
+        bg_style = 'background: radial-gradient(circle at top, #2b080c 0%, #0d1117 60%, #080a0f 100%) !important;'
 
     st.markdown(
         f"""
         <style>
-        /* Fundo da Aplicação */
+        /* Fundo Geral da Aplicação com Gradiente Escuro Suave */
         .stApp {{
             {bg_style}
             background-size: cover !important;
@@ -56,7 +56,7 @@ def set_background_com_logo(image_path):
             color: #f0f6fc !important;
         }}
 
-        /* FIX DE LEITURA DE TEXTOS (Textos sempre legíveis e em alto contraste) */
+        /* PADRÃO GLOBAL DE TEXTOS - ALTO CONTRASTE E VISIBILIDADE PERFEITA */
         html, body, p, span, label, div, [class*="css"] {{
             color: #f0f6fc !important;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -68,16 +68,24 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        /* GARANTIA DE VISIBILIDADE NOS INPUTS E DROPDOWNS */
-        input, select, textarea, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
-            background-color: #161b22 !important;
+        /* CAMPOS DE ENTRADA (INPUTS) */
+        input[type="text"], input[type="password"], textarea, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
+            background-color: #0b1017 !important;
             color: #ffffff !important;
-            border: 1px solid #30363d !important;
-            border-radius: 8px !important;
+            border: 1.5px solid #222e3e !important;
+            border-radius: 12px !important;
+            padding: 12px 14px !important;
+            font-size: 1rem !important;
+            transition: all 0.2s ease-in-out !important;
         }}
         
+        input:focus, div[data-baseweb="input"] > div:focus-within {{
+            border-color: #00a8ff !important;
+            box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
+        }}
+
         div[data-baseweb="select"] * {{
-            background-color: #161b22 !important;
+            background-color: #0b1017 !important;
             color: #ffffff !important;
         }}
 
@@ -85,109 +93,161 @@ def set_background_com_logo(image_path):
             color: #cbd5e1 !important;
             font-weight: 600 !important;
             font-size: 0.95rem !important;
+            margin-bottom: 4px !important;
         }}
 
-        /* ESTILIZAÇÃO DOS BLOCOS (CARDS) DO DASHBOARD E PAINÉIS */
+        /* CARD DE LOGIN */
+        .login-card {{
+            background: #111823;
+            border: 1px solid #1f2937;
+            border-radius: 20px;
+            padding: 40px 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+            max-width: 460px;
+            margin: 0 auto;
+        }}
+
+        .login-tag {{
+            color: #00a8ff !important;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: block;
+        }}
+
+        .login-title {{
+            color: #ffffff !important;
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1.1;
+        }}
+
+        .login-subtitle {{
+            color: #94a3b8 !important;
+            font-size: 0.95rem;
+            margin-bottom: 28px;
+            line-height: 1.4;
+        }}
+
+        /* CARDS DO PAINEL / DASHBOARD */
         .ui-card {{
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 20px;
+            background: #111823;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 24px;
             margin-bottom: 20px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }}
 
         .ui-card-highlight {{
-            background: linear-gradient(145deg, #161b22 0%, #1c2333 100%);
-            border: 1px solid #29b6f6;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 0 15px rgba(41, 182, 246, 0.15);
+            background: linear-gradient(145deg, #111823 0%, #172233 100%);
+            border: 1px solid #00a8ff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);
         }}
 
-        /* KPI / METRIC CARDS REFORMULADOS EM BLOCOS VIVOS */
+        /* KPIS BLOCOS VIVOS */
         .kpi-card {{
-            background-color: #161b22;
-            border: 1px solid #30363d;
+            background-color: #111823;
+            border: 1px solid #1f2937;
             border-top: 4px solid #00E676;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 14px;
+            padding: 18px;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
         }}
-        .kpi-card:hover {{
-            transform: translateY(-3px);
-            border-top-color: #29b6f6;
-        }}
-        .kpi-card-expense {{
-            border-top-color: #FF5252 !important;
-        }}
-        .kpi-card-neutral {{
-            border-top-color: #29b6f6 !important;
-        }}
+        .kpi-card-expense {{ border-top-color: #FF5252 !important; }}
+        .kpi-card-neutral {{ border-top-color: #00a8ff !important; }}
+
         .kpi-title {{
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             color: #94a3b8 !important;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
+            letter-spacing: 0.8px;
+            font-weight: 700;
         }}
         .kpi-value {{
-            font-size: 1.7rem;
+            font-size: 1.8rem;
             font-weight: 800;
             color: #ffffff !important;
             margin-top: 6px;
         }}
 
-        /* BOTÕES ESTILIZADOS COM DEGRADÊ PROFISSIONAL */
-        .stButton > button {{
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            background-color: #21262d !important;
+        /* FIX DEFINITIVO PARA TODOS OS BOTÕES E BOTÕES DE DOWNLOAD */
+        .stButton > button, 
+        .stDownloadButton > button, 
+        div[data-testid="stDownloadButton"] > button {{
+            background-color: #1a2332 !important;
             color: #ffffff !important;
-            border: 1px solid #30363d !important;
-            transition: all 0.2s ease !important;
-        }}
-        .stButton > button:hover {{
-            background-color: #30363d !important;
-            border-color: #8b949e !important;
-        }}
-        .stButton > button[kind="primary"] {{
-            background: linear-gradient(135deg, #00C853 0%, #00E676 100%) !important;
-            color: #000000 !important;
-            border: none !important;
+            border: 1px solid #2a364f !important;
+            border-radius: 12px !important;
             font-weight: 700 !important;
-            box-shadow: 0 4px 14px rgba(0, 230, 118, 0.3) !important;
+            padding: 12px 20px !important;
+            transition: all 0.2s ease !important;
+            width: 100% !important;
         }}
-        .stButton > button[kind="primary"]:hover {{
-            box-shadow: 0 6px 20px rgba(0, 230, 118, 0.5) !important;
-            transform: scale(1.01);
+
+        .stButton > button:hover, 
+        .stDownloadButton > button:hover, 
+        div[data-testid="stDownloadButton"] > button:hover {{
+            background-color: #243044 !important;
+            border-color: #00a8ff !important;
+            color: #00a8ff !important;
+            box-shadow: 0 0 12px rgba(0, 168, 255, 0.3) !important;
+        }}
+
+        .stButton > button[kind="primary"], 
+        .stDownloadButton > button[kind="primary"], 
+        div[data-testid="stDownloadButton"] > button[kind="primary"] {{
+            background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important;
+            color: #ffffff !important;
+            border: none !important;
+            box-shadow: 0 6px 20px rgba(0, 168, 255, 0.35) !important;
+        }}
+
+        .stButton > button[kind="primary"]:hover, 
+        .stDownloadButton > button[kind="primary"]:hover, 
+        div[data-testid="stDownloadButton"] > button[kind="primary"]:hover {{
+            background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important;
+            box-shadow: 0 8px 25px rgba(0, 168, 255, 0.5) !important;
+            color: #ffffff !important;
+        }}
+
+        /* ESTILIZAÇÃO DO CONTAINER DA TABELA/DATAFRAME */
+        [data-testid="stDataFrame"] {{
+            background-color: #111823 !important;
+            border: 1px solid #1f2937 !important;
+            border-radius: 12px !important;
+            padding: 8px !important;
         }}
 
         /* SIDEBAR E TABS */
         [data-testid="stSidebar"] {{
-            background-color: #161b22 !important;
-            border-right: 1px solid #30363d !important;
+            background-color: #0e141d !important;
+            border-right: 1px solid #1f2937 !important;
         }}
         
         .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
+            gap: 10px;
             background-color: transparent;
         }}
         .stTabs [data-baseweb="tab"] {{
-            background-color: #161b22;
-            border-radius: 8px 8px 0 0;
-            border: 1px solid #30363d;
+            background-color: #111823;
+            border-radius: 10px 10px 0 0;
+            border: 1px solid #1f2937;
             border-bottom: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             color: #94a3b8 !important;
         }}
         .stTabs [aria-selected="true"] {{
-            background-color: #21262d !important;
-            color: #29b6f6 !important;
+            background-color: #1a2332 !important;
+            color: #00a8ff !important;
             font-weight: bold;
-            border-top: 2px solid #29b6f6 !important;
+            border-top: 3px solid #00a8ff !important;
         }}
         </style>
         """,
@@ -211,8 +271,8 @@ st.markdown("""
             right: 15px !important;     
             left: auto !important;      
             z-index: 9999999 !important; 
-            background-color: #161b22 !important;
-            border: 1px solid #29b6f6 !important;
+            background-color: #111823 !important;
+            border: 1px solid #00a8ff !important;
             border-radius: 50% !important;
             padding: 8px !important;
             width: 45px !important;
@@ -513,7 +573,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#29b6f6"), spaceAfter=15)
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#00a8ff"), spaceAfter=15)
     story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
 
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
@@ -522,8 +582,8 @@ def gerar_pdf_contabilidade(df, mes_ref):
         table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
     t = Table(table_data, colWidths=[75, 60, 265, 80])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e293b")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#29b6f6")),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111823")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#00a8ff")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
         ('FONTSIZE', (0,0), (-1,-1), 9),
     ]))
@@ -567,7 +627,7 @@ if salao_url:
     st.markdown(f"""
     <div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;">
         <h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1>
-        <p style="color: #29b6f6 !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p>
+        <p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -625,7 +685,7 @@ if salao_url:
     st.stop()
 
 # ==============================================================================
-# TELA DE AUTENTICAÇÃO E ACESSO
+# TELA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
@@ -646,72 +706,84 @@ if not st.session_state.autenticado:
         st.stop()
 
     if st.session_state.recuperando_senha:
-        st.title("🔑 Redefinição de Senha")
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        st.markdown('<span class="login-tag">RECUPERAÇÃO</span>', unsafe_allow_html=True)
+        st.markdown('<h1 class="login-title">Redefinir Senha</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="login-subtitle">Confirme seus dados para cadastrar uma nova senha.</p>', unsafe_allow_html=True)
+        
         with st.form("form_recuperacao"):
             user_recup = st.text_input("Usuário:").strip().lower()
             email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
             nova_senha_recup = st.text_input("Nova Senha:", type="password")
             conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
-            c_rec1, c_rec2 = st.columns(2)
-            with c_rec1:
-                if st.form_submit_button("Atualizar"):
-                    if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
-                        if nova_senha_recup == conf_senha_recup and nova_senha_recup:
-                            usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
-                            salvar_usuarios(usuarios_cadastrados)
-                            st.success("✅ Senha alterada com sucesso!")
-                            st.session_state.recuperando_senha = False
-                            time.sleep(1)
-                            st.rerun()
-                        else: st.error("Senhas não conferem.")
-                    else: st.error("Dados incorretos.")
-            with c_rec2:
-                if st.form_submit_button("Voltar"):
-                    st.session_state.recuperando_senha = False
-                    st.rerun()
+            
+            if st.form_submit_button("Atualizar Senha", type="primary", use_container_width=True):
+                if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
+                    if nova_senha_recup == conf_senha_recup and nova_senha_recup:
+                        usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
+                        salvar_usuarios(usuarios_cadastrados)
+                        st.success("✅ Senha alterada com sucesso!")
+                        st.session_state.recuperando_senha = False
+                        time.sleep(1)
+                        st.rerun()
+                    else: st.error("As senhas não conferem.")
+                else: st.error("Usuário ou e-mail incorretos.")
+
+        if st.button("Voltar ao Login", use_container_width=True):
+            st.session_state.recuperando_senha = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 25px;">
-        <h1 style="font-size: 2.2rem;">✂️ Fio&Caixa</h1>
-        <p style="color: #94a3b8 !important;">Sistema Profissional de Gestão Financeira e Agendamento</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # --- CARD DE LOGIN ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_l1, col_l2, col_l3 = st.columns([1, 2.2, 1])
 
-    col_center1, col_center2, col_center3 = st.columns([1, 2, 1])
-    with col_center2:
-        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    with col_l2:
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        st.markdown('<span class="login-tag">ACESSO AO SISTEMA</span>', unsafe_allow_html=True)
+        st.markdown('<h1 class="login-title">Entrar</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="login-subtitle">Informe seus dados para acessar o painel do seu salão.</p>', unsafe_allow_html=True)
+
         tipo_acesso = st.radio("Selecione o Perfil:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
-        
-        with st.form("form_login"):
-            usuario_input = st.text_input("Usuário:").strip().lower()
-            senha_input = st.text_input("Senha:", type="password")
-            senha2_input = st.text_input("Senha Secundária:", type="password") if tipo_acesso == "Administrador Mestre" else ""
+
+        with st.form("form_login_moderno"):
+            usuario_input = st.text_input("Usuário / Login", placeholder="Digite seu usuário").strip().lower()
+            senha_input = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            senha2_input = st.text_input("Senha Secundária Admin", type="password", placeholder="Chave de segurança admin") if tipo_acesso == "Administrador Mestre" else ""
             
-            if st.form_submit_button("Entrar no Painel", type="primary", use_container_width=True):
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_login = st.form_submit_button("Entrar", type="primary", use_container_width=True)
+
+            if submit_login:
                 if tipo_acesso == "Administrador Mestre":
                     if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
                         st.rerun()
-                    else: st.error("Credenciais mestre incorretas.")
+                    else:
+                        st.error("Credenciais de administrador mestre inválidas.")
                 else:
                     if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                         dados_user = usuarios_cadastrados[usuario_input]
                         data_venc = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
                         if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
-                            st.error("❌ Acesso bloqueado. Licença suspensa ou expirada.")
+                            st.error("❌ Acesso bloqueado. Licença expirada ou suspensa.")
                             st.stop()
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = usuario_input
                         st.session_state.eh_admin = False
                         st.rerun()
-                    else: st.error("Usuário ou senha incorretos.")
+                    else:
+                        st.error("Usuário ou senha incorretos.")
 
+        st.markdown("<hr style='border-color: #1f2937; margin: 20px 0;'>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem;'>Problemas para acessar?</p>", unsafe_allow_html=True)
         if st.button("Esqueci minha senha", use_container_width=True):
             st.session_state.recuperando_senha = True
             st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -775,7 +847,7 @@ if st.session_state.eh_admin:
     st.stop()
 
 # ==============================================================================
-# PAINEL PRINCIPAL DO SALÃO (USUÁRIO)
+# PAINEL PRINCIPAL DO SALÃO (USUÁRIO LOGADO)
 # ==============================================================================
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
@@ -806,7 +878,7 @@ st.markdown(f"""
 <div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;">
     <div>
         <h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2>
-        <p style="margin: 0; color: #29b6f6 !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p>
+        <p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -815,12 +887,11 @@ st.markdown(f"""
 tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD VIVO (PLOTLY + CARDS EM BLOCOS)
+# TAB 1: DASHBOARD VIVO
 # ==============================================================================
 with tab1:
     st.markdown("### 📊 Visão Geral de Desempenho")
     
-    # KPIS EM BLOCOS PERSONALIZADOS
     c_kpi1, c_kpi2, c_kpi3, c_kpi4 = st.columns(4)
     
     with c_kpi1:
@@ -857,7 +928,6 @@ with tab1:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # BLOCOS DE GRÁFICOS
     col_chart1, col_chart2 = st.columns([1, 1])
 
     with col_chart1:
@@ -947,7 +1017,6 @@ with tab0:
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
             st.rerun()
 
-    # FORMULÁRIOS EMBUTIDOS EM BLOCOS DESTACADOS
     if st.session_state.formulario_ativo == 'new_atendimento':
         st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
         st.markdown("#### ✂️ Registrar Novo Atendimento")
@@ -1057,7 +1126,7 @@ with tab_agend:
             wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
             
             st.markdown(f"""
-            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#29b6f6;color:white;padding:0.6rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:10px;">
+            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:0.6rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:10px;">
                 💬 Chamar Cliente no WhatsApp
             </a>
             """, unsafe_allow_html=True)
@@ -1072,7 +1141,7 @@ with tab_agend:
         st.info("Nenhum agendamento ativo na lista.")
 
 # ==============================================================================
-# TAB 2: HISTÓRICO REFORMULADO E RELATÓRIOS
+# TAB 2: HISTÓRICO & RELATÓRIOS (CORRIGIDA)
 # ==============================================================================
 with tab2:
     st.subheader("📜 Histórico Financeiro Completo")
@@ -1099,7 +1168,6 @@ with tab2:
         st.markdown('</div>', unsafe_allow_html=True)
 
         if not df_exibicao.empty:
-            # BLOCO DE BALANÇO DO PERÍODO
             tot_ent = df_exibicao[df_exibicao['Tipo'] == 'Entrada']['Valor'].sum()
             tot_sai = abs(df_exibicao[df_exibicao['Tipo'] == 'Saída']['Valor'].sum())
             tot_liq = tot_ent - tot_sai
@@ -1115,6 +1183,8 @@ with tab2:
                 st.markdown(f'<div class="kpi-card kpi-card-neutral"><div class="kpi-title">Resultado Líquido</div><div class="kpi-value">R$ {tot_liq:.2f}</div></div>', unsafe_allow_html=True)
 
             st.markdown("<br>", unsafe_allow_html=True)
+            
+            # BOTÕES DE DOWNLOAD TOTALMENTE VISÍVEIS
             col_down1, col_down2 = st.columns(2)
             with col_down1:
                 st.download_button("📄 Baixar CSV Contábil", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
@@ -1122,17 +1192,18 @@ with tab2:
                 st.download_button("📕 Baixar Relatório PDF", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # TABELA DE MOVIMENTAÇÕES
             df_vis = df_exibicao.sort_index(ascending=False).copy()
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
             df_vis = df_vis.drop(columns=['Mês/Ano', 'id'], errors='ignore')
 
+            # FUNÇÃO DE CORES CORRIGIDA COM ALTO CONTRASTE
             def colorir_linha(row):
+                cols = len(row)
                 if row['Tipo'] == 'Entrada':
-                    return ['background-color: rgba(0, 230, 118, 0.2); color: #ffffff; font-weight: 600;'] * 4
+                    return ['background-color: #0d3320; color: #00E676; font-weight: 700;'] * cols
                 elif row['Tipo'] == 'Saída':
-                    return ['background-color: rgba(255, 82, 82, 0.2); color: #ffffff; font-weight: 600;'] * 4
-                return ['background-color: rgba(255, 215, 0, 0.2); color: #ffffff; font-weight: 600;'] * 4
+                    return ['background-color: #3d1418; color: #FF5252; font-weight: 700;'] * cols
+                return ['background-color: #3d310d; color: #FFD700; font-weight: 700;'] * cols
 
             st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
 
