@@ -298,7 +298,7 @@ def set_background_com_logo(image_path):
 
 set_background_com_logo("logo.png")
 
-# Oculta menus padrão do Streamlit e reposiciona o menu de expansão/sidebar no canto superior direito (onde foi circulado de verde)
+# Oculta menus padrão do Streamlit
 st.markdown("""
     <style>
         footer, [data-testid="stFooter"], .stFooter, 
@@ -315,18 +315,13 @@ st.markdown("""
             z-index: 9999999 !important; 
             background-color: #111823 !important;
             border: 1px solid #00a8ff !important;
-            border-radius: 8px !important;
-            padding: 4px !important;
-            width: 38px !important;
-            height: 38px !important;
-            box-shadow: 0 4px 12px rgba(0, 168, 255, 0.3) !important;
-        }
-        [data-testid="collapsedControl"] svg {
-            width: 18px !important;
-            height: 18px !important;
+            border-radius: 50% !important;
+            padding: 8px !important;
+            width: 45px !important;
+            height: 45px !important;
         }
         .main .block-container {
-            padding-top: 2.5rem !important;
+            padding-top: 1.5rem !important;
             padding-bottom: 2rem !important;
             max-width: 96% !important;
         }
@@ -935,6 +930,60 @@ nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática:\n👉 {link_clientes}"
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
+# --- BOTÃO CONFI NO INÍCIO DO DASHBOARD (CANTO SUPERIOR ESQUERDO) ---
+col_top_left, _ = st.columns([1, 4])
+with col_top_left:
+    with st.popover("⚙️ Confi", use_container_width=False):
+        st.subheader("⚙️ Configurações do Salão")
+        st.caption(f"Conectado como: **{nome_salao_titulo}**")
+
+        st.markdown("---")
+        st.markdown("#### 💈 Serviços & Atendimentos")
+        st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
+
+        opcoes_gerenciamento_pop = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
+        servico_sel_pop = st.selectbox("Ação / Serviço:", opcoes_gerenciamento_pop, key="top_select_servico")
+
+        nome_p_pop = "" if servico_sel_pop == "➕ Cadastrar Novo Serviço" else servico_sel_pop
+        preco_p_pop = 0.0 if servico_sel_pop == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel_pop])
+
+        novo_servico_pop = st.text_input("Nome do Serviço:", value=nome_p_pop, key=f"top_nome_{servico_sel_pop}")
+        novo_preco_pop = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p_pop, step=5.0, key=f"top_prc_{servico_sel_pop}")
+
+        col_tp1, col_tp2 = st.columns(2)
+        with col_tp1:
+            if st.button("💾 Salvar", type="primary", use_container_width=True, key="top_save_btn"):
+                if novo_servico_pop.strip():
+                    salvar_ou_atualizar_servico(servico_sel_pop, novo_servico_pop.strip(), novo_preco_pop)
+                    st.success("Serviço atualizado com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("Informe o nome do serviço.")
+
+        with col_tp2:
+            if servico_sel_pop != "➕ Cadastrar Novo Serviço":
+                if st.button("🗑️ Excluir", use_container_width=True, key="top_del_btn"):
+                    deletar_servico_banco(servico_sel_pop)
+                    st.warning("Serviço excluído com sucesso!")
+                    st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### 📦 Backup e Dados")
+        backup_dados_pop = gerar_backup_json_completo()
+        st.download_button(
+            label="📥 Baixar Backup JSON", 
+            data=backup_dados_pop, 
+            file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
+            mime="application/json", 
+            use_container_width=True,
+            key="top_backup_btn"
+        )
+
+        st.markdown("---")
+        if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary", key="top_logout_btn"):
+            st.session_state.clear()
+            st.rerun()
+
 # --- CABEÇALHO DO PAINEL ---
 st.markdown(f"""
 <div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;">
@@ -946,7 +995,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- NAVEGAÇÃO POR TABS ---
-tab1, tab0, tab_agend, tab2, tab_config_serv = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios", "⚙️ Conf"])
+tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
 
 # ==============================================================================
 # TAB 1: DASHBOARD VIVO
@@ -1281,10 +1330,10 @@ with tab2:
         st.info("Histórico de caixa vazio.")
 
 # ==============================================================================
-# TAB CONFIGURAÇÕES & SERVIÇOS (CONF)
+# MENU LATERAL (CONFIGURAÇÕES DO SISTEMA & GERENCIAMENTO DE SERVIÇOS)
 # ==============================================================================
-with tab_config_serv:
-    st.subheader("⚙️ Configurações & Serviços")
+with st.sidebar:
+    st.title("⚙️ Configurações")
     nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
     st.caption(f"Conectado como: **{nome_s}**")
 
@@ -1330,6 +1379,7 @@ with tab_config_serv:
     )
 
     st.markdown("---")
+    # BOTÃO DE SAIR ENCERRA A SESSÃO E RETORNA À TELA DE LOGIN
     if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
         st.session_state.clear()
         st.rerun()
