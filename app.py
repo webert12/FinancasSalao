@@ -896,8 +896,9 @@ if st.session_state.eh_admin:
             st.rerun()
 
     with st.sidebar:
+        st.markdown("---")
         if st.button("🚪 Sair do Mestre", use_container_width=True):
-            st.session_state.autenticado = False
+            st.session_state.clear()
             st.rerun()
     st.stop()
 
@@ -1275,46 +1276,56 @@ with tab2:
         st.info("Histórico de caixa vazio.")
 
 # ==============================================================================
-# BARRA LATERAL (CONFIGURAÇÕES E CATÁLOGO DE SERVIÇOS)
+# MENU LATERAL (CONFIGURAÇÕES DO SISTEMA & GERENCIAMENTO DE SERVIÇOS)
 # ==============================================================================
 with st.sidebar:
-    st.header("⚙️ Configurações do Salão")
+    st.title("⚙️ Configurações")
     nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
-    st.markdown(f"### ✂️ {nome_s}")
+    st.caption(f"Conectado como: **{nome_s}**")
 
     st.markdown("---")
-    st.markdown("#### 💈 Serviços & Preços")
+    st.subheader("💈 Serviços & Atendimentos")
+    st.write("Crie novos serviços ou edite os valores existentes no seu catálogo.")
+
     opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Gerenciar Serviços:", opcoes_gerenciamento)
+    servico_sel = st.selectbox("Selecione a Ação:", opcoes_gerenciamento, key="sidebar_select_servico")
     
     nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
     preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
     
-    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
-    novo_preco = st.number_input("Preço Cobrado (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
+    novo_servico = st.text_input("Nome do Serviço / Atendimento:", value=nome_p, key=f"side_nome_{servico_sel}")
+    novo_preco = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
 
-    if st.button("Salvar Serviço", type="primary", use_container_width=True):
-        if novo_servico:
-            salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
-            st.success("Serviço atualizado!")
-            st.rerun()
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        if st.button("💾 Salvar", type="primary", use_container_width=True, key="side_save_btn"):
+            if novo_servico.strip():
+                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
+                st.success("Serviço salvo com sucesso!")
+                st.rerun()
+            else:
+                st.error("Informe o nome do serviço.")
 
-    if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço", use_container_width=True):
-        deletar_servico_banco(servico_sel)
-        st.warning("Serviço removido!")
-        st.rerun()
+    with col_s2:
+        if servico_sel != "➕ Cadastrar Novo Serviço":
+            if st.button("🗑️ Excluir", use_container_width=True, key="side_del_btn"):
+                deletar_servico_banco(servico_sel)
+                st.warning("Serviço removido!")
+                st.rerun()
 
     st.markdown("---")
-    with st.expander("📦 Backup dos Dados"):
-        backup_dados = gerar_backup_json_completo()
-        st.download_button(
-            label="📥 Baixar Backup JSON", 
-            data=backup_dados, 
-            file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
-            mime="application/json", 
-            use_container_width=True
-        )
+    st.subheader("📦 Backup e Dados")
+    backup_dados = gerar_backup_json_completo()
+    st.download_button(
+        label="📥 Baixar Backup JSON", 
+        data=backup_dados, 
+        file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
+        mime="application/json", 
+        use_container_width=True
+    )
 
-    if st.button("🚪 Sair da Conta", use_container_width=True):
-        st.session_state.autenticado = False
+    st.markdown("---")
+    # BOTÃO DE SAIR LIMPA TUDO E VOLTA PARA O LOGIN
+    if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
+        st.session_state.clear()
         st.rerun()
