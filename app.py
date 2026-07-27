@@ -33,12 +33,19 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
-# --- DESIGN & CSS ULTRA PREMIUM ---
-def set_background_com_logo(image_path):
-    encoded_string = ""
+# --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
+# Isso evita o delay de recarregar a imagem toda vez que clica em um botão
+@st.cache_data
+def get_image_base64(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
+            return base64.b64encode(image_file.read()).decode()
+    return ""
+
+# --- DESIGN & CSS ULTRA PREMIUM ---
+def set_background_com_logo(image_path):
+    encoded_string = get_image_base64(image_path)
+    if encoded_string:
         bg_style = f'background-image: linear-gradient(180deg, rgba(30, 5, 8, 0.85) 0%, rgba(10, 13, 18, 0.96) 100%), url("data:image/png;base64,{encoded_string}") !important;'
     else:
         bg_style = 'background: radial-gradient(circle at top, #2b080c 0%, #0d1117 60%, #080a0f 100%) !important;'
@@ -682,6 +689,43 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
+# FUNÇÃO ÍCONE FLUTUANTE WHATSAPP (APARECE DENTRO DO APP)
+def renderizar_whatsapp_flutuante():
+    wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
+    st.markdown(f"""
+        <style>
+        .floating-wa {{
+            position: fixed;
+            width: 55px;
+            height: 55px;
+            bottom: 30px;
+            right: 30px;
+            background-color: #25d366;
+            border-radius: 50px;
+            text-align: center;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+            z-index: 9999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: transform 0.3s ease;
+        }}
+        .floating-wa:hover {{
+            transform: scale(1.1);
+        }}
+        .floating-wa svg {{
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }}
+        </style>
+        <a href="https://api.whatsapp.com/send?phone=55713391598179&text={wa_msg}" class="floating-wa" target="_blank" title="Falar com Suporte">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
+        </a>
+    """, unsafe_allow_html=True)
+
+
 # ESTADOS DE SESSÃO
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
@@ -767,7 +811,7 @@ if salao_url:
                         "hora": horario_escolhido
                     })
                 carregar_agendamentos_por_usuario.clear()
-                st.success(f" Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
+                st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 st.rerun()
             except Exception as e:
@@ -866,14 +910,34 @@ if not st.session_state.autenticado:
                     else:
                         st.error("Usuário ou senha incorretos.")
 
+        # --- OPÇÕES INFERIORES E WHATSAPP ---
         st.markdown("<hr style='border-color: #1f2937; margin: 20px 0;'>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem;'>Problemas para acessar?</p>", unsafe_allow_html=True)
-        if st.button("Esqueci minha senha", use_container_width=True):
-            st.session_state.recuperando_senha = True
-            st.rerun()
+        col_rec_1, col_rec_2 = st.columns(2)
+        with col_rec_1:
+            st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem; margin-bottom:5px;'>Problemas para acessar?</p>", unsafe_allow_html=True)
+            if st.button("Esqueci minha senha", use_container_width=True):
+                st.session_state.recuperando_senha = True
+                st.rerun()
+        
+        with col_rec_2:
+            st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem; margin-bottom:5px;'>Deseja adquirir o sistema?</p>", unsafe_allow_html=True)
+            wa_login_msg = urllib.parse.quote("Olá! Gostaria de saber mais sobre a assinatura do Fio&Caixa.")
+            st.markdown(f"""
+                <a href="https://api.whatsapp.com/send?phone=55713391598179&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;">
+                    <svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
+                    Falar no WhatsApp
+                </a>
+            """, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
+
+
+# ==============================================================================
+# INJETA O ÍCONE DO WHATSAPP FLUTUANTE GLOBAL APÓS O LOGIN
+# ==============================================================================
+renderizar_whatsapp_flutuante()
+
 
 # ==============================================================================
 # MODO ADMINISTRADOR MESTRE
