@@ -940,8 +940,62 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- NAVEGAÇÃO POR TABS ---
-tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
+# --- NAVEGAÇÃO POR TABS (CONFIGURAÇÕES AGORA POSICIONADA NO INÍCIO / PARTE SUPERIOR ESQUERDA) ---
+tab_config_serv, tab1, tab0, tab_agend, tab2 = st.tabs(["⚙️ Configurações & Serviços", "📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
+
+# ==============================================================================
+# TAB CONFIGURAÇÕES & SERVIÇOS (ANTIGO MENU LATERAL)
+# ==============================================================================
+with tab_config_serv:
+    st.subheader("⚙️ Configurações & Serviços")
+    nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
+    st.caption(f"Conectado como: **{nome_s}**")
+
+    st.markdown("---")
+    st.subheader("💈 Serviços & Atendimentos")
+    st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
+
+    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
+    servico_sel = st.selectbox("Ação / Serviço:", opcoes_gerenciamento, key="sidebar_select_servico")
+    
+    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
+    preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
+    
+    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
+    novo_preco = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
+
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        if st.button("💾 Salvar", type="primary", use_container_width=True, key="side_save_btn"):
+            if novo_servico.strip():
+                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
+                st.success("Serviço atualizado com sucesso!")
+                st.rerun()
+            else:
+                st.error("Informe o nome do serviço.")
+
+    with col_s2:
+        if servico_sel != "➕ Cadastrar Novo Serviço":
+            if st.button("🗑️ Excluir", use_container_width=True, key="side_del_btn"):
+                deletar_servico_banco(servico_sel)
+                st.warning("Serviço excluído com sucesso!")
+                st.rerun()
+
+    st.markdown("---")
+    st.subheader("📦 Backup e Dados")
+    backup_dados = gerar_backup_json_completo()
+    st.download_button(
+        label="📥 Baixar Backup JSON", 
+        data=backup_dados, 
+        file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
+        mime="application/json", 
+        use_container_width=True
+    )
+
+    st.markdown("---")
+    if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
+        st.session_state.clear()
+        st.rerun()
 
 # ==============================================================================
 # TAB 1: DASHBOARD VIVO
@@ -1274,58 +1328,3 @@ with tab2:
             st.info("Nenhum registro no período selecionado.")
     else:
         st.info("Histórico de caixa vazio.")
-
-# ==============================================================================
-# MENU LATERAL (CONFIGURAÇÕES DO SISTEMA & GERENCIAMENTO DE SERVIÇOS)
-# ==============================================================================
-with st.sidebar:
-    st.title("⚙️ Configurações")
-    nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
-    st.caption(f"Conectado como: **{nome_s}**")
-
-    st.markdown("---")
-    st.subheader("💈 Serviços & Atendimentos")
-    st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
-
-    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Ação / Serviço:", opcoes_gerenciamento, key="sidebar_select_servico")
-    
-    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
-    
-    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
-    novo_preco = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
-
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        if st.button("💾 Salvar", type="primary", use_container_width=True, key="side_save_btn"):
-            if novo_servico.strip():
-                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
-                st.success("Serviço atualizado com sucesso!")
-                st.rerun()
-            else:
-                st.error("Informe o nome do serviço.")
-
-    with col_s2:
-        if servico_sel != "➕ Cadastrar Novo Serviço":
-            if st.button("🗑️ Excluir", use_container_width=True, key="side_del_btn"):
-                deletar_servico_banco(servico_sel)
-                st.warning("Serviço excluído com sucesso!")
-                st.rerun()
-
-    st.markdown("---")
-    st.subheader("📦 Backup e Dados")
-    backup_dados = gerar_backup_json_completo()
-    st.download_button(
-        label="📥 Baixar Backup JSON", 
-        data=backup_dados, 
-        file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
-        mime="application/json", 
-        use_container_width=True
-    )
-
-    st.markdown("---")
-    # BOTÃO DE SAIR ENCERRA A SESSÃO E RETORNA À TELA DE LOGIN
-    if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
-        st.session_state.clear()
-        st.rerun()
