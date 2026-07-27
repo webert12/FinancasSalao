@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os
@@ -29,101 +31,130 @@ TZ = ZoneInfo("America/Sao_Paulo")
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-# --- CONFIGURAÇÃO DA PÁGINA (WIDE PARA TELA FIXA E SEM ROLAGEM EXCESSIVA) ---
-st.set_page_config(page_title="Agendamento", layout="wide", page_icon="✂️")
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Gestão & Agendamento", layout="wide", page_icon="✂️")
 
-# --- FUNÇÃO PARA ADICIONAR IMAGEM DE FUNDO E ESTILOS DE CONTRASTE PERSONALIZADO ---
+# --- ESTILIZAÇÃO E BACKGROUND PERSONALIZADO ---
 def set_background_com_logo(image_path):
+    encoded_string = ""
     if os.path.exists(image_path):
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        
-        st.markdown(
-            f"""
-            <style>
-            /* Fundo fixo sem repetição */
-            .stApp {{
-                background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("data:image/png;base64,{encoded_string}") !important;
-                background-size: cover !important;
-                background-position: center center !important;
-                background-repeat: no-repeat !important;
-                background-attachment: fixed !important;
-            }}
-            
-            /* 1. TÍTULOS (h1 a h6) E GERAL QUE ESTAVAM EM PRETO AGORA EM BRANCO */
-            .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-            [data-testid="column"] h1, [data-testid="column"] h2, [data-testid="column"] h3, 
-            [data-testid="column"] h4, [data-testid="column"] h5, [data-testid="column"] h6,
-            .stApp p, .stApp span, .stApp label, .stApp div {{
-                color: #ffffff !important;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95) !important;
-            }}
-            
-            /* 2. TEXTOS ESPECÍFICOS DENTRO DE COLUNAS, TABELAS, CAIXAS, FORMULÁRIOS EM PRETO */
-            [data-testid="column"] p, [data-testid="column"] span, [data-testid="column"] label, [data-testid="column"] div,
-            [data-testid="stForm"] *,
-            [data-testid="stExpander"] *,
-            [data-testid="stMetric"] *,
-            [data-testid="stTabs"] *,
-            .embedded-form-container *,
-            [data-testid="stMarkdownContainer"] > p,
-            input, select, textarea, div[data-baseweb="select"] *,
-            [data-testid="stDataFrame"] *,
-            table *, tr *, th *, td * {{
-                color: #111111 !important;
-                text-shadow: none !important;
-            }}
+        bg_style = f'background-image: linear-gradient(rgba(10, 12, 16, 0.85), rgba(10, 12, 16, 0.90)), url("data:image/png;base64,{encoded_string}") !important;'
+    else:
+        bg_style = 'background-color: #0b0e14 !important;'
 
-            /* 3. REMOÇÃO DE FUNDOS (Sem blocos ou cartões atrás dos textos) */
-            .embedded-form-container, [data-testid="stMetric"], [data-testid="stExpander"], [data-testid="column"], [data-testid="stForm"] {{
-                background-color: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                padding: 0px !important;
-            }}
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            {bg_style}
+            background-size: cover !important;
+            background-position: center center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
+        }}
 
-            /* Exceção: Botões Primários (Vermelhos/Destaque) precisam manter o fundo destacado e texto branco */
-            .stButton > button[kind="primary"], .stButton > button[kind="primary"] * {{
-                background-color: #ff4b4b !important;
-                color: #ffffff !important;
-                border: none !important;
-            }}
+        /* Tipografia de Alto Contraste */
+        html, body, [class*="css"], .stMarkdown, p, span, label {{
+            color: #f1f5f9 !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }}
 
-            /* Botões secundários com contraste legível */
-            .stButton > button:not([kind="primary"]) {{
-                background-color: rgba(255, 255, 255, 0.9) !important;
-                color: #111111 !important;
-                border: 1px solid #cccccc !important;
-            }}
+        /* Títulos com destaque e brilho suave */
+        h1, h2, h3, h4, h5, h6 {{
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.5px;
+        }}
 
-            /* Barra lateral translúcida elegante */
-            [data-testid="stSidebar"] {{
-                background-color: rgba(14, 17, 23, 0.95) !important;
-            }}
-            [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
-                color: #ffffff !important;
-            }}
-            [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {{
-                color: #eeeeee !important;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+        /* Cards de Métricas Premium */
+        [data-testid="stMetric"] {{
+            background: rgba(22, 27, 34, 0.75) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px !important;
+            padding: 16px !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+            backdrop-filter: blur(8px) !important;
+            transition: transform 0.2s ease-in-out;
+        }}
+        [data-testid="stMetric"]:hover {{
+            transform: translateY(-3px);
+            border-color: #29b6f6 !important;
+        }}
+        [data-testid="stMetricLabel"] {{
+            color: #94a3b8 !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+        }}
+        [data-testid="stMetricValue"] {{
+            color: #00E676 !important;
+            font-weight: 800 !important;
+        }}
 
-# Aplica o background chamando o arquivo logo.png
+        /* Formulários e Containers em Cartões Elegantes */
+        .embedded-form-container {{
+            background: rgba(18, 22, 31, 0.85) !important;
+            border: 1px solid rgba(41, 182, 246, 0.3) !important;
+            border-radius: 14px !important;
+            padding: 20px !important;
+            margin-top: 10px !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+        }}
+
+        /* Entradas de Texto, Selects e Inputs */
+        input, select, textarea, div[data-baseweb="select"] > div {{
+            background-color: rgba(30, 41, 59, 0.8) !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        }}
+        input:focus, select:focus {{
+            border-color: #29b6f6 !important;
+        }}
+
+        /* Botões Estilizados */
+        .stButton > button {{
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            transition: all 0.2s ease !important;
+        }}
+        .stButton > button[kind="primary"] {{
+            background: linear-gradient(135deg, #00C853 0%, #00E676 100%) !important;
+            color: #000000 !important;
+            border: none !important;
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3) !important;
+        }}
+        .stButton > button[kind="primary"]:hover {{
+            box-shadow: 0 6px 20px rgba(0, 230, 118, 0.5) !important;
+            transform: scale(1.02);
+        }}
+
+        /* Sidebar Translucida */
+        [data-testid="stSidebar"] {{
+            background-color: rgba(11, 14, 20, 0.95) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }}
+
+        /* Tabelas */
+        [data-testid="stDataFrame"] {{
+            border-radius: 10px !important;
+            overflow: hidden !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 set_background_com_logo("logo.png")
 
-# --- CUSTOMIZAÇÃO CSS PARA FIXAR LAYOUT E EVITAR BUG DE TELAS ---
+# Customização técnica de visualização
 st.markdown("""
     <style>
-        /* Remove rodapés e marcas nativas */
         footer, [data-testid="stFooter"], .stFooter, 
         #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
             display: none !important;
         }
-        
-        /* Botão de configurações fixo no canto superior direito */
         [data-testid="collapsedControl"] {
             display: flex !important;
             visibility: visible !important;
@@ -132,53 +163,38 @@ st.markdown("""
             right: 15px !important;     
             left: auto !important;      
             z-index: 9999999 !important; 
-            background-color: rgba(255, 255, 255, 0.9) !important;
-            border: 2px solid #29b6f6 !important;
+            background-color: rgba(30, 41, 59, 0.9) !important;
+            border: 1px solid #29b6f6 !important;
             border-radius: 50% !important;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.6) !important;
             padding: 8px !important;
             width: 45px !important;
             height: 45px !important;
-            align-items: center !important;
-            justify-content: center !important;
         }
-
         .main .block-container {
-            padding-top: 3.5rem !important;
-            padding-bottom: 1rem !important;
-            max-width: 98% !important;
-            background-color: transparent !important;
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+            max-width: 96% !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# --- SCRIPT JAVASCRIPT DE PROTEÇÃO DE TELA ---
 components.html("""
     <script>
         function removeUnwantedElements() {
-            const selectors = [
-                'div[class*="viewerBadge"]',
-                'a[href*="streamlit.io"]',
-                'a[href*="github"]',
-                'footer',
-                '#manage-app-button'
-            ];
-            selectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => { el.remove(); });
-            });
+            const selectors = ['div[class*="viewerBadge"]', 'a[href*="streamlit.io"]', 'a[href*="github"]', 'footer', '#manage-app-button'];
+            selectors.forEach(sel => { document.querySelectorAll(sel).forEach(el => { el.remove(); }); });
         }
         setInterval(removeUnwantedElements, 1000);
     </script>
 """, height=0, width=0)
 
-# --- CAPTURA DA DATABASE DIRETAMENTE DOS SECRETS ---
+# --- CONEXÃO BANCO DE DADOS ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
-    st.error("❌ ERRO CRÍTICO: A variável 'DB_URL' não foi configurada nos Secrets do Streamlit Cloud.")
+    st.error("❌ ERRO CRÍTICO: Variável 'DB_URL' não encontrada nos Secrets.")
     st.stop()
 
-# --- Inicialização da Engine de Banco de Dados ---
 @st.cache_resource
 def init_connection(url):
     return create_engine(url, pool_pre_ping=True)
@@ -186,10 +202,9 @@ def init_connection(url):
 try:
     engine = init_connection(DB_URL)
 except Exception as e:
-    st.error(f"Erro crítico ao instanciar o motor do banco de dados: {e}")
+    st.error(f"Erro de conexão com o banco de dados: {e}")
     st.stop()
 
-# --- FUNÇÃO DE CRIAÇÃO AUTOMÁTICA DE TABELAS ---
 def inicializar_banco():
     with engine.begin() as conn:
         conn.execute(text("""
@@ -251,7 +266,7 @@ def inicializar_banco():
 try:
     inicializar_banco()
 except Exception as e:
-    st.error(f"Erro ao estruturar tabelas automáticas: {e}")
+    st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
 # --- FUNÇÕES DE PERSISTÊNCIA ---
@@ -284,7 +299,7 @@ def atualizar_url_sistema(url):
         with engine.begin() as conn:
             conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
     except Exception as e:
-        st.error(f"Erro ao atualizar URL do sistema: {e}")
+        st.error(f"Erro ao atualizar URL: {e}")
 
 def carregar_usuarios():
     try:
@@ -330,7 +345,7 @@ def carregar_servicos_por_salao(salao_id):
                 return {row[0]: float(row[1]) for row in rows}
     except:
         pass
-    return {"Corte de Cabelo": 25.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
+    return {"Corte de Cabelo": 30.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
 def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
@@ -445,20 +460,13 @@ def gerar_backup_json_completo():
     }
     return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
 
-# --- INICIALIZAÇÃO DE ESTADOS ---
-if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
-if 'autenticado' not in st.session_state: st.session_state.autenticado = False
-if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
-if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
-if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
-
 def gerar_pdf_contabilidade(df, mes_ref):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#d4af37"), spaceAfter=15)
-    story.append(Paragraph(f"Fio&Caixa - Relatório para Contabilidade ({mes_ref})", title_style))
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#29b6f6"), spaceAfter=15)
+    story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
 
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
     for _, row in df.iterrows():
@@ -466,8 +474,8 @@ def gerar_pdf_contabilidade(df, mes_ref):
         table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
     t = Table(table_data, colWidths=[75, 60, 265, 80])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#22252a")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#d4af37")),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e293b")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#29b6f6")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
         ('FONTSIZE', (0,0), (-1,-1), 9),
     ]))
@@ -476,9 +484,15 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
+# ESTADOS
+if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
+if 'autenticado' not in st.session_state: st.session_state.autenticado = False
+if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
+if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
+if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 
 # ==============================================================================
-# --- ROTA PÚBLICA EXCLUSIVA PARA O CLIENTE (?salao=nome) ---
+# ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
@@ -497,25 +511,20 @@ if salao_url:
     HORARIOS_DISPONIVEIS = [
         "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
         "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
-        "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", 
-        "18:00", "18:30", "19:00"
+        "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"
     ]
 
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
-    st.subheader(f"✂️ Agendamento - {nome_salao_formatado}")
+    st.title(f"✂️ {nome_salao_formatado}")
+    st.caption("Escolha o serviço, a data e o melhor horário para você:")
 
     with st.form("form_agendamento_cliente", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
         
-        if servicos_salao:
-            servico_escolhido = st.selectbox("Escolha o Serviço Desejado:", list(servicos_salao.keys()))
-        else:
-            st.warning("Nenhum serviço disponível no momento.")
-            servico_escolhido = None
-
-        data_escolhida = st.date_input("Escolha o Dia:", min_value=datetime.now(TZ).date())
+        servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys())) if servicos_salao else None
+        data_escolhida = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
 
         try:
@@ -529,20 +538,18 @@ if salao_url:
             ocupados = []
 
         horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
+        horario_escolhido = st.selectbox("Horário Disponível:", horarios_livres) if horarios_livres else None
 
-        if horarios_livres:
-            horario_escolhido = st.selectbox("Horários Disponíveis:", horarios_livres)
-        else:
-            st.error("Sem horários disponíveis nesta data. Escolha outro dia.")
-            horario_escolhido = None
+        if not horarios_livres:
+            st.warning("⚠️ Todos os horários estão preenchidos nesta data.")
 
-        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", use_container_width=True)
+        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", type="primary", use_container_width=True)
 
     if enviar_agendamento:
         if not nome_cliente or not telefone_cliente:
-            st.warning("⚠️ Preencha seu nome e telefone para contato.")
+            st.warning("⚠️ Por favor, informe seu nome e telefone.")
         elif not horario_escolhido or not servico_escolhido:
-            st.error("⚠️ Escolha um serviço e horário válidos.")
+            st.error("⚠️ Selecione um horário válido.")
         else:
             try:
                 with engine.begin() as conn:
@@ -557,161 +564,157 @@ if salao_url:
                         "data": data_str,
                         "hora": horario_escolhido
                     })
-                st.success(f"🎉 Agendamento confirmado para {nome_cliente}!")
+                st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 time.sleep(2)
                 st.rerun()
-
             except Exception as e:
-                st.error(f"Erro ao salvar agendamento: {e}")
-
+                st.error(f"Erro ao registrar agendamento: {e}")
     st.stop()
 
 # ==============================================================================
-# --- CONTROLE DE ACESSO INTERNO (EXCLUSIVO PARA O DONO DO SALÃO / ADMIN) ---
+# TELA DE AUTENTICAÇÃO E ACESSO
 # ==============================================================================
 admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
 usuarios_cadastrados = carregar_usuarios()
 
 if not st.session_state.autenticado:
     if not admin_hash1 or not admin_hash2:
-        st.title("⚠️ Configuração Inicial de Segurança")
-        st.warning("Defina as credenciais mestre de Administrador do sistema abaixo:")
+        st.title("⚠️ Configuração do Sistema")
         with st.form("primeiro_acesso"):
-            nova_adm_pass1 = st.text_input("Senha PRINCIPAL de ADMIN:", type="password")
-            nova_adm_pass2 = st.text_input("Senha SECUNDÁRIA de ADMIN:", type="password")
-            url_padrao_app = st.text_input("URL do App de AGENDAMENTO (Ex: https://fioecaixa-agendar.streamlit.app):")
-            if st.form_submit_button("Criar Acesso Seguro"):
+            nova_adm_pass1 = st.text_input("Senha Principal Admin:", type="password")
+            nova_adm_pass2 = st.text_input("Senha Secundária Admin:", type="password")
+            url_padrao_app = st.text_input("URL Base do App (Ex: https://fioecaixa.streamlit.app):")
+            if st.form_submit_button("Salvar Inicialização"):
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
-                    st.success("Configuração inicial salva! Recarregando...")
-                    time.sleep(1.5)
+                    st.success("Administração inicializada com sucesso!")
+                    time.sleep(1)
                     st.rerun()
         st.stop()
 
     if st.session_state.recuperando_senha:
-        st.title("🔑 Recuperação de Senha Segura")
+        st.title("🔑 Redefinição de Senha")
         with st.form("form_recuperacao"):
-            user_recup = st.text_input("Seu Usuário do Salão:").strip().lower()
-            email_recup = st.text_input("Seu E-mail Cadastrado:").strip().lower()
-            nova_senha_recup = st.text_input("Nova Senha de Acesso:", type="password")
+            user_recup = st.text_input("Usuário:").strip().lower()
+            email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
+            nova_senha_recup = st.text_input("Nova Senha:", type="password")
             conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
             c_rec1, c_rec2 = st.columns(2)
             with c_rec1:
-                if st.form_submit_button("Atualizar Senha"):
+                if st.form_submit_button("Atualizar"):
                     if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
                         if nova_senha_recup == conf_senha_recup and nova_senha_recup:
                             usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
                             salvar_usuarios(usuarios_cadastrados)
-                            st.success("✅ Senha redefinida no Banco de Dados!")
+                            st.success("✅ Senha alterada!")
                             st.session_state.recuperando_senha = False
-                            time.sleep(1.5)
+                            time.sleep(1)
                             st.rerun()
-                        else:
-                            st.error("As senhas informadas não coincidem.")
-                    else:
-                        st.error("Usuário ou e-mail correspondente não encontrado.")
+                        else: st.error("Senhas não conferem.")
+                    else: st.error("Dados incorretos.")
             with c_rec2:
-                if st.form_submit_button("Cancelar"):
+                if st.form_submit_button("Voltar"):
                     st.session_state.recuperando_senha = False
                     st.rerun()
         st.stop()
 
-    st.title("✂️ Sistema de Gestão - Login")
-    tipo_acesso = st.radio("Selecione o Tipo de Acesso:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
+    st.title("✂️ Fio&Caixa - Painel de Acesso")
+    tipo_acesso = st.radio("Selecione o perfil de login:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
+    
     with st.form("form_login"):
-        usuario_input = st.text_input("Usuário do Salão:").strip().lower()
+        usuario_input = st.text_input("Usuário:").strip().lower()
         senha_input = st.text_input("Senha:", type="password")
         senha2_input = st.text_input("Senha Secundária:", type="password") if tipo_acesso == "Administrador Mestre" else ""
-        if st.form_submit_button("Entrar no Sistema"):
+        
+        if st.form_submit_button("Entrar no Painel", type="primary", use_container_width=True):
             if tipo_acesso == "Administrador Mestre":
                 if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
                     st.session_state.autenticado = True
                     st.session_state.usuario_logado = "Administrador"
                     st.session_state.eh_admin = True
                     st.rerun()
-                else:
-                    st.error("Credenciais de Administrador incorretas.")
+                else: st.error("Credenciais mestre incorretas.")
             else:
                 if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                     dados_user = usuarios_cadastrados[usuario_input]
-                    data_vencimento = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
-                    if datetime.now(TZ).date() > data_vencimento or dados_user.get("status") == "Suspenso":
-                        st.error("❌ ACESSO BLOQUEADO! Licença vencida ou suspensa.")
+                    data_venc = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
+                    if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
+                        st.error("❌ Acesso bloqueado. Licença suspensa ou expirada.")
                         st.stop()
                     st.session_state.autenticado = True
                     st.session_state.usuario_logado = usuario_input
                     st.session_state.eh_admin = False
                     st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
-    if st.button("Esqueci minha senha ❯"):
+                else: st.error("Usuário ou senha incorretos.")
+
+    if st.button("Esqueci minha senha"):
         st.session_state.recuperando_senha = True
         st.rerun()
     st.stop()
 
-# --- INTERFACE 1: ADMINISTRADOR MESTRE ---
+# ==============================================================================
+# MODO ADMINISTRADOR MESTRE
+# ==============================================================================
 if st.session_state.eh_admin:
-    st.title("👑 Central do Administrador")
-    tab_cad, tab_ger, tab_config = st.tabs(["➕ Cadastrar/Renovar", "⚙️ Gerenciar Salões", "🔧 Configurações do Sistema"])
+    st.title("👑 Gestão Geral de Salões (Admin)")
+    tab_cad, tab_ger, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "🔧 Configurações Mestre"])
 
     with tab_cad:
         with st.form("form_cadastro_cliente"):
-            novo_usuario = st.text_input("Usuário do Salão (Minúsculo, sem espaços):").strip().lower()
-            novo_email = st.text_input("E-mail de Recuperação:").strip().lower()
+            novo_usuario = st.text_input("Usuário do Salão (sem espaços):").strip().lower()
+            novo_email = st.text_input("E-mail de Contato:").strip().lower()
             nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
-            tipo_conta = st.selectbox("Tipo de Conta:", ["Teste", "Cliente"])
-            dias_validate = st.number_input("Dias de Validade:", min_value=1, value=30)
-            if st.form_submit_button("Salvar Salão"):
+            tipo_conta = st.selectbox("Perfil:", ["Teste", "Cliente"])
+            dias_validade = st.number_input("Dias de Acesso:", min_value=1, value=30)
+            if st.form_submit_button("Cadastrar Salão", type="primary"):
                 if novo_usuario and nova_senha and novo_email:
-                    vencimento_calculado = (datetime.now(TZ) + timedelta(days=dias_validate)).strftime("%Y-%m-%d")
-                    usuarios_cadastrados[novo_usuario] = { "senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": vencimento_calculado, "status": "Ativo" }
+                    venc = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
+                    usuarios_cadastrados[novo_usuario] = {"senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": venc, "status": "Ativo"}
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Salão cadastrado!")
+                    st.success("Salão cadastrado com sucesso!")
                     st.rerun()
 
     with tab_ger:
         usuarios_cadastrados = carregar_usuarios()
-        if not usuarios_cadastrados:
-            st.info("Nenhum salão cadastrado.")
-        else:
-            salao_sel = st.selectbox("Selecione o Salão:", list(usuarios_cadastrados.keys()))
+        if usuarios_cadastrados:
+            salao_sel = st.selectbox("Selecione um Salão:", list(usuarios_cadastrados.keys()))
             dados = usuarios_cadastrados[salao_sel]
-            with st.expander("📝 Editar Informações", expanded=True):
+            with st.expander("📝 Editar Conta", expanded=True):
                 e_email = st.text_input("E-mail:", value=dados.get("email", ""))
-                e_senha_nova = st.text_input("Nova Senha (deixe em branco para manter):", type="password")
+                e_senha_nova = st.text_input("Alterar Senha (opcional):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
                 e_venc = st.date_input("Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d"))
                 e_status = st.selectbox("Status:", ["Ativo", "Suspenso"], index=0 if dados['status'] == "Ativo" else 1)
-                if st.button("Salvar Edição"):
-                    senha_final = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
-                    usuarios_cadastrados[salao_sel] = { "senha": senha_final, "email": e_email.strip().lower(), "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status }
+                if st.button("Salvar Modificações"):
+                    senha_f = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
+                    usuarios_cadastrados[salao_sel] = {"senha": senha_f, "email": e_email.strip().lower(), "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status}
                     salvar_usuarios(usuarios_cadastrados)
-                    st.success("Atualizado!")
+                    st.success("Conta atualizada!")
                     st.rerun()
-            if st.checkbox(f"Confirmar exclusão definitiva de: {salao_sel}"):
-                if st.button("EXCLUIR DEFINITIVAMENTE", type="primary"):
+            if st.checkbox(f"Confirmar exclusão de {salao_sel}"):
+                if st.button("EXCLUIR PERMANENTEMENTE", type="primary"):
                     with engine.begin() as conn:
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
-                    st.warning("Salão removido com sucesso!")
                     st.rerun()
 
     with tab_config:
-        st.subheader("Configurações Globais")
-        nova_url_input = st.text_input("URL Real do App de AGENDAMENTO (Ex: https://fioecaixa-agendar.streamlit.app):", value=url_sistema_salva if url_sistema_salva else "")
-        if st.button("Salvar URL do Sistema"):
+        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "")
+        if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
-            st.success("URL de agendamento salva com sucesso!")
+            st.success("URL Salva!")
             time.sleep(1)
             st.rerun()
 
     with st.sidebar:
-        if st.button("🚪 Sair do Modo ADM", use_container_width=True):
+        if st.button("🚪 Sair do Mestre", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
     st.stop()
 
-# --- INTERFACE 2: PAINEL DO SALÃO LOGADO ---
+# ==============================================================================
+# PAINEL PRINCIPAL DO SALÃO (USUÁRIO)
+# ==============================================================================
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 
@@ -729,129 +732,200 @@ if not df_fluxo_caixa.empty:
 else:
     ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
 
-base_url = (url_sistema_salva or "https://fioecaixa-agendar.streamlit.app").rstrip('/')
+base_url = (url_sistema_salva or "https://fioecaixa.streamlit.app").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 
-# MONTAGEM DA MENSAGEM PARA O WHATSAPP
-mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma rápida:\n👉 {link_clientes}"
+mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática:\n👉 {link_clientes}"
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
-tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard", "🚀 Início / Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
+# --- ABA DE NAVEGAÇÃO PRINCIPAL ---
+tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
 
+# ==============================================================================
+# TAB 1: DASHBOARD VIVO (PLOTLY)
+# ==============================================================================
 with tab1:
-    st.subheader("📊 Resumo Financeiro Estruturado")
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Fechamento do Dia", f"R$ {lucro_dia:.2f}")
-    m2.metric("Acumulado 7 Dias", f"R$ {lucro_sem:.2f}")
-    m3.metric("Faturamento do Mês", f"R$ {lucro_mes:.2f}")
-    st.markdown("---")
-    st.bar_chart(pd.DataFrame({"Categoria": ["Entradas", "Saídas"], "Total (R$)": [ent_mes, abs(sai_mes)]}), x="Categoria", y="Total (R$)", color="#29b6f6")
+    st.markdown("### 📊 Visão Geral do Faturamento")
+    
+    # KPIs SUPERIORES
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("Faturamento Hoje", f"R$ {ent_dia:.2f}")
+    kpi2.metric("Líquido do Dia", f"R$ {lucro_dia:.2f}")
+    kpi3.metric("Faturamento Semanal", f"R$ {ent_sem:.2f}")
+    kpi4.metric("Faturamento Mensal", f"R$ {ent_mes:.2f}")
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col_chart1, col_chart2 = st.columns([1, 1])
+
+    with col_chart1:
+        st.markdown("#### 🎯 Entradas vs Despesas (Mês)")
+        if ent_mes > 0 or abs(sai_mes) > 0:
+            labels = ['Entradas (Receitas)', 'Saídas (Despesas)']
+            valores = [ent_mes, abs(sai_mes)]
+            
+            fig_donut = go.Figure(data=[go.Pie(
+                labels=labels, 
+                values=valores, 
+                hole=.55,
+                marker=dict(colors=['#00E676', '#FF5252']),
+                textinfo='percent+label',
+                hoverinfo='value'
+            )])
+            fig_donut.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#ffffff', size=13),
+                showlegend=False,
+                margin=dict(l=20, r=20, t=30, b=20),
+                height=320
+            )
+            st.plotly_chart(fig_donut, use_container_width=True)
+        else:
+            st.info("Nenhuma movimentação registrada neste mês.")
+
+    with col_chart2:
+        st.markdown("#### 📈 Desempenho Financeiro dos Útimos Dias")
+        if not df_fluxo_caixa.empty:
+            df_chart = df_fluxo_caixa.copy()
+            df_chart['DataStr'] = df_chart['Data'].dt.strftime('%d/%m')
+            df_group = df_chart.groupby(['DataStr', 'Tipo'])['Valor'].sum().reset_index()
+            
+            fig_bar = px.bar(
+                df_group, 
+                x='DataStr', 
+                y='Valor', 
+                color='Tipo',
+                color_discrete_map={'Entrada': '#00E676', 'Saída': '#FF5252', 'Pendência': '#FFD700'},
+                barmode='group'
+            )
+            fig_bar.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#ffffff'),
+                xaxis=dict(title='Data', showgrid=False),
+                yaxis=dict(title='Valor (R$)', showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
+                legend=dict(title='', orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                margin=dict(l=20, r=20, t=30, b=20),
+                height=320
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.info("Registre movimentações para visualizar o gráfico diário.")
+
+# ==============================================================================
+# TAB 0: LANÇAMENTOS RÁPIDOS
+# ==============================================================================
 with tab0:
-    st.markdown('### 🚀 Ações Rápidas')
-    col_a, col_b, col_c, col_d, col_e = st.columns(5)
+    st.markdown('### 🚀 Ações Rápidas do Caixa')
+    col_a, col_b, col_c, col_d = st.columns(4)
 
     with col_a:
-        if st.button("✂️ Novo atendimento ❯", key="btn_atend", use_container_width=True):
+        if st.button("✂️ Novo Atendimento", key="btn_atend", use_container_width=True, type="primary"):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_atendimento' else 'new_atendimento'
             st.rerun()
-        if st.session_state.formulario_ativo == 'new_atendimento':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            if list(servicos.keys()):
-                servico_selecionado = st.selectbox("Serviço realizado:", list(servicos.keys()), key="f_atend_serv")
-                preco_final = st.number_input("Valor Cobrado (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
-                data_entrada = st.date_input("Data:", datetime.now(TZ).date(), key="f_atend_dt")
-                if st.button("Lançar", type="primary", key="f_atend_save", use_container_width=True):
-                    inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
-                    st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
 
     with col_b:
-        if st.button("🛍️ Nova despesa ❯", key="btn_venda", use_container_width=True):
+        if st.button("🛍️ Nova Despesa", key="btn_venda", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_venda' else 'new_venda'
             st.rerun()
-        if st.session_state.formulario_ativo == 'new_venda':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            descricao_saida = st.text_input("Descrição:", key="f_venda_desc")
-            valor_saida = st.number_input("Valor (R$):", min_value=0.0, step=5.0, key="f_venda_val")
-            data_saida = st.date_input("Data:", datetime.now(TZ).date(), key="f_venda_dt")
-            if st.button("Confirmar despesa", type="primary", key="f_venda_save", use_container_width=True):
-                if descricao_saida and valor_saida > 0:
-                    inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
-                    st.session_state.formulario_ativo = 'none'
-                    time.sleep(0.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
 
     with col_c:
-        if st.button("💰 Marcar fiado ❯", key="btn_receber", use_container_width=True):
+        if st.button("💰 Anotar Fiado", key="btn_receber", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_receber' else 'new_receber'
             st.rerun()
-        if st.session_state.formulario_ativo == 'new_receber':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            if list(servicos.keys()):
-                nome_devedor = st.text_input("Cliente:", key="f_fiado_nome")
-                servico_pendente = st.selectbox("Serviço:", list(servicos.keys()), key="f_fiado_serv")
-                preco_final_p = st.number_input("Valor:", value=float(servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
-                data_pendencia = st.date_input("Data:", datetime.now(TZ).date(), key="f_fiado_dt")
-                if st.button("Salvar Fiado", type="primary", key="f_fiado_save", use_container_width=True):
-                    if nome_devedor:
-                        inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
-                        st.session_state.formulario_ativo = 'none'
-                        time.sleep(0.5)
-                        st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
 
     with col_d:
-        if st.button("💸 Receber fiado ❯", key="btn_pagar", use_container_width=True):
+        if st.button("💸 Baixar Fiado", key="btn_pagar", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
             st.rerun()
-        if st.session_state.formulario_ativo == 'new_pagar':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
-            if not df_pendencias.empty:
-                opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
-                pendencia_selecionada = st.selectbox("Selecione:", list(opcoes_pendentes.keys()), key="f_pago_sel")
-                if st.button("Dar Baixa", type="primary", key="f_pago_save", use_container_width=True):
-                    id_alterar = opcoes_pendentes[pendencia_selecionada]
-                    row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
-                    nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
-                    dar_baixa_fiado_direta(id_alterar, nova_desc)
+
+    # FORMULÁRIOS EMBUTIDOS COM ESTILIZAÇÃO DEDICADA
+    if st.session_state.formulario_ativo == 'new_atendimento':
+        st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
+        st.markdown("#### ✂️ Registrar Novo Atendimento")
+        if list(servicos.keys()):
+            servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos.keys()), key="f_atend_serv")
+            preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
+            data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt")
+            if st.button("Confirmar Entrada 🟢", type="primary", key="f_atend_save", use_container_width=True):
+                inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
+                st.session_state.formulario_ativo = 'none'
+                st.success("Atendimento registrado no caixa!")
+                time.sleep(0.5)
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif st.session_state.formulario_ativo == 'new_venda':
+        st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
+        st.markdown("#### 🛍️ Registrar Nova Despesa")
+        descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc", placeholder="Ex: Produto de limpeza, conta de luz...")
+        valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val")
+        data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt")
+        if st.button("Lançar Saída 🔴", type="primary", key="f_venda_save", use_container_width=True):
+            if descricao_saida and valor_saida > 0:
+                inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
+                st.session_state.formulario_ativo = 'none'
+                st.success("Despesa lançada!")
+                time.sleep(0.5)
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif st.session_state.formulario_ativo == 'new_receber':
+        st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
+        st.markdown("#### 💰 Registrar Atendimento Fiado")
+        if list(servicos.keys()):
+            nome_devedor = st.text_input("Nome do Cliente Devedor:", key="f_fiado_nome")
+            servico_pendente = st.selectbox("Serviço Realizado:", list(servicos.keys()), key="f_fiado_serv")
+            preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
+            data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt")
+            if st.button("Anotar Pendência 🟡", type="primary", key="f_fiado_save", use_container_width=True):
+                if nome_devedor:
+                    inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                     st.session_state.formulario_ativo = 'none'
+                    st.success("Fiado registrado!")
                     time.sleep(0.5)
                     st.rerun()
-            else:
-                st.info("Sem fiados pendentes.")
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    with col_e:
-        if st.button("📊 Ver relatórios ❯", key="btn_relatorios", use_container_width=True):
-            st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'view_relatorios' else 'view_relatorios'
-            st.rerun()
-        if st.session_state.formulario_ativo == 'view_relatorios':
-            st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
-            st.metric("Líquido Diário", f"R$ {lucro_dia:.2f}")
-            st.metric("Líquido Mensal", f"R$ {lucro_mes:.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
+    elif st.session_state.formulario_ativo == 'new_pagar':
+        st.markdown('<div class="embedded-form-container">', unsafe_allow_html=True)
+        st.markdown("#### 💸 Dar Baixa em Fiado")
+        df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
+        if not df_pendencias.empty:
+            opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
+            pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel")
+            if st.button("Confirmar Recebimento 💵", type="primary", key="f_pago_save", use_container_width=True):
+                id_alterar = opcoes_pendentes[pendencia_selecionada]
+                row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
+                nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
+                dar_baixa_fiado_direta(id_alterar, nova_desc)
+                st.session_state.formulario_ativo = 'none'
+                st.success("Pagamento registrado no caixa!")
+                time.sleep(0.5)
+                st.rerun()
+        else:
+            st.info("Nenhum fiado pendente no momento.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
+# ==============================================================================
+# TAB AGENDAMENTOS
+# ==============================================================================
 with tab_agend:
-    st.subheader("📅 Agendamentos de Clientes")
+    st.subheader("📅 Agendamentos Marcados")
     
     col_ag_title, col_ag_ref = st.columns([3, 1])
     with col_ag_ref:
-        if st.button("🔄 Atualizar Lista", use_container_width=True):
+        if st.button("🔄 Recarregar Agendamentos", use_container_width=True):
             st.rerun()
 
-    with st.expander("🔗 Link para Enviar aos Clientes", expanded=True):
-        st.code(link_clientes, language="text")
-        st.markdown(f"""
-        <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
-            📲 Compartilhar Link no WhatsApp
-        </a>
-        """, unsafe_allow_html=True)
+    st.info(f"🔗 Link direto de agendamentos para enviar aos clientes: **{link_clientes}**")
+    st.markdown(f"""
+    <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#29b6f6;color:white;padding:0.6rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:15px;">
+        📲 Enviar Link no WhatsApp
+    </a>
+    """, unsafe_allow_html=True)
 
     df_agendamentos = carregar_agendamentos()
 
@@ -865,152 +939,154 @@ with tab_agend:
         st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
 
         st.markdown("---")
-        st.write("🔧 **Gerenciar / Concluir Agendamento**")
+        st.markdown("#### 🛠️ Gestão do Agendamento")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
-        agend_selecionado = st.selectbox("Selecione para gerenciar:", list(opcoes_agend.keys()))
+        agend_selecionado = st.selectbox("Selecione o Cliente:", list(opcoes_agend.keys()))
 
         id_sel = opcoes_agend[agend_selecionado]
         row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
-        
         num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
 
-        # BOTÃO 1: Falar com o cliente no WhatsApp
         if num_clean:
             if not num_clean.startswith('55') and len(num_clean) <= 11:
                 num_clean = '55' + num_clean
-            
             msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
             wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
             
             st.markdown(f"""
-            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;box-sizing:border-box;">
-                💬 Falar com Cliente no WhatsApp
+            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00E676;color:#000;padding:0.6rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:10px;">
+                💬 Chamar no WhatsApp
             </a>
             """, unsafe_allow_html=True)
-        else:
-            st.info("Telefone não informado.")
 
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-
-        # BOTÃO 2: Concluir / Remover Agendamento
-        if st.button("✅ Concluir / Remover Agendamento", type="primary", use_container_width=True):
+        if st.button("✅ Concluir / Excluir Agendamento", type="primary", use_container_width=True):
             deletar_agendamento(id_sel)
-            st.success("Agendamento concluído com sucesso!")
+            st.success("Agendamento finalizado!")
             time.sleep(0.5)
             st.rerun()
     else:
-        st.info("Nenhum agendamento pendente no momento.")
+        st.info("Nenhum agendamento ativo na lista.")
 
+# ==============================================================================
+# TAB 2: HISTÓRICO REFORMULADO E RELATÓRIOS
+# ==============================================================================
+with tab2:
+    st.subheader("📜 Histórico Financeiro Completo")
+    if not df_fluxo_caixa.empty:
+        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
+        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
+
+        modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
+        
+        if modo_filtro == "Por Mês Fechado":
+            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+            mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
+            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+            texto_pdf = mes_escolhido
+            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
+        else:
+            col_dt1, col_dt2 = st.columns(2)
+            with col_dt1: dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
+            with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
+            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
+            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
+            nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
+
+        if not df_exibicao.empty:
+            # RESUMO GRÁFICO DO PERÍODO
+            tot_ent = df_exibicao[df_exibicao['Tipo'] == 'Entrada']['Valor'].sum()
+            tot_sai = abs(df_exibicao[df_exibicao['Tipo'] == 'Saída']['Valor'].sum())
+            tot_liq = tot_ent - tot_sai
+
+            st.markdown("#### 📊 Balanço do Período Selecionado")
+            m_h1, m_h2, m_h3 = st.columns(3)
+            m_h1.metric("Receita Total", f"R$ {tot_ent:.2f}")
+            m_h2.metric("Despesas Totais", f"R$ {tot_sai:.2f}")
+            m_h3.metric("Resultado Líquido", f"R$ {tot_liq:.2f}")
+
+            col_down1, col_down2 = st.columns(2)
+            with col_down1:
+                st.download_button("📄 Baixar CSV Contábil", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
+            with col_down2:
+                st.download_button("📕 Baixar Relatório PDF", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+
+            st.markdown("---")
+            
+            # TABELA DE MOVIMENTAÇÕES FORMATADA
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
+            df_vis = df_vis.drop(columns=['Mês/Ano', 'id'], errors='ignore')
+
+            def colorir_linha(row):
+                if row['Tipo'] == 'Entrada':
+                    return ['background-color: rgba(0, 230, 118, 0.15); color: #00E676; font-weight: 600;'] * 4
+                elif row['Tipo'] == 'Saída':
+                    return ['background-color: rgba(255, 82, 82, 0.15); color: #FF5252; font-weight: 600;'] * 4
+                return ['background-color: rgba(255, 215, 0, 0.15); color: #FFD700; font-weight: 600;'] * 4
+
+            st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
+                opcoes_del_fluxo = {
+                    f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id']
+                    for _, row in df_exibicao.iterrows()
+                }
+                reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
+                if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
+                    id_apagar = opcoes_del_fluxo[reg_selecionado]
+                    deletar_movimentacao_fluxo(id_apagar)
+                    st.warning("Registro excluído!")
+                    time.sleep(0.5)
+                    st.rerun()
+        else:
+            st.info("Nenhum registro no período selecionado.")
+    else:
+        st.info("Histórico de caixa vazio.")
+
+# ==============================================================================
+# BARRA LATERAL (CONFIGURAÇÕES E CATÁLOGO DE SERVIÇOS)
+# ==============================================================================
 with st.sidebar:
-    st.header("⚙️ Configurações")
-    nome_salao = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
-    st.title(f"✂️ {nome_salao}")
-    
-    st.markdown(f"""
-    <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#ff4b4b;color:white;padding:0.5rem 1rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-top:0.5rem;box-sizing:border-box;">
-        📲 Enviar Link no WhatsApp
-    </a>
-    """, unsafe_allow_html=True)
+    st.header("⚙️ Configurações do Salão")
+    nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
+    st.markdown(f"### ✂️ {nome_s}")
 
     st.markdown("---")
-
+    st.markdown("#### 💈 Serviços & Preços")
     opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Gerenciar serviços:", opcoes_gerenciamento)
-    nome_padrao = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_padrao = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
-    novo_servico = st.text_input("Nome do Serviço:", value=nome_padrao, key=f"side_nome_din{servico_sel}")
-    novo_preco = st.number_input("Preço Cobrado:", min_value=0.0, value=preco_padrao, step=5.0, key=f"side_prc_din_{servico_sel}")
+    servico_sel = st.selectbox("Gerenciar Serviços:", opcoes_gerenciamento)
+    
+    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
+    preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
+    
+    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
+    novo_preco = st.number_input("Preço Cobrado (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
 
-    if st.button("Salvar Alteração", type="primary", use_container_width=True):
+    if st.button("Salvar Serviço", type="primary", use_container_width=True):
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
             st.success("Serviço atualizado!")
             time.sleep(0.5)
             st.rerun()
 
-    if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover do Catálogo", use_container_width=True):
+    if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço", use_container_width=True):
         deletar_servico_banco(servico_sel)
         st.warning("Serviço removido!")
         time.sleep(0.5)
         st.rerun()
 
     st.markdown("---")
-    with st.expander("📦 Central de Backups"):
-        st.write("Baixar salvaguarda dos dados em formato JSON:")
+    with st.expander("📦 Backup dos Dados"):
         backup_dados = gerar_backup_json_completo()
         st.download_button(
-            label="📥 Baixar Backup (.json)", 
+            label="📥 Baixar Backup JSON", 
             data=backup_dados, 
             file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
             mime="application/json", 
             use_container_width=True
         )
 
-    if st.button("🚪 Sair do Sistema", use_container_width=True):
+    if st.button("🚪 Sair da Conta", use_container_width=True):
         st.session_state.autenticado = False
         st.rerun()
-
-with tab2:
-    st.subheader("📜 Histórico de Transações e Exportação para Contador")
-    if not df_fluxo_caixa.empty:
-        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-
-        modo_filtro = st.radio("Escolha como deseja filtrar os dados para baixar:", ["Por Mês Fechado", "Por Período Customizado (Escolher Datas)"], horizontal=True)
-        if modo_filtro == "Por Mês Fechado":
-            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-            mes_escolhido = st.selectbox("📅 Selecione o Mês de referência:", ["Ver Tudo"] + meses)
-            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-            texto_pdf = mes_escolhido
-            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
-        else:
-            col_dt1, col_dt2 = st.columns(2)
-            with col_dt1:
-                dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
-            with col_dt2:
-                dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
-            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
-            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} ate {dt_fim.strftime('%d/%m/%Y')}"
-            nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
-
-        if not df_exibicao.empty:
-            col_down1, col_down2 = st.columns(2)
-            with col_down1:
-                st.download_button(label="📄 Baixar Arquivo CSV para Contador", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
-            with col_down2:
-                st.download_button(label="📕 Baixar Relatório PDF para Contador", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
-            st.markdown("---")
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            if 'Mês/Ano' in df_vis.columns:
-                df_vis = df_vis.drop(columns=['Mês/Ano'])
-            if 'id' in df_vis.columns:
-                df_vis = df_vis.drop(columns=['id'])
-
-            def colorir(row):
-                if row['Tipo'] == 'Entrada':
-                    return ['background-color: rgba(27, 77, 62, 0.85); color: #ffffff'] * 4
-                elif row['Tipo'] == 'Saída':
-                    return ['background-color: rgba(92, 29, 29, 0.85); color: #ffffff'] * 4
-                return ['background-color: rgba(92, 77, 29, 0.85); color: #ffffff'] * 4
-            
-            st.dataframe(df_vis.style.apply(colorir, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-            
-            st.markdown("---")
-            with st.expander("🗑️ Apagar/Excluir Lançamento do Caixa feito por Erro"):
-                opcoes_del_fluxo = {
-                    f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id']
-                    for _, row in df_exibicao.iterrows()
-                }
-                reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
-                
-                if st.button("❌ APAGAR ESTE LANÇAMENTO", type="primary", use_container_width=True):
-                    id_apagar = opcoes_del_fluxo[reg_selecionado]
-                    deletar_movimentacao_fluxo(id_apagar)
-                    st.warning("Lançamento excluído permanentemente.")
-                    time.sleep(1)
-                    st.rerun()
-        else:
-            st.info("Nenhuma movimentação financeira encontrada para este período.")
-    else:
-        st.info("O Caixa está vazio. Registre entradas ou despesas para visualizar o histórico.")
