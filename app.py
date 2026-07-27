@@ -298,7 +298,7 @@ def set_background_com_logo(image_path):
 
 set_background_com_logo("logo.png")
 
-# Oculta menus padrão do Streamlit
+# Oculta menus padrão do Streamlit e reposiciona o menu de expansão/sidebar no canto superior direito (onde foi circulado de verde)
 st.markdown("""
     <style>
         footer, [data-testid="stFooter"], .stFooter, 
@@ -315,13 +315,18 @@ st.markdown("""
             z-index: 9999999 !important; 
             background-color: #111823 !important;
             border: 1px solid #00a8ff !important;
-            border-radius: 50% !important;
-            padding: 8px !important;
-            width: 45px !important;
-            height: 45px !important;
+            border-radius: 8px !important;
+            padding: 4px !important;
+            width: 38px !important;
+            height: 38px !important;
+            box-shadow: 0 4px 12px rgba(0, 168, 255, 0.3) !important;
+        }
+        [data-testid="collapsedControl"] svg {
+            width: 18px !important;
+            height: 18px !important;
         }
         .main .block-container {
-            padding-top: 1.5rem !important;
+            padding-top: 2.5rem !important;
             padding-bottom: 2rem !important;
             max-width: 96% !important;
         }
@@ -940,62 +945,8 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- NAVEGAÇÃO POR TABS (CONFIGURAÇÕES AGORA POSICIONADA NO INÍCIO / PARTE SUPERIOR ESQUERDA) ---
-tab_config_serv, tab1, tab0, tab_agend, tab2 = st.tabs(["⚙️ Configurações & Serviços", "📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
-
-# ==============================================================================
-# TAB CONFIGURAÇÕES & SERVIÇOS (ANTIGO MENU LATERAL)
-# ==============================================================================
-with tab_config_serv:
-    st.subheader("⚙️ Configurações & Serviços")
-    nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
-    st.caption(f"Conectado como: **{nome_s}**")
-
-    st.markdown("---")
-    st.subheader("💈 Serviços & Atendimentos")
-    st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
-
-    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Ação / Serviço:", opcoes_gerenciamento, key="sidebar_select_servico")
-    
-    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
-    
-    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
-    novo_preco = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
-
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        if st.button("💾 Salvar", type="primary", use_container_width=True, key="side_save_btn"):
-            if novo_servico.strip():
-                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
-                st.success("Serviço atualizado com sucesso!")
-                st.rerun()
-            else:
-                st.error("Informe o nome do serviço.")
-
-    with col_s2:
-        if servico_sel != "➕ Cadastrar Novo Serviço":
-            if st.button("🗑️ Excluir", use_container_width=True, key="side_del_btn"):
-                deletar_servico_banco(servico_sel)
-                st.warning("Serviço excluído com sucesso!")
-                st.rerun()
-
-    st.markdown("---")
-    st.subheader("📦 Backup e Dados")
-    backup_dados = gerar_backup_json_completo()
-    st.download_button(
-        label="📥 Baixar Backup JSON", 
-        data=backup_dados, 
-        file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
-        mime="application/json", 
-        use_container_width=True
-    )
-
-    st.markdown("---")
-    if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
-        st.session_state.clear()
-        st.rerun()
+# --- NAVEGAÇÃO POR TABS ---
+tab1, tab0, tab_agend, tab2, tab_config_serv = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios", "⚙️ Conf"])
 
 # ==============================================================================
 # TAB 1: DASHBOARD VIVO
@@ -1328,3 +1279,57 @@ with tab2:
             st.info("Nenhum registro no período selecionado.")
     else:
         st.info("Histórico de caixa vazio.")
+
+# ==============================================================================
+# TAB CONFIGURAÇÕES & SERVIÇOS (CONF)
+# ==============================================================================
+with tab_config_serv:
+    st.subheader("⚙️ Configurações & Serviços")
+    nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
+    st.caption(f"Conectado como: **{nome_s}**")
+
+    st.markdown("---")
+    st.subheader("💈 Serviços & Atendimentos")
+    st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
+
+    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
+    servico_sel = st.selectbox("Ação / Serviço:", opcoes_gerenciamento, key="sidebar_select_servico")
+    
+    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
+    preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
+    
+    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
+    novo_preco = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
+
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        if st.button("💾 Salvar", type="primary", use_container_width=True, key="side_save_btn"):
+            if novo_servico.strip():
+                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
+                st.success("Serviço atualizado com sucesso!")
+                st.rerun()
+            else:
+                st.error("Informe o nome do serviço.")
+
+    with col_s2:
+        if servico_sel != "➕ Cadastrar Novo Serviço":
+            if st.button("🗑️ Excluir", use_container_width=True, key="side_del_btn"):
+                deletar_servico_banco(servico_sel)
+                st.warning("Serviço excluído com sucesso!")
+                st.rerun()
+
+    st.markdown("---")
+    st.subheader("📦 Backup e Dados")
+    backup_dados = gerar_backup_json_completo()
+    st.download_button(
+        label="📥 Baixar Backup JSON", 
+        data=backup_dados, 
+        file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
+        mime="application/json", 
+        use_container_width=True
+    )
+
+    st.markdown("---")
+    if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
+        st.session_state.clear()
+        st.rerun()
