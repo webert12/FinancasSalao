@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os
 import json
-import time
 import hashlib
 from io import BytesIO
 import urllib.parse
@@ -329,7 +328,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO BANCO DE DADOS ---
+# --- CONEXÃO BANCO DE DADOS OTIMIZADA ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
@@ -338,7 +337,7 @@ else:
 
 @st.cache_resource
 def init_connection(url):
-    return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10)
+    return create_engine(url, pool_pre_ping=True, pool_size=10, max_overflow=20, pool_recycle=1800)
 
 try:
     engine = init_connection(DB_URL)
@@ -346,6 +345,8 @@ except Exception as e:
     st.error(f"Erro de conexão com o banco de dados: {e}")
     st.stop()
 
+# Cache do schema para rodar APENAS UMA VEZ na inicialização do servidor
+@st.cache_resource
 def inicializar_banco():
     with engine.begin() as conn:
         conn.execute(text("""
@@ -358,7 +359,7 @@ def inicializar_banco():
         """))
         try:
             conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
-        except:
+        except Exception:
             pass
 
         conn.execute(text("""
@@ -403,6 +404,7 @@ def inicializar_banco():
                 hora TEXT NOT NULL
             );
         """))
+    return True
 
 try:
     inicializar_banco()
@@ -410,16 +412,16 @@ except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA E CACHE OTIMIZADAS ---
+# --- FUNÇÕES DE PERSISTÊNCIA E CACHE CIRÚRGICO ---
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def carregar_admin_hashes():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT hash1, hash2, url_sistema FROM admin_config WHERE id = 1")).fetchone()
             if result:
                 return result[0], result[1], result[2]
-    except:
+    except Exception:
         pass
     return None, None, None
 
@@ -434,7 +436,7 @@ def salvar_admin_hashes(password1, password2, url=""):
                     hash2 = EXCLUDED.hash2,
                     url_sistema = EXCLUDED.url_sistema
             """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
-        st.cache_data.clear()
+        carregar_admin_hashes.clear()
     except Exception as e:
         st.error(f"Erro ao salvar configurações administrativas: {e}")
 
@@ -442,11 +444,11 @@ def atualizar_url_sistema(url):
     try:
         with engine.begin() as conn:
             conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
-        st.cache_data.clear()
+        carregar_admin_hashes.clear()
     except Exception as e:
         st.error(f"Erro ao atualizar URL: {e}")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def carregar_usuarios():
     try:
         with engine.connect() as conn:
@@ -454,7 +456,7 @@ def carregar_usuarios():
             rows = result.fetchall()
             if rows:
                 return {row[0]: {"id": row[0], "senha": row[1], "email": row[2], "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
-    except:
+    except Exception:
         pass
     return {}
 
@@ -480,9 +482,9 @@ def salvar_usuarios(usuarios_dict):
                 "vencimento": str(v["vencimento"]),
                 "status": v["status"]
             })
-    st.cache_data.clear()
+    carregar_usuarios.clear()
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def carregar_servicos_por_salao(salao_id):
     salao_id_clean = urllib.parse.unquote(str(salao_id)).strip().lower() if salao_id else "padrao"
     try:
@@ -491,7 +493,7 @@ def carregar_servicos_por_salao(salao_id):
             rows = result.fetchall()
             if rows:
                 return {row[0]: float(row[1]) for row in rows}
-    except:
+    except Exception:
         pass
     return {"Corte de Cabelo": 30.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
@@ -514,15 +516,15 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
                 INSERT INTO servicos (usuario_id, nome, preco)
                 VALUES (:user, :nome, :preco)
             """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
-    st.cache_data.clear()
+    carregar_servicos_por_salao.clear()
 
 def deletar_servico_banco(nome):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
-    st.cache_data.clear()
+    carregar_servicos_por_salao.clear()
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=60)
 def carregar_fluxo_por_usuario(usuario):
     try:
         with engine.connect() as conn:
@@ -532,7 +534,7 @@ def carregar_fluxo_por_usuario(usuario):
                 df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
                 df['Data'] = pd.to_datetime(df['Data'])
                 return df
-    except:
+    except Exception:
         pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
@@ -548,7 +550,7 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
             INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor)
             VALUES (:user, :data, :tipo, :descricao, :valor)
         """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
-    st.cache_data.clear()
+    carregar_fluxo_por_usuario.clear()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
@@ -561,15 +563,15 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
                 descricao = :desc
             WHERE id = :id AND usuario_id = :user
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
-    st.cache_data.clear()
+    carregar_fluxo_por_usuario.clear()
 
 def deletar_movimentacao_fluxo(id_registro):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
-    st.cache_data.clear()
+    carregar_fluxo_por_usuario.clear()
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=60)
 def carregar_agendamentos_por_usuario(usuario):
     try:
         with engine.connect() as conn:
@@ -592,7 +594,7 @@ def deletar_agendamento(id_agendamento):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
-    st.cache_data.clear()
+    carregar_agendamentos_por_usuario.clear()
 
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
@@ -700,7 +702,7 @@ if salao_url:
                     {"user": salao_id_clean, "dt": data_str}
                 )
                 ocupados = [r[0] for r in result.fetchall()]
-        except:
+        except Exception:
             ocupados = []
 
         horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
@@ -730,10 +732,9 @@ if salao_url:
                         "data": data_str,
                         "hora": horario_escolhido
                     })
-                st.cache_data.clear()
+                carregar_agendamentos_por_usuario.clear()
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
-                time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao registrar agendamento: {e}")
@@ -742,10 +743,10 @@ if salao_url:
 # ==============================================================================
 # TELA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
-admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
-usuarios_cadastrados = carregar_usuarios()
-
 if not st.session_state.autenticado:
+    admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
+    usuarios_cadastrados = carregar_usuarios()
+
     if not admin_hash1 or not admin_hash2:
         st.title("⚠️ Configuração Inicial de Segurança")
         with st.form("primeiro_acesso"):
@@ -756,7 +757,6 @@ if not st.session_state.autenticado:
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
                     st.success("Administração inicializada!")
-                    time.sleep(1)
                     st.rerun()
         st.stop()
 
@@ -779,7 +779,6 @@ if not st.session_state.autenticado:
                         salvar_usuarios(usuarios_cadastrados)
                         st.success("✅ Senha alterada com sucesso!")
                         st.session_state.recuperando_senha = False
-                        time.sleep(1)
                         st.rerun()
                     else: st.error("As senhas não conferem.")
                 else: st.error("Usuário ou e-mail incorretos.")
@@ -848,6 +847,8 @@ if not st.session_state.autenticado:
 if st.session_state.eh_admin:
     st.title("👑 Gestão Geral de Salões (Admin)")
     tab_cad, tab_ger, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "🔧 Configurações Mestre"])
+    admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
+    usuarios_cadastrados = carregar_usuarios()
 
     with tab_cad:
         with st.form("form_cadastro_cliente"):
@@ -865,7 +866,6 @@ if st.session_state.eh_admin:
                     st.rerun()
 
     with tab_ger:
-        usuarios_cadastrados = carregar_usuarios()
         if usuarios_cadastrados:
             salao_sel = st.selectbox("Selecione um Salão:", list(usuarios_cadastrados.keys()))
             dados = usuarios_cadastrados[salao_sel]
@@ -885,7 +885,7 @@ if st.session_state.eh_admin:
                 if st.button("EXCLUIR PERMANENTEMENTE", type="primary"):
                     with engine.begin() as conn:
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
-                    st.cache_data.clear()
+                    carregar_usuarios.clear()
                     st.rerun()
 
     with tab_config:
@@ -893,7 +893,6 @@ if st.session_state.eh_admin:
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
-            time.sleep(1)
             st.rerun()
 
     with st.sidebar:
@@ -907,6 +906,7 @@ if st.session_state.eh_admin:
 # ==============================================================================
 df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
+_, _, url_sistema_salva = carregar_admin_hashes()
 
 if not df_fluxo_caixa.empty:
     hoje = pd.Timestamp(datetime.now(TZ).date())
@@ -1084,7 +1084,6 @@ with tab0:
                 inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
                 st.session_state.formulario_ativo = 'none'
                 st.success("Atendimento registrado no caixa!")
-                time.sleep(0.3)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1099,7 +1098,6 @@ with tab0:
                 inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
                 st.session_state.formulario_ativo = 'none'
                 st.success("Despesa lançada!")
-                time.sleep(0.3)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1116,7 +1114,6 @@ with tab0:
                     inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                     st.session_state.formulario_ativo = 'none'
                     st.success("Fiado registrado!")
-                    time.sleep(0.3)
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1134,7 +1131,6 @@ with tab0:
                 dar_baixa_fiado_direta(id_alterar, nova_desc)
                 st.session_state.formulario_ativo = 'none'
                 st.success("Pagamento registrado no caixa!")
-                time.sleep(0.3)
                 st.rerun()
         else:
             st.info("Nenhum fiado pendente no momento.")
@@ -1161,7 +1157,7 @@ with tab_agend:
         df_display = df_agendamentos.copy()
         try:
             df_display['Data'] = pd.to_datetime(df_display['Data']).dt.strftime('%d/%m/%Y')
-        except:
+        except Exception:
             pass
             
         st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
@@ -1190,7 +1186,6 @@ with tab_agend:
         if st.button("✅ Concluir / Excluir Agendamento", type="primary", use_container_width=True):
             deletar_agendamento(id_sel)
             st.success("Agendamento finalizado!")
-            time.sleep(0.3)
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
@@ -1272,7 +1267,6 @@ with tab2:
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
                     deletar_movimentacao_fluxo(id_apagar)
                     st.warning("Registro excluído!")
-                    time.sleep(0.3)
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
         else:
@@ -1303,13 +1297,11 @@ with st.sidebar:
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
             st.success("Serviço atualizado!")
-            time.sleep(0.3)
             st.rerun()
 
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço", use_container_width=True):
         deletar_servico_banco(servico_sel)
         st.warning("Serviço removido!")
-        time.sleep(0.3)
         st.rerun()
 
     st.markdown("---")
