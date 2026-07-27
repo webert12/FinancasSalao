@@ -1232,7 +1232,7 @@ with tab_agend:
     st.subheader("📅 Agendamentos Confirmados")
     
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    st.info(f"🔗 Link direto de agendamentos para clientes: **{#}**")
+    st.info(f"🔗 Link direto de agendamentos para clientes: **{link_clientes}**")
     st.markdown(f"""
     <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00E676;color:#000;padding:0.75rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:10px;">
         📲 Enviar Link no WhatsApp dos Clientes
