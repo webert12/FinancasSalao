@@ -602,8 +602,7 @@ def deletar_movimentacao_fluxo(id_registro):
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
-@st.cache_data(ttl=60)
-def carregar_agendamentos_por_usuario(usuario):
+def carregar_agendamentos_por_usuario_direto(usuario):
     try:
         with engine.connect() as conn:
             result = conn.execute(
@@ -619,13 +618,12 @@ def carregar_agendamentos_por_usuario(usuario):
 
 def carregar_agendamentos():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    return carregar_agendamentos_por_usuario(usuario)
+    return carregar_agendamentos_por_usuario_direto(usuario)
 
 def deletar_agendamento(id_agendamento):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
-    carregar_agendamentos_por_usuario.clear()
 
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
@@ -683,7 +681,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
     b64_data = base64.b64encode(dados_bytes).decode()
     html_code = f"""
-    <div style="width: 100%;">
+    <div style="width: 100%; margin: 5px 0;">
         <a href="data:{mime_type};base64,{b64_data}" download="{nome_arquivo}" 
            style="display: flex; align-items: center; justify-content: center; width: 100%; 
                   background-color: {cor_bg}; color: #ffffff; border: 1px solid #00a8ff; 
@@ -695,7 +693,7 @@ def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_bo
         </a>
     </div>
     """
-    components.html(html_code, height=60)
+    components.html(html_code, height=65)
 
 # FUNÇÃO ÍCONE FLUTUANTE WHATSAPP
 def renderizar_whatsapp_flutuante():
@@ -817,7 +815,6 @@ if salao_url:
                         "data": data_str,
                         "hora": horario_escolhido
                     })
-                carregar_agendamentos_por_usuario.clear()
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 st.rerun()
@@ -1294,19 +1291,26 @@ with tab0:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB AGENDAMENTOS
+# TAB AGENDAMENTOS (ATUALIZADA COM CAIXA PREMIUM E BOTÃO DE ATUALIZAR)
 # ==============================================================================
 with tab_agend:
-    st.subheader("📅 Agendamentos Confirmados")
-    
-    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    st.info(f"🔗 Link direto de agendamentos para clientes: **{link_clientes}**")
+    st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
+    col_ag_title, col_ag_btn = st.columns([3, 1])
+    with col_ag_title:
+        st.markdown("### 📅 Central de Agendamentos")
+        st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real.</p>", unsafe_allow_html=True)
+    with col_ag_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True):
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Botão para enviar link de agendamento via WhatsApp (Sem mostrar link em texto feio na tela)
     st.markdown(f"""
-    <a href="{wa_url_geral}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00E676;color:#000;padding:0.75rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:10px;">
-        📲 Enviar Link no WhatsApp dos Clientes
+    <a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">
+        📲 Enviar Link de Agendamento por WhatsApp para Clientes
     </a>
     """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
     df_agendamentos = carregar_agendamentos()
 
@@ -1317,10 +1321,13 @@ with tab_agend:
         except Exception:
             pass
             
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown("#### 📋 Clientes Agendados")
         st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-        st.markdown("#### 🛠️ Gestão do Agendamento")
+        st.markdown("#### 🛠️ Ações em Agendamento")
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
         agend_selecionado = st.selectbox("Selecione o Cliente:", list(opcoes_agend.keys()))
 
@@ -1335,7 +1342,7 @@ with tab_agend:
             wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
             
             st.markdown(f"""
-            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:0.6rem;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:10px;">
+            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:0.7rem;border-radius:12px;text-decoration:none;font-weight:700;margin-bottom:12px;">
                 💬 Chamar Cliente no WhatsApp
             </a>
             """, unsafe_allow_html=True)
@@ -1346,7 +1353,12 @@ with tab_agend:
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.info("Nenhum agendamento ativo na lista.")
+        st.markdown("""
+        <div class="ui-card" style="text-align: center; padding: 40px;">
+            <h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4>
+            <p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: HISTÓRICO & RELATÓRIOS
