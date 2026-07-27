@@ -1,6 +1,6 @@
-pandas
-reportlab
-SQLAlchemy
-psycopg2-binary
 streamlit
+pandas
+plotly
 sqlalchemy
+psycopg2-binary
+reportlab
