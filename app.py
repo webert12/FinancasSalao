@@ -68,8 +68,9 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        /* CAMPOS DE ENTRADA (INPUTS) */
-        input[type="text"], input[type="password"], textarea, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
+        /* CAMPOS DE ENTRADA (INPUTS, TEXTAREA, SELECT) */
+        input[type="text"], input[type="password"], input[type="number"], textarea, 
+        div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
             background-color: #0b1017 !important;
             color: #ffffff !important;
             border: 1.5px solid #222e3e !important;
@@ -84,12 +85,69 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
         }}
 
-        div[data-baseweb="select"] * {{
-            background-color: #0b1017 !important;
+        /* AJUSTE PARA BOTÕES DE INCREMENTO DE NUMBER_INPUT */
+        button[data-testid="stNumberInputStepDown"], button[data-testid="stNumberInputStepUp"] {{
+            background-color: #1a2332 !important;
             color: #ffffff !important;
+            border: 1px solid #222e3e !important;
+        }}
+        button[data-testid="stNumberInputStepDown"]:hover, button[data-testid="stNumberInputStepUp"]:hover {{
+            background-color: #243044 !important;
+            color: #00a8ff !important;
         }}
 
-        [data-testid="stWidgetLabel"] p {{
+        /* CORREÇÃO COMPLETA DE POPOVERS (CALENDÁRIO DE DATA & MENU SELECTBOX) */
+        div[data-baseweb="popover"], div[data-baseweb="calendar"], div[role="dialog"] {{
+            background-color: #0b1017 !important;
+            border: 1px solid #222e3e !important;
+            border-radius: 12px !important;
+            color: #ffffff !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+        }}
+
+        /* ESTILIZAÇÃO COMPLETA DO CALENDÁRIO (st.date_input) */
+        div[data-baseweb="calendar"] * {{
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }}
+        div[data-baseweb="calendar"] header {{
+            background-color: #0b1017 !important;
+        }}
+        div[data-baseweb="calendar"] button {{
+            color: #ffffff !important;
+            background-color: transparent !important;
+            border-radius: 8px !important;
+        }}
+        div[data-baseweb="calendar"] button:hover {{
+            background-color: #1a2332 !important;
+            color: #00a8ff !important;
+        }}
+        /* Dia selecionado no calendário */
+        div[data-baseweb="calendar"] [aria-selected="true"] {{
+            background-color: #00a8ff !important;
+            color: #ffffff !important;
+            font-weight: bold !important;
+            border-radius: 50% !important;
+        }}
+
+        /* MENUS DROPDOWN (SELECTBOX OPTION LIST) */
+        div[data-baseweb="menu"], ul[data-baseweb="menu"], [data-baseweb="popover"] ul {{
+            background-color: #0b1017 !important;
+            border: 1px solid #222e3e !important;
+            border-radius: 8px !important;
+        }}
+        li[data-baseweb="option"], [data-baseweb="menu"] li, [role="option"] {{
+            background-color: #0b1017 !important;
+            color: #ffffff !important;
+            padding: 10px 14px !important;
+        }}
+        li[data-baseweb="option"]:hover, [data-baseweb="menu"] li:hover, [role="option"]:hover {{
+            background-color: #1a2332 !important;
+            color: #00a8ff !important;
+        }}
+
+        /* RÁDIOS E CHECKBOXES */
+        [data-testid="stRadio"] label, [data-testid="stCheckbox"] label, [data-testid="stWidgetLabel"] p {{
             color: #cbd5e1 !important;
             font-weight: 600 !important;
             font-size: 0.95rem !important;
@@ -991,7 +1049,7 @@ with tab1:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 0: LANÇAMENTOS RÁPIDOS
+# TAB 0: LANÇAMENTOS RÁPIDOS (CORRIGIDA VISIBILIDADE)
 # ==============================================================================
 with tab0:
     st.markdown('### 🚀 Ações Rápidas do Caixa')
@@ -1141,7 +1199,7 @@ with tab_agend:
         st.info("Nenhum agendamento ativo na lista.")
 
 # ==============================================================================
-# TAB 2: HISTÓRICO & RELATÓRIOS (CORRIGIDA)
+# TAB 2: HISTÓRICO & RELATÓRIOS
 # ==============================================================================
 with tab2:
     st.subheader("📜 Histórico Financeiro Completo")
