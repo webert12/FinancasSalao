@@ -33,8 +33,19 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
+# --- INICIALIZAÇÃO OBRIGATÓRIA DO SESSION STATE ---
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+if "eh_admin" not in st.session_state:
+    st.session_state.eh_admin = False
+if "usuario_logado" not in st.session_state:
+    st.session_state.usuario_logado = None
+if "recuperando_senha" not in st.session_state:
+    st.session_state.recuperando_senha = False
+if "formulario_ativo" not in st.session_state:
+    st.session_state.formulario_ativo = "none"
+
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
-# Isso evita o delay de recarregar a imagem toda vez que clica em um botão
 @st.cache_data
 def get_image_base64(image_path):
     if os.path.exists(image_path):
@@ -88,7 +99,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 10px rgba(229, 184, 11, 0.25) !important;
         }}
 
-        /* --- ESTILIZAÇÃO DO BOTÃO POPOVER (CONFIG) --- */
         div[data-testid="stPopover"] button,
         div[data-testid="stPopover"] button *,
         [data-testid="stPopoverButton"],
@@ -246,8 +256,6 @@ def set_background_com_logo(image_path):
             text-align: center;
             box-shadow: 0 6px 16px rgba(0,0,0,0.4);
         }}
-        .kpi-card-expense {{ border-top-color: #FF5252 !important; }}
-        .kpi-card-neutral {{ border-top-color: #E5B80B !important; }}
 
         .kpi-title {{
             font-size: 0.82rem;
@@ -386,7 +394,6 @@ except Exception as e:
     st.error(f"Erro de conexão com o banco de dados: {e}")
     st.stop()
 
-# Cache do schema para rodar APENAS UMA VEZ na inicialização do servidor
 @st.cache_resource
 def inicializar_banco():
     with engine.begin() as conn:
@@ -453,7 +460,7 @@ except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA E CACHE CIRÚRGICO ---
+# --- FUNÇÕES DE PERSISTÊNCIA E SUPORTE ---
 
 @st.cache_data(ttl=600)
 def carregar_admin_hashes():
@@ -564,6 +571,131 @@ def deletar_servico_banco(nome):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
     carregar_servicos_por_salao.clear()
+
+def carregar_fluxo():
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
+            rows = result.fetchall()
+            if rows:
+                df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+                df['Data'] = pd.to_datetime(df['Data'])
+                df['Valor'] = df['Valor'].astype(float)
+                return df
+    except Exception:
+        pass
+    return pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+
+def inserir_movimentacao_direta(tipo, descricao, valor, data_obj):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    data_str = data_obj.strftime('%Y-%m-%d')
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor)
+            VALUES (:user, :data, :tipo, :desc, :val)
+        """), {"user": usuario, "data": data_str, "tipo": tipo, "desc": descricao, "val": float(valor)})
+
+def dar_baixa_fiado_direta(id_registro, nova_descricao):
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE fluxo_caixa
+            SET tipo = 'Entrada',
+                descricao = :desc
+            WHERE id = :id
+        """), {"desc": nova_descricao, "id": int(id_registro)})
+
+def carregar_agendamentos_por_usuario(salao_id):
+    salao_id_clean = urllib.parse.unquote(str(salao_id)).strip().lower() if salao_id else "padrao"
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data, hora"), {"user": salao_id_clean})
+            rows = result.fetchall()
+            if rows:
+                return pd.DataFrame(rows, columns=['id', 'Cliente', 'Contato', 'Serviço', 'Data', 'Horário'])
+    except Exception:
+        pass
+    return pd.DataFrame(columns=['id', 'Cliente', 'Contato', 'Serviço', 'Data', 'Horário'])
+
+def carregar_agendamentos():
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    return carregar_agendamentos_por_usuario(usuario)
+
+def deletar_agendamento(id_ag):
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM agendamentos WHERE id = :id"), {"id": int(id_ag)})
+
+def gerar_backup_json_completo():
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    dados = {
+        "usuario": usuario,
+        "servicos": carregar_servicos_por_salao(usuario),
+        "fluxo_caixa": carregar_fluxo().to_dict(orient="records"),
+        "agendamentos": carregar_agendamentos_por_usuario(usuario).to_dict(orient="records"),
+        "gerado_em": datetime.now(TZ).strftime('%Y-%m-%d %H:%M:%S')
+    }
+    return json.dumps(dados, ensure_ascii=False, indent=4, default=str)
+
+def gerar_pdf_contabilidade(df, titulo_relatorio):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    elementos = []
+    styles = getSampleStyleSheet()
+    
+    titulo_style = ParagraphStyle(
+        'TituloPDF',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        textColor=colors.HexColor('#1a1814'),
+        spaceAfter=15
+    )
+    
+    elementos.append(Paragraph(f"Relatório Financeiro - {titulo_relatorio}", titulo_style))
+    elementos.append(Paragraph(f"Emitido em: {datetime.now(TZ).strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elementos.append(Paragraph("<br/><br/>", styles['Normal']))
+    
+    if not df.empty:
+        df_export = df.drop(columns=['id'], errors='ignore').copy()
+        dados_tabela = [df_export.columns.tolist()] + df_export.values.tolist()
+        tabela = Table(dados_tabela, colWidths=[100, 80, 180, 100])
+        tabela.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E5B80B')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f9f9f9')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dddddd')),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ]))
+        elementos.append(tabela)
+        
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+def renderizar_whatsapp_flutuante():
+    components.html("""
+        <div style="position: fixed; bottom: 20px; right: 20px; z-index: 999999;">
+            <a href="https://api.whatsapp.com/send?phone=5537991598179&text=Olá! Preciso de suporte com o sistema Fio&Caixa." target="_blank" 
+               style="display: flex; align-items: center; justify-content: center; width: 55px; height: 55px; background-color: #25D366; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.4); text-decoration: none; transition: transform 0.2s;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="white" viewBox="0 0 16 16">
+                  <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.22-1.102a7.85 7.85 0 0 0 3.772.96h.004c4.368 0 7.926-3.558 7.93-7.93A7.89 7.89 0 0 0 13.601 2.326zM7.994 14.521a6.57 6.57 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.558 6.558 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.012-.305.087-.403.089-.088.196-.232.295-.348.1-.117.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.342l-.38-.003c-.133 0-.348.05-.53.247-.183.198-.7 宝.683-.7 1.664 0 .981.715 1.929 815 2.062.1.133 1.407 2.15 3.41 3.017.477.206.848.33 1.138.423.478.152.913.13 1.258.079.385-.057 1.17-.478 1.334-.94.164-.463.164-.86.114-.94-.05-.08-.182-.13-.381-.23z"/>
+                </svg>
+            </a>
+        </div>
+    """, height=90)
+
+# ==============================================================================
+# ROTA PÚBLICA DE AGENDAMENTO (SE HOUVER ?salao=XYZ NA URL)
+# ==============================================================================
+params = st.query_params
+if "salao" in params:
+    salao_id_raw = params["salao"]
+    salao_id_clean = urllib.parse.unquote(str(salao_id_raw)).strip().lower()
+    nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
+
     HORARIOS_DISPONIVEIS = [
         "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
         "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
