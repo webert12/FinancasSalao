@@ -45,8 +45,7 @@ def get_image_base64(image_path):
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
     if encoded_string:
-        # Fundo incorporado com a imagem de referência fornecida e overlay sofisticado em tom escuro/vinho
-        bg_style = f'background-image: linear-gradient(180deg, rgba(20, 5, 8, 0.90) 0%, rgba(8, 11, 15, 0.97) 100%), url("data:image/png;base64,{encoded_string}") !important;'
+        bg_style = f'background-image: linear-gradient(180deg, rgba(20, 5, 8, 0.92) 0%, rgba(8, 11, 15, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
     else:
         bg_style = 'background: radial-gradient(circle at top, #2b080c 0%, #0d1117 60%, #080a0f 100%) !important;'
 
@@ -263,9 +262,7 @@ def set_background_com_logo(image_path):
             margin-top: 6px;
         }}
 
-        .stButton > button, 
-        .stDownloadButton > button, 
-        div[data-testid="stDownloadButton"] > button {{
+        .stButton > button {{
             background-color: #1a2332 !important;
             color: #ffffff !important;
             border: 1px solid #2a364f !important;
@@ -276,27 +273,21 @@ def set_background_com_logo(image_path):
             width: 100% !important;
         }}
 
-        .stButton > button:hover, 
-        .stDownloadButton > button:hover, 
-        div[data-testid="stDownloadButton"] > button:hover {{
+        .stButton > button:hover {{
             background-color: #243044 !important;
             border-color: #00a8ff !important;
             color: #00a8ff !important;
             box-shadow: 0 0 12px rgba(0, 168, 255, 0.3) !important;
         }}
 
-        .stButton > button[kind="primary"], 
-        .stDownloadButton > button[kind="primary"], 
-        div[data-testid="stDownloadButton"] > button[kind="primary"] {{
+        .stButton > button[kind="primary"] {{
             background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important;
             color: #ffffff !important;
             border: none !important;
             box-shadow: 0 6px 20px rgba(0, 168, 255, 0.35) !important;
         }}
 
-        .stButton > button[kind="primary"]:hover, 
-        .stDownloadButton > button[kind="primary"]:hover, 
-        div[data-testid="stDownloadButton"] > button[kind="primary"]:hover {{
+        .stButton > button[kind="primary"]:hover {{
             background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important;
             box-shadow: 0 8px 25px rgba(0, 168, 255, 0.5) !important;
             color: #ffffff !important;
@@ -386,7 +377,6 @@ except Exception as e:
     st.error(f"Erro de conexão com o banco de dados: {e}")
     st.stop()
 
-# Cache do schema para rodar APENAS UMA VEZ na inicialização do servidor
 @st.cache_resource
 def inicializar_banco():
     with engine.begin() as conn:
@@ -453,7 +443,7 @@ except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA E CACHE CIRÚRGICO ---
+# --- FUNÇÕES DE PERSISTÊNCIA ---
 
 @st.cache_data(ttl=600)
 def carregar_admin_hashes():
@@ -689,6 +679,24 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
+# --- FUNÇÃO UNIVERSAL PARA DOWNLOAD COMPATÍVEL COM APK E WEB (RESOLVE TRAVAMENTO MOBILE) ---
+def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
+    b64_data = base64.b64encode(dados_bytes).decode()
+    html_code = f"""
+    <div style="width: 100%;">
+        <a href="data:{mime_type};base64,{b64_data}" download="{nome_arquivo}" 
+           style="display: flex; align-items: center; justify-content: center; width: 100%; 
+                  background-color: {cor_bg}; color: #ffffff; border: 1px solid #00a8ff; 
+                  border-radius: 12px; font-weight: 700; padding: 12px 20px; text-decoration: none; 
+                  box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.2s ease;"
+           onmouseover="this.style.backgroundColor='{cor_hover}'; this.style.borderColor='#00a8ff';"
+           onmouseout="this.style.backgroundColor='{cor_bg}'; this.style.borderColor='#00a8ff';">
+            {label_botao}
+        </a>
+    </div>
+    """
+    components.html(html_code, height=60)
+
 # FUNÇÃO ÍCONE FLUTUANTE WHATSAPP
 def renderizar_whatsapp_flutuante():
     wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
@@ -909,7 +917,6 @@ if not st.session_state.autenticado:
                     else:
                         st.error("Usuário ou senha incorretos.")
 
-        # --- OPÇÕES INFERIORES E WHATSAPP ---
         st.markdown("<hr style='border-color: #1f2937; margin: 20px 0;'>", unsafe_allow_html=True)
         col_rec_1, col_rec_2 = st.columns(2)
         with col_rec_1:
@@ -1067,13 +1074,11 @@ with col_top_left:
         st.markdown("---")
         st.markdown("#### 📦 Backup e Dados")
         backup_dados_pop = gerar_backup_json_completo()
-        st.download_button(
-            label="📥 Baixar Backup JSON", 
-            data=backup_dados_pop, 
-            file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
-            mime="application/json", 
-            use_container_width=True,
-            key="top_backup_btn"
+        renderizar_botao_download_apk(
+            backup_dados_pop.encode('utf-8'),
+            f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json",
+            "application/json",
+            "📥 Baixar Backup JSON"
         )
 
         st.markdown("---")
@@ -1389,9 +1394,11 @@ with tab2:
             
             col_down1, col_down2 = st.columns(2)
             with col_down1:
-                st.download_button("📄 Baixar CSV Contábil", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
+                csv_bytes = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
+                renderizar_botao_download_apk(csv_bytes, f"{nome_arq}.csv", "text/csv", "📄 Baixar CSV Contábil")
             with col_down2:
-                st.download_button("📕 Baixar Relatório PDF", data=gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf), file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+                pdf_bytes = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
+                renderizar_botao_download_apk(pdf_bytes, f"{nome_arq}.pdf", "application/pdf", "📕 Baixar Relatório PDF")
             st.markdown('</div>', unsafe_allow_html=True)
 
             df_vis = df_exibicao.sort_index(ascending=False).copy()
@@ -1467,12 +1474,11 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("📦 Backup e Dados")
     backup_dados = gerar_backup_json_completo()
-    st.download_button(
-        label="📥 Baixar Backup JSON", 
-        data=backup_dados, 
-        file_name=f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", 
-        mime="application/json", 
-        use_container_width=True
+    renderizar_botao_download_apk(
+        backup_dados.encode('utf-8'),
+        f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json",
+        "application/json",
+        "📥 Baixar Backup JSON"
     )
 
     st.markdown("---")
