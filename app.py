@@ -47,7 +47,6 @@ def set_background_com_logo(image_path):
     st.markdown(
         f"""
         <style>
-        /* Fundo Geral da Aplicação com Gradiente Escuro Suave */
         .stApp {{
             {bg_style}
             background-size: cover !important;
@@ -56,7 +55,6 @@ def set_background_com_logo(image_path):
             color: #f0f6fc !important;
         }}
 
-        /* PADRÃO GLOBAL DE TEXTOS - ALTO CONTRASTE E VISIBILIDADE PERFEITA */
         html, body, p, span, label, div, [class*="css"] {{
             color: #f0f6fc !important;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -68,7 +66,6 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        /* CAMPOS DE ENTRADA (INPUTS, TEXTAREA, SELECT) */
         input[type="text"], input[type="password"], input[type="number"], textarea, 
         div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
             background-color: #0b1017 !important;
@@ -85,7 +82,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
         }}
 
-        /* AJUSTE PARA BOTÕES DE INCREMENTO DE NUMBER_INPUT */
         button[data-testid="stNumberInputStepDown"], button[data-testid="stNumberInputStepUp"] {{
             background-color: #1a2332 !important;
             color: #ffffff !important;
@@ -96,7 +92,6 @@ def set_background_com_logo(image_path):
             color: #00a8ff !important;
         }}
 
-        /* CORREÇÃO COMPLETA DE POPOVERS (CALENDÁRIO DE DATA & MENU SELECTBOX) */
         div[data-baseweb="popover"], div[data-baseweb="calendar"], div[role="dialog"] {{
             background-color: #0b1017 !important;
             border: 1px solid #222e3e !important;
@@ -105,7 +100,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
         }}
 
-        /* ESTILIZAÇÃO COMPLETA DO CALENDÁRIO (st.date_input) */
         div[data-baseweb="calendar"] * {{
             color: #ffffff !important;
             background-color: transparent !important;
@@ -122,7 +116,6 @@ def set_background_com_logo(image_path):
             background-color: #1a2332 !important;
             color: #00a8ff !important;
         }}
-        /* Dia selecionado no calendário */
         div[data-baseweb="calendar"] [aria-selected="true"] {{
             background-color: #00a8ff !important;
             color: #ffffff !important;
@@ -130,7 +123,6 @@ def set_background_com_logo(image_path):
             border-radius: 50% !important;
         }}
 
-        /* MENUS DROPDOWN (SELECTBOX OPTION LIST) */
         div[data-baseweb="menu"], ul[data-baseweb="menu"], [data-baseweb="popover"] ul {{
             background-color: #0b1017 !important;
             border: 1px solid #222e3e !important;
@@ -146,7 +138,6 @@ def set_background_com_logo(image_path):
             color: #00a8ff !important;
         }}
 
-        /* RÁDIOS E CHECKBOXES */
         [data-testid="stRadio"] label, [data-testid="stCheckbox"] label, [data-testid="stWidgetLabel"] p {{
             color: #cbd5e1 !important;
             font-weight: 600 !important;
@@ -154,7 +145,6 @@ def set_background_com_logo(image_path):
             margin-bottom: 4px !important;
         }}
 
-        /* CARD DE LOGIN */
         .login-card {{
             background: #111823;
             border: 1px solid #1f2937;
@@ -190,7 +180,6 @@ def set_background_com_logo(image_path):
             line-height: 1.4;
         }}
 
-        /* CARDS DO PAINEL / DASHBOARD */
         .ui-card {{
             background: #111823;
             border: 1px solid #1f2937;
@@ -208,7 +197,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);
         }}
 
-        /* KPIS BLOCOS VIVOS */
         .kpi-card {{
             background-color: #111823;
             border: 1px solid #1f2937;
@@ -235,7 +223,6 @@ def set_background_com_logo(image_path):
             margin-top: 6px;
         }}
 
-        /* FIX DEFINITIVO PARA TODOS OS BOTÕES E BOTÕES DE DOWNLOAD */
         .stButton > button, 
         .stDownloadButton > button, 
         div[data-testid="stDownloadButton"] > button {{
@@ -275,7 +262,6 @@ def set_background_com_logo(image_path):
             color: #ffffff !important;
         }}
 
-        /* ESTILIZAÇÃO DO CONTAINER DA TABELA/DATAFRAME */
         [data-testid="stDataFrame"] {{
             background-color: #111823 !important;
             border: 1px solid #1f2937 !important;
@@ -283,7 +269,6 @@ def set_background_com_logo(image_path):
             padding: 8px !important;
         }}
 
-        /* SIDEBAR E TABS */
         [data-testid="stSidebar"] {{
             background-color: #0e141d !important;
             border-right: 1px solid #1f2937 !important;
@@ -344,16 +329,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-components.html("""
-    <script>
-        function removeUnwantedElements() {
-            const selectors = ['div[class*="viewerBadge"]', 'a[href*="streamlit.io"]', 'a[href*="github"]', 'footer', '#manage-app-button'];
-            selectors.forEach(sel => { document.querySelectorAll(sel).forEach(el => { el.remove(); }); });
-        }
-        setInterval(removeUnwantedElements, 1000);
-    </script>
-""", height=0, width=0)
-
 # --- CONEXÃO BANCO DE DADOS ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
@@ -363,7 +338,7 @@ else:
 
 @st.cache_resource
 def init_connection(url):
-    return create_engine(url, pool_pre_ping=True)
+    return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10)
 
 try:
     engine = init_connection(DB_URL)
@@ -435,7 +410,9 @@ except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
+# --- FUNÇÕES DE PERSISTÊNCIA E CACHE OTIMIZADAS ---
+
+@st.cache_data(ttl=300)
 def carregar_admin_hashes():
     try:
         with engine.connect() as conn:
@@ -457,6 +434,7 @@ def salvar_admin_hashes(password1, password2, url=""):
                     hash2 = EXCLUDED.hash2,
                     url_sistema = EXCLUDED.url_sistema
             """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
+        st.cache_data.clear()
     except Exception as e:
         st.error(f"Erro ao salvar configurações administrativas: {e}")
 
@@ -464,9 +442,11 @@ def atualizar_url_sistema(url):
     try:
         with engine.begin() as conn:
             conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
+        st.cache_data.clear()
     except Exception as e:
         st.error(f"Erro ao atualizar URL: {e}")
 
+@st.cache_data(ttl=60)
 def carregar_usuarios():
     try:
         with engine.connect() as conn:
@@ -500,7 +480,9 @@ def salvar_usuarios(usuarios_dict):
                 "vencimento": str(v["vencimento"]),
                 "status": v["status"]
             })
+    st.cache_data.clear()
 
+@st.cache_data(ttl=120)
 def carregar_servicos_por_salao(salao_id):
     salao_id_clean = urllib.parse.unquote(str(salao_id)).strip().lower() if salao_id else "padrao"
     try:
@@ -532,14 +514,16 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
                 INSERT INTO servicos (usuario_id, nome, preco)
                 VALUES (:user, :nome, :preco)
             """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
+    st.cache_data.clear()
 
 def deletar_servico_banco(nome):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
+    st.cache_data.clear()
 
-def carregar_fluxo():
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+@st.cache_data(ttl=30)
+def carregar_fluxo_por_usuario(usuario):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
@@ -552,6 +536,10 @@ def carregar_fluxo():
         pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
+def carregar_fluxo():
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    return carregar_fluxo_por_usuario(usuario)
+
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
@@ -560,6 +548,7 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
             INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor)
             VALUES (:user, :data, :tipo, :descricao, :valor)
         """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
+    st.cache_data.clear()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
@@ -572,14 +561,16 @@ def dar_baixa_fiado_direta(id_registro, nova_descricao):
                 descricao = :desc
             WHERE id = :id AND usuario_id = :user
         """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+    st.cache_data.clear()
 
 def deletar_movimentacao_fluxo(id_registro):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
+    st.cache_data.clear()
 
-def carregar_agendamentos():
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+@st.cache_data(ttl=30)
+def carregar_agendamentos_por_usuario(usuario):
     try:
         with engine.connect() as conn:
             result = conn.execute(
@@ -593,10 +584,15 @@ def carregar_agendamentos():
         st.error(f"Erro ao buscar agendamentos: {e}")
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
+def carregar_agendamentos():
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    return carregar_agendamentos_por_usuario(usuario)
+
 def deletar_agendamento(id_agendamento):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
+    st.cache_data.clear()
 
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
@@ -650,7 +646,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-# ESTADOS
+# ESTADOS DE SESSÃO
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
@@ -734,9 +730,10 @@ if salao_url:
                         "data": data_str,
                         "hora": horario_escolhido
                     })
+                st.cache_data.clear()
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
-                time.sleep(2)
+                time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao registrar agendamento: {e}")
@@ -888,6 +885,7 @@ if st.session_state.eh_admin:
                 if st.button("EXCLUIR PERMANENTEMENTE", type="primary"):
                     with engine.begin() as conn:
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
+                    st.cache_data.clear()
                     st.rerun()
 
     with tab_config:
@@ -1049,7 +1047,7 @@ with tab1:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 0: LANÇAMENTOS RÁPIDOS (CORRIGIDA VISIBILIDADE)
+# TAB 0: LANÇAMENTOS RÁPIDOS
 # ==============================================================================
 with tab0:
     st.markdown('### 🚀 Ações Rápidas do Caixa')
@@ -1086,7 +1084,7 @@ with tab0:
                 inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
                 st.session_state.formulario_ativo = 'none'
                 st.success("Atendimento registrado no caixa!")
-                time.sleep(0.5)
+                time.sleep(0.3)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1101,7 +1099,7 @@ with tab0:
                 inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
                 st.session_state.formulario_ativo = 'none'
                 st.success("Despesa lançada!")
-                time.sleep(0.5)
+                time.sleep(0.3)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1118,7 +1116,7 @@ with tab0:
                     inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                     st.session_state.formulario_ativo = 'none'
                     st.success("Fiado registrado!")
-                    time.sleep(0.5)
+                    time.sleep(0.3)
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1136,7 +1134,7 @@ with tab0:
                 dar_baixa_fiado_direta(id_alterar, nova_desc)
                 st.session_state.formulario_ativo = 'none'
                 st.success("Pagamento registrado no caixa!")
-                time.sleep(0.5)
+                time.sleep(0.3)
                 st.rerun()
         else:
             st.info("Nenhum fiado pendente no momento.")
@@ -1192,7 +1190,7 @@ with tab_agend:
         if st.button("✅ Concluir / Excluir Agendamento", type="primary", use_container_width=True):
             deletar_agendamento(id_sel)
             st.success("Agendamento finalizado!")
-            time.sleep(0.5)
+            time.sleep(0.3)
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
@@ -1242,7 +1240,6 @@ with tab2:
 
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # BOTÕES DE DOWNLOAD TOTALMENTE VISÍVEIS
             col_down1, col_down2 = st.columns(2)
             with col_down1:
                 st.download_button("📄 Baixar CSV Contábil", data=df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig'), file_name=f"{nome_arq}.csv", mime="text/csv", use_container_width=True)
@@ -1254,7 +1251,6 @@ with tab2:
             df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
             df_vis = df_vis.drop(columns=['Mês/Ano', 'id'], errors='ignore')
 
-            # FUNÇÃO DE CORES CORRIGIDA COM ALTO CONTRASTE
             def colorir_linha(row):
                 cols = len(row)
                 if row['Tipo'] == 'Entrada':
@@ -1276,7 +1272,7 @@ with tab2:
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
                     deletar_movimentacao_fluxo(id_apagar)
                     st.warning("Registro excluído!")
-                    time.sleep(0.5)
+                    time.sleep(0.3)
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
         else:
@@ -1307,13 +1303,13 @@ with st.sidebar:
         if novo_servico:
             salvar_ou_atualizar_servico(servico_sel, novo_servico, novo_preco)
             st.success("Serviço atualizado!")
-            time.sleep(0.5)
+            time.sleep(0.3)
             st.rerun()
 
     if servico_sel != "➕ Cadastrar Novo Serviço" and st.button("🗑️ Remover Serviço", use_container_width=True):
         deletar_servico_banco(servico_sel)
         st.warning("Serviço removido!")
-        time.sleep(0.5)
+        time.sleep(0.3)
         st.rerun()
 
     st.markdown("---")
