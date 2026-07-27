@@ -81,6 +81,40 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
         }}
 
+        /* --- ESTILIZAÇÃO DO BOTÃO POPOVER (CONFIG) --- */
+        div[data-testid="stPopover"] button,
+        div[data-testid="stPopover"] button *,
+        [data-testid="stPopoverButton"],
+        [data-testid="stPopoverButton"] * {{
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            font-size: 0.95rem !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }}
+
+        div[data-testid="stPopover"] button,
+        [data-testid="stPopoverButton"] {{
+            background-color: #1a2332 !important;
+            border: 1.5px solid #00a8ff !important;
+            border-radius: 12px !important;
+            padding: 8px 18px !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            transition: all 0.2s ease-in-out !important;
+        }}
+
+        div[data-testid="stPopover"] button:hover,
+        [data-testid="stPopoverButton"]:hover {{
+            background-color: #243044 !important;
+            border-color: #00a8ff !important;
+            box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
+        }}
+
+        div[data-testid="stPopover"] button:hover *,
+        [data-testid="stPopoverButton"]:hover * {{
+            color: #00a8ff !important;
+        }}
+
         button[data-testid="stNumberInputStepDown"], button[data-testid="stNumberInputStepUp"] {{
             background-color: #1a2332 !important;
             color: #ffffff !important;
@@ -930,10 +964,10 @@ nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-
 mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática:\n👉 {link_clientes}"
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
 
-# --- BOTÃO CONFI NO INÍCIO DO DASHBOARD (CANTO SUPERIOR ESQUERDO) ---
+# --- BOTÃO CONFIG NO INÍCIO DO DASHBOARD (CANTO SUPERIOR ESQUERDO) ---
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
-    with st.popover("⚙️ Confi", use_container_width=False):
+    with st.popover("⚙️ Config", use_container_width=False):
         st.subheader("⚙️ Configurações do Salão")
         st.caption(f"Conectado como: **{nome_salao_titulo}**")
 
@@ -1379,7 +1413,6 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    # BOTÃO DE SAIR ENCERRA A SESSÃO E RETORNA À TELA DE LOGIN
     if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
         st.session_state.clear()
         st.rerun()
