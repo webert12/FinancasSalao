@@ -168,6 +168,26 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+
+
+<!-- HTML DO LAYOUT -->
+<div class="features-wrapper">
+    
+    <!-- Item 1: Financeiro -->
+    <div class="feature-item">
+        <div class="icon-circle">💲</div>
+        <div class="feature-content">
+            <p class="feature-title">Controle Financeiro</p>
+            <p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p>
+        </div>
+    </div>
+    
+    <!-- Item 2: Agendamentos -->
+    <div class="feature-item">
+        <div class="icon-circle">📅</div>
+        <div class="feature-content">
+            <p class="feature-title">Agendamentos</p>
+            <p class="feature-desc">Organize horários, servi
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
 
