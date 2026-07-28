@@ -13,181 +13,7 @@ import re
 import decimal
 import base64
 import streamlit.components.v1 as components
-import streamlit as st
 
-# ===================================================================================
-# 🎨 LAYOUT PROFISSIONAL - MENU DE FUNCIONALIDADES (Estilo Neon)
-# ===================================================================================
-st.markdown("""
-<style>
-    /* Container principal da lista */
-    .features-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 25px; /* Espaçamento entre os itens */
-        padding: 10px 0 30px 0;
-    }
-    
-    /* Cada linha (Ícone + Textos) */
-    .feature-item {
-        display: flex;
-        align-items: center;
-        background-color: transparent;
-    }
-    
-    /* O círculo brilhante com o ícone */
-    .icon-circle {
-        width: 65px;
-        height: 65px;
-        border-radius: 50%;
-        border: 2px solid #4facfe; /* Azul Neon. Mude para #d4af37 se quiser Dourado */
-        box-shadow: 0 0 15px rgba(79, 172, 254, 0.3); /* Efeito de brilho */
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-right: 25px;
-        font-size: 28px;
-        flex-shrink: 0;
-        background-color: #0c1017;
-    }
-    
-    /* Container dos textos */
-    .feature-content {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    
-    /* Título (Em azul claro) */
-    .feature-title {
-        color: #4facfe !important; /* Azul Neon */
-        font-weight: 800 !important;
-        font-size: 17px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        line-height: 1.2;
-    }
-    
-    /* Subtítulo (Branco/Cinza) */
-    .feature-desc {
-        color: #e2e8f0 !important;
-        font-size: 15px !important;
-        margin: 5px 0 0 0 !important;
-        padding: 0 !important;
-        line-height: 1.4;
-    }
-    
-    /* Banner Inferior */
-    .bottom-banner {
-        display: flex;
-        align-items: center;
-        background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%); /* Degradê escuro */
-        border-radius: 12px;
-        padding: 20px 25px;
-        margin-top: 10px;
-        border: 1px solid #334155;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    
-    .banner-icon {
-        font-size: 35px;
-        margin-right: 20px;
-    }
-    
-    .banner-text-main {
-        color: white !important;
-        font-weight: 900 !important;
-        font-size: 18px !important;
-        margin: 0 !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .banner-text-highlight {
-        color: #4facfe !important; /* Azul Neon */
-    }
-    
-    .banner-sub {
-        color: #cbd5e1 !important;
-        font-size: 15px !important;
-        margin: 4px 0 0 0 !important;
-        font-weight: bold;
-    }
-</style>
-
-<!-- HTML DO LAYOUT -->
-<div class="features-wrapper">
-    
-    <!-- Item 1: Financeiro -->
-    <div class="feature-item">
-        <div class="icon-circle">💲</div>
-        <div class="feature-content">
-            <p class="feature-title">Controle Financeiro</p>
-            <p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p>
-        </div>
-    </div>
-    
-    <!-- Item 2: Agendamentos -->
-    <div class="feature-item">
-        <div class="icon-circle">📅</div>
-        <div class="feature-content">
-            <p class="feature-title">Agendamentos</p>
-            <p class="feature-desc">Organize horários, serviços e clientes.</p>
-        </div>
-    </div>
-
-    <!-- Item 3: Serviços -->
-    <div class="feature-item">
-        <div class="icon-circle">✂️</div>
-        <div class="feature-content">
-            <p class="feature-title">Serviços</p>
-            <p class="feature-desc">Cadastre serviços, defina preços e aumente seus lucros.</p>
-        </div>
-    </div>
-
-    <!-- Item 4: Relatórios -->
-    <div class="feature-item">
-        <div class="icon-circle">📊</div>
-        <div class="feature-content">
-            <p class="feature-title">Relatórios</p>
-            <p class="feature-desc">Relatórios completos para decisões inteligentes.</p>
-        </div>
-    </div>
-
-</div>
-
-<!-- BANNER INFERIOR -->
-<div class="bottom-banner">
-    <div class="banner-icon">📈</div>
-    <div>
-        <p class="banner-text-main">Organize. Controle. <span class="banner-text-highlight">Cresça.</span></p>
-        <p class="banner-sub">TUDO EM UM SÓ LUGAR!</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-
-
-<!-- HTML DO LAYOUT -->
-<div class="features-wrapper">
-    
-    <!-- Item 1: Financeiro -->
-    <div class="feature-item">
-        <div class="icon-circle">💲</div>
-        <div class="feature-content">
-            <p class="feature-title">Controle Financeiro</p>
-            <p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p>
-        </div>
-    </div>
-    
-    <!-- Item 2: Agendamentos -->
-    <div class="feature-item">
-        <div class="icon-circle">📅</div>
-        <div class="feature-content">
-            <p class="feature-title">Agendamentos</p>
-            <p class="feature-desc">Organize horários, servi
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
 
@@ -357,6 +183,69 @@ def set_background_com_logo(image_path):
             font-size: 0.95rem !important;
             margin-bottom: 4px !important;
         }}
+
+        /* --- CSS DO NOVO LAYOUT DE FEATURES --- */
+        .features-wrapper {{
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 20px;
+        }}
+        
+        .feature-item {{
+            display: flex;
+            align-items: center;
+            background: linear-gradient(145deg, #111823 0%, #172233 100%);
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }}
+        
+        .feature-item:hover {{
+            transform: translateY(-2px);
+            border-color: #00a8ff;
+        }}
+        
+        .icon-circle {{
+            font-size: 26px;
+            background: #1a2332;
+            border: 1.5px solid #00a8ff;
+            min-width: 55px;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 18px;
+            box-shadow: 0 0 15px rgba(0, 168, 255, 0.15);
+        }}
+        
+        .feature-content {{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }}
+        
+        .feature-content p {{
+            margin: 0 !important;
+        }}
+        
+        .feature-title {{
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            font-size: 1.1rem !important;
+            margin-bottom: 4px !important;
+        }}
+        
+        .feature-desc {{
+            color: #94a3b8 !important;
+            font-size: 0.9rem !important;
+            line-height: 1.3 !important;
+        }}
+
+        /* --- FIM CSS FEATURES --- */
 
         .login-card {{
             background: #111823;
@@ -1045,9 +934,35 @@ if not st.session_state.autenticado:
         st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    # --- CARD DE LOGIN ---
+    # --- CARD DE LOGIN MODIFICADO COM A INJEÇÃO DE FEATURES LATERAIS ---
     st.markdown("<br>", unsafe_allow_html=True)
-    col_l1, col_l2, col_l3 = st.columns([1, 2.2, 1])
+    
+    # Ajustamos as colunas para dar espaço para o texto das features à esquerda e o login ao centro
+    col_l1, col_l2, col_l3 = st.columns([1.3, 2.2, 0.7])
+
+    with col_l1:
+        # AQUI FOI INSERIDO O SEU HTML DE LAYOUT (Features) COMPLETO
+        st.markdown("""
+        <div class="features-wrapper">
+            <!-- Item 1: Financeiro -->
+            <div class="feature-item">
+                <div class="icon-circle">💲</div>
+                <div class="feature-content">
+                    <p class="feature-title">Controle Financeiro</p>
+                    <p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p>
+                </div>
+            </div>
+            
+            <!-- Item 2: Agendamentos -->
+            <div class="feature-item">
+                <div class="icon-circle">📅</div>
+                <div class="feature-content">
+                    <p class="feature-title">Agendamentos</p>
+                    <p class="feature-desc">Organize horários, serviços e clientes.</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col_l2:
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
