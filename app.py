@@ -41,7 +41,7 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM (LAYOUT INTEGRADO COM A IMAGEM DE FUNDO) ---
+# --- DESIGN & CSS ULTRA PREMIUM ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
     if encoded_string:
@@ -87,7 +87,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
         }}
 
-        /* --- ESTILIZAÇÃO DO BOTÃO POPOVER (CONFIG) --- */
         div[data-testid="stPopover"] button,
         div[data-testid="stPopover"] button *,
         [data-testid="stPopoverButton"],
@@ -116,21 +115,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
         }}
 
-        div[data-testid="stPopover"] button:hover *,
-        [data-testid="stPopoverButton"]:hover * {{
-            color: #00a8ff !important;
-        }}
-
-        button[data-testid="stNumberInputStepDown"], button[data-testid="stNumberInputStepUp"] {{
-            background-color: #1a2332 !important;
-            color: #ffffff !important;
-            border: 1px solid #222e3e !important;
-        }}
-        button[data-testid="stNumberInputStepDown"]:hover, button[data-testid="stNumberInputStepUp"]:hover {{
-            background-color: #243044 !important;
-            color: #00a8ff !important;
-        }}
-
         div[data-baseweb="popover"], div[data-baseweb="calendar"], div[role="dialog"] {{
             background-color: #0b1017 !important;
             border: 1px solid #222e3e !important;
@@ -143,144 +127,57 @@ def set_background_com_logo(image_path):
             color: #ffffff !important;
             background-color: transparent !important;
         }}
-        div[data-baseweb="calendar"] header {{
-            background-color: #0b1017 !important;
-        }}
-        div[data-baseweb="calendar"] button {{
-            color: #ffffff !important;
-            background-color: transparent !important;
-            border-radius: 8px !important;
-        }}
-        div[data-baseweb="calendar"] button:hover {{
-            background-color: #1a2332 !important;
-            color: #00a8ff !important;
-        }}
         div[data-baseweb="calendar"] [aria-selected="true"] {{
             background-color: #00a8ff !important;
             color: #ffffff !important;
-            font-weight: bold !important;
             border-radius: 50% !important;
         }}
 
         div[data-baseweb="menu"], ul[data-baseweb="menu"], [data-baseweb="popover"] ul {{
             background-color: #0b1017 !important;
             border: 1px solid #222e3e !important;
-            border-radius: 8px !important;
         }}
-        li[data-baseweb="option"], [data-baseweb="menu"] li, [role="option"] {{
-            background-color: #0b1017 !important;
-            color: #ffffff !important;
-            padding: 10px 14px !important;
-        }}
-        li[data-baseweb="option"]:hover, [data-baseweb="menu"] li:hover, [role="option"]:hover {{
+        li[data-baseweb="option"]:hover, [data-baseweb="menu"] li:hover {{
             background-color: #1a2332 !important;
             color: #00a8ff !important;
         }}
 
-        [data-testid="stRadio"] label, [data-testid="stCheckbox"] label, [data-testid="stWidgetLabel"] p {{
-            color: #cbd5e1 !important;
-            font-weight: 600 !important;
-            font-size: 0.95rem !important;
-            margin-bottom: 4px !important;
-        }}
-
-        /* --- CSS DO NOVO LAYOUT DE FEATURES --- */
-        .features-wrapper {{
+        /* --- CSS DASHBOARD RELATÓRIOS V2 --- */
+        .kpi-card-v2 {{
+            background-color: #111823;
+            border: 1px solid #1f2937;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            height: 100%;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            margin-top: 20px;
+            justify-content: space-between;
         }}
-        
-        .feature-item {{
-            display: flex;
-            align-items: center;
-            background: linear-gradient(145deg, #111823 0%, #172233 100%);
-            border: 1px solid #1f2937;
-            border-radius: 16px;
-            padding: 16px 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }}
-        
-        .feature-item:hover {{
-            transform: translateY(-2px);
-            border-color: #00a8ff;
-        }}
-        
-        .icon-circle {{
-            font-size: 26px;
-            background: #1a2332;
-            border: 1.5px solid #00a8ff;
-            min-width: 55px;
-            height: 55px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            margin-right: 18px;
-            box-shadow: 0 0 15px rgba(0, 168, 255, 0.15);
-        }}
-        
-        .feature-content {{
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }}
-        
-        .feature-content p {{
-            margin: 0 !important;
-        }}
-        
-        .feature-title {{
-            color: #ffffff !important;
-            font-weight: 800 !important;
-            font-size: 1.1rem !important;
-            margin-bottom: 4px !important;
-        }}
-        
-        .feature-desc {{
-            color: #94a3b8 !important;
-            font-size: 0.9rem !important;
-            line-height: 1.3 !important;
-        }}
-
-        /* --- FIM CSS FEATURES --- */
-
-        .login-card {{
-            background: #111823;
-            border: 1px solid #1f2937;
-            border-radius: 20px;
-            padding: 40px 32px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
-            max-width: 460px;
-            margin: 0 auto;
-        }}
-
-        .login-tag {{
-            color: #00a8ff !important;
-            font-size: 0.8rem;
-            font-weight: 800;
-            letter-spacing: 1.8px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            display: block;
-        }}
-
-        .login-title {{
-            color: #ffffff !important;
-            font-size: 2.2rem;
-            font-weight: 800;
-            margin-bottom: 8px;
-            line-height: 1.1;
-        }}
-
-        .login-subtitle {{
-            color: #94a3b8 !important;
+        .kpi-title-v2 {{
             font-size: 0.95rem;
-            margin-bottom: 28px;
-            line-height: 1.4;
+            color: #94a3b8 !important;
+            font-weight: 600;
+            margin-bottom: 5px;
         }}
+        .kpi-value-v2 {{
+            font-size: 1.9rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }}
+        .kpi-val-green {{ color: #00E676 !important; }}
+        .kpi-val-red {{ color: #FF5252 !important; }}
+        .kpi-val-blue {{ color: #00a8ff !important; }}
+        .kpi-perc {{
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }}
+        .perc-up {{ color: #00E676 !important; }}
+        .perc-down {{ color: #FF5252 !important; }}
+        .perc-neutral {{ color: #94a3b8 !important; }}
 
         .ui-card {{
             background: #111823;
@@ -290,7 +187,6 @@ def set_background_com_logo(image_path):
             margin-bottom: 20px;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }}
-
         .ui-card-highlight {{
             background: linear-gradient(145deg, #111823 0%, #172233 100%);
             border: 1px solid #00a8ff;
@@ -299,31 +195,26 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);
         }}
 
-        .kpi-card {{
-            background-color: #111823;
-            border: 1px solid #1f2937;
-            border-top: 4px solid #00E676;
-            border-radius: 14px;
-            padding: 18px;
-            text-align: center;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        /* --- CSS LOGIN E FEATURES --- */
+        .features-wrapper {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
+        .feature-item {{
+            display: flex; align-items: center; background: linear-gradient(145deg, #111823 0%, #172233 100%);
+            border: 1px solid #1f2937; border-radius: 16px; padding: 16px 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); transition: transform 0.2s ease, border-color 0.2s ease;
         }}
-        .kpi-card-expense {{ border-top-color: #FF5252 !important; }}
-        .kpi-card-neutral {{ border-top-color: #00a8ff !important; }}
-
-        .kpi-title {{
-            font-size: 0.82rem;
-            color: #94a3b8 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-weight: 700;
+        .feature-item:hover {{ transform: translateY(-2px); border-color: #00a8ff; }}
+        .icon-circle {{
+            font-size: 26px; background: #1a2332; border: 1.5px solid #00a8ff;
+            min-width: 55px; height: 55px; display: flex; align-items: center;
+            justify-content: center; border-radius: 50%; margin-right: 18px;
+            box-shadow: 0 0 15px rgba(0, 168, 255, 0.15);
         }}
-        .kpi-value {{
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #ffffff !important;
-            margin-top: 6px;
-        }}
+        .feature-title {{ color: #ffffff !important; font-weight: 800 !important; font-size: 1.1rem !important; margin-bottom: 4px !important; }}
+        .feature-desc {{ color: #94a3b8 !important; font-size: 0.9rem !important; line-height: 1.3 !important; margin: 0 !important; }}
+        .login-card {{ background: #111823; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
+        .login-tag {{ color: #00a8ff !important; font-size: 0.8rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 8px; display: block; }}
+        .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; line-height: 1.1; }}
+        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem; margin-bottom: 28px; line-height: 1.4; }}
 
         .stButton > button {{
             background-color: #1a2332 !important;
@@ -335,57 +226,13 @@ def set_background_com_logo(image_path):
             transition: all 0.2s ease !important;
             width: 100% !important;
         }}
+        .stButton > button:hover {{ background-color: #243044 !important; border-color: #00a8ff !important; color: #00a8ff !important; }}
+        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; }}
+        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; }}
 
-        .stButton > button:hover {{
-            background-color: #243044 !important;
-            border-color: #00a8ff !important;
-            color: #00a8ff !important;
-            box-shadow: 0 0 12px rgba(0, 168, 255, 0.3) !important;
-        }}
-
-        .stButton > button[kind="primary"] {{
-            background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important;
-            color: #ffffff !important;
-            border: none !important;
-            box-shadow: 0 6px 20px rgba(0, 168, 255, 0.35) !important;
-        }}
-
-        .stButton > button[kind="primary"]:hover {{
-            background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important;
-            box-shadow: 0 8px 25px rgba(0, 168, 255, 0.5) !important;
-            color: #ffffff !important;
-        }}
-
-        [data-testid="stDataFrame"] {{
-            background-color: #111823 !important;
-            border: 1px solid #1f2937 !important;
-            border-radius: 12px !important;
-            padding: 8px !important;
-        }}
-
-        [data-testid="stSidebar"] {{
-            background-color: #0e141d !important;
-            border-right: 1px solid #1f2937 !important;
-        }}
-        
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 10px;
-            background-color: transparent;
-        }}
-        .stTabs [data-baseweb="tab"] {{
-            background-color: #111823;
-            border-radius: 10px 10px 0 0;
-            border: 1px solid #1f2937;
-            border-bottom: none;
-            padding: 12px 24px;
-            color: #94a3b8 !important;
-        }}
-        .stTabs [aria-selected="true"] {{
-            background-color: #1a2332 !important;
-            color: #00a8ff !important;
-            font-weight: bold;
-            border-top: 3px solid #00a8ff !important;
-        }}
+        .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
+        .stTabs [data-baseweb="tab"] {{ background-color: #111823; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
+        .stTabs [aria-selected="true"] {{ background-color: #1a2332 !important; color: #00a8ff !important; font-weight: bold; border-top: 3px solid #00a8ff !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -401,25 +248,12 @@ st.markdown("""
             display: none !important;
         }
         [data-testid="collapsedControl"] {
-            display: flex !important;
-            visibility: visible !important;
-            position: fixed !important;
-            top: 12px !important;       
-            right: 15px !important;     
-            left: auto !important;      
-            z-index: 9999999 !important; 
-            background-color: #111823 !important;
-            border: 1px solid #00a8ff !important;
-            border-radius: 50% !important;
-            padding: 8px !important;
-            width: 45px !important;
-            height: 45px !important;
+            display: flex !important; visibility: visible !important; position: fixed !important;
+            top: 12px !important; right: 15px !important; z-index: 9999999 !important; 
+            background-color: #111823 !important; border: 1px solid #00a8ff !important;
+            border-radius: 50% !important; padding: 8px !important; width: 45px !important; height: 45px !important;
         }
-        .main .block-container {
-            padding-top: 1.5rem !important;
-            padding-bottom: 2rem !important;
-            max-width: 96% !important;
-        }
+        .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 96% !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -444,59 +278,22 @@ except Exception as e:
 def inicializar_banco():
     with engine.begin() as conn:
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS admin_config (
-                id INT PRIMARY KEY,
-                hash1 TEXT NOT NULL,
-                hash2 TEXT NOT NULL,
-                url_sistema TEXT
-            );
+            CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);
         """))
         try:
             conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
-        except Exception:
-            pass
-
+        except Exception: pass
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id TEXT PRIMARY KEY,
-                senha TEXT NOT NULL,
-                email TEXT,
-                tipo TEXT,
-                vencimento TEXT,
-                status TEXT
-            );
+            CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT);
         """))
-
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS servicos (
-                id SERIAL PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                nome TEXT NOT NULL,
-                preco NUMERIC NOT NULL
-            );
+            CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);
         """))
-
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS fluxo_caixa (
-                id SERIAL PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                data TEXT NOT NULL,
-                tipo TEXT NOT NULL,
-                descricao TEXT NOT NULL,
-                valor NUMERIC NOT NULL
-            );
+            CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);
         """))
-
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS agendamentos (
-                id SERIAL PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                cliente_nome TEXT NOT NULL,
-                cliente_contato TEXT,
-                servico_nome TEXT NOT NULL,
-                data TEXT NOT NULL,
-                hora TEXT NOT NULL
-            );
+            CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);
         """))
     return True
 
@@ -507,28 +304,21 @@ except Exception as e:
     st.stop()
 
 # --- FUNÇÕES DE PERSISTÊNCIA ---
-
 @st.cache_data(ttl=600)
 def carregar_admin_hashes():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT hash1, hash2, url_sistema FROM admin_config WHERE id = 1")).fetchone()
-            if result:
-                return result[0], result[1], result[2]
-    except Exception:
-        pass
+            if result: return result[0], result[1], result[2]
+    except Exception: pass
     return None, None, None
 
 def salvar_admin_hashes(password1, password2, url=""):
     try:
         with engine.begin() as conn:
             conn.execute(text("""
-                INSERT INTO admin_config (id, hash1, hash2, url_sistema)
-                VALUES (1, :h1, :h2, :url)
-                ON CONFLICT (id) DO UPDATE SET
-                    hash1 = EXCLUDED.hash1,
-                    hash2 = EXCLUDED.hash2,
-                    url_sistema = EXCLUDED.url_sistema
+                INSERT INTO admin_config (id, hash1, hash2, url_sistema) VALUES (1, :h1, :h2, :url)
+                ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
             """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
         carregar_admin_hashes.clear()
     except Exception as e:
@@ -539,8 +329,7 @@ def atualizar_url_sistema(url):
         with engine.begin() as conn:
             conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
         carregar_admin_hashes.clear()
-    except Exception as e:
-        st.error(f"Erro ao atualizar URL: {e}")
+    except Exception: pass
 
 @st.cache_data(ttl=300)
 def carregar_usuarios():
@@ -548,34 +337,18 @@ def carregar_usuarios():
         with engine.connect() as conn:
             result = conn.execute(text("SELECT id, senha, email, tipo, vencimento, status FROM usuarios"))
             rows = result.fetchall()
-            if rows:
-                return {row[0]: {"id": row[0], "senha": row[1], "email": row[2], "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
-    except Exception:
-        pass
+            if rows: return {row[0]: {"id": row[0], "senha": row[1], "email": row[2], "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
+    except Exception: pass
     return {}
 
 def salvar_usuarios(usuarios_dict):
-    if not usuarios_dict:
-        return
+    if not usuarios_dict: return
     with engine.begin() as conn:
         for k, v in usuarios_dict.items():
             conn.execute(text("""
-                INSERT INTO usuarios (id, senha, email, tipo, vencimento, status)
-                VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
-                ON CONFLICT (id) DO UPDATE SET
-                    senha = EXCLUDED.senha,
-                    email = EXCLUDED.email,
-                    tipo = EXCLUDED.tipo,
-                    vencimento = EXCLUDED.vencimento,
-                    status = EXCLUDED.status
-            """), {
-                "id": k,
-                "senha": v["senha"],
-                "email": v.get("email", ""),
-                "tipo": v["tipo"],
-                "vencimento": str(v["vencimento"]),
-                "status": v["status"]
-            })
+                INSERT INTO usuarios (id, senha, email, tipo, vencimento, status) VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
+                ON CONFLICT (id) DO UPDATE SET senha = EXCLUDED.senha, email = EXCLUDED.email, tipo = EXCLUDED.tipo, vencimento = EXCLUDED.vencimento, status = EXCLUDED.status
+            """), {"id": k, "senha": v["senha"], "email": v.get("email", ""), "tipo": v["tipo"], "vencimento": str(v["vencimento"]), "status": v["status"]})
     carregar_usuarios.clear()
 
 @st.cache_data(ttl=300)
@@ -585,10 +358,8 @@ def carregar_servicos_por_salao(salao_id):
         with engine.connect() as conn:
             result = conn.execute(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), {"user": salao_id_clean})
             rows = result.fetchall()
-            if rows:
-                return {row[0]: float(row[1]) for row in rows}
-    except Exception:
-        pass
+            if rows: return {row[0]: float(row[1]) for row in rows}
+    except Exception: pass
     return {"Corte de Cabelo": 30.00, "Barba": 25.00, "Combo Cabelo e Barba": 50.00}
 
 def carregar_servicos():
@@ -599,17 +370,9 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.begin() as conn:
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
-            conn.execute(text("""
-                UPDATE servicos
-                SET nome = :novo,
-                    preco = :preco
-                WHERE usuario_id = :user AND nome = :antigo
-            """), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
+            conn.execute(text("UPDATE servicos SET nome = :novo, preco = :preco WHERE usuario_id = :user AND nome = :antigo"), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
         else:
-            conn.execute(text("""
-                INSERT INTO servicos (usuario_id, nome, preco)
-                VALUES (:user, :nome, :preco)
-            """), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
+            conn.execute(text("INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
     carregar_servicos_por_salao.clear()
 
 def deletar_servico_banco(nome):
@@ -628,8 +391,7 @@ def carregar_fluxo_por_usuario(usuario):
                 df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
                 df['Data'] = pd.to_datetime(df['Data'])
                 return df
-    except Exception:
-        pass
+    except Exception: pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
 def carregar_fluxo():
@@ -640,23 +402,14 @@ def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.begin() as conn:
-        conn.execute(text("""
-            INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor)
-            VALUES (:user, :data, :tipo, :descricao, :valor)
-        """), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
+        conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
     carregar_fluxo_por_usuario.clear()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
     with engine.begin() as conn:
-        conn.execute(text("""
-            UPDATE fluxo_caixa
-            SET tipo = 'Entrada',
-                data = :data,
-                descricao = :desc
-            WHERE id = :id AND usuario_id = :user
-        """), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+        conn.execute(text("UPDATE fluxo_caixa SET tipo = 'Entrada', data = :data, descricao = :desc WHERE id = :id AND usuario_id = :user"), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
 def deletar_movimentacao_fluxo(id_registro):
@@ -668,15 +421,10 @@ def deletar_movimentacao_fluxo(id_registro):
 def carregar_agendamentos_por_usuario_direto(usuario):
     try:
         with engine.connect() as conn:
-            result = conn.execute(
-                text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"),
-                {"user": usuario}
-            )
+            result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), {"user": usuario})
             rows = result.fetchall()
-            if rows:
-                return pd.DataFrame(rows, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
-    except Exception as e:
-        st.error(f"Erro ao buscar agendamentos: {e}")
+            if rows: return pd.DataFrame(rows, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
+    except Exception: pass
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
 def carregar_agendamentos():
@@ -691,29 +439,16 @@ def deletar_agendamento(id_agendamento):
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
-
+    fluxo_dict = []
     if not df_f.empty:
         df_copy = df_f.copy()
-        if 'Data' in df_copy.columns:
-            df_copy['Data'] = df_copy['Data'].dt.strftime('%Y-%m-%d')
+        if 'Data' in df_copy.columns: df_copy['Data'] = df_copy['Data'].dt.strftime('%Y-%m-%d')
         fluxo_dict = df_copy.to_dict(orient="records")
-    else:
-        fluxo_dict = []
-
     def custom_serializer(obj):
-        if isinstance(obj, (decimal.Decimal, float)):
-            return float(obj)
-        if isinstance(obj, (datetime, pd.Timestamp)):
-            return obj.strftime('%Y-%m-%d')
+        if isinstance(obj, (decimal.Decimal, float)): return float(obj)
+        if isinstance(obj, (datetime, pd.Timestamp)): return obj.strftime('%Y-%m-%d')
         return str(obj)
-
-    dados_backup = {
-        "sistema": "Fio&Caixa",
-        "usuario_dono": usuario,
-        "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'),
-        "catalogo_servicos": carregar_servicos(),
-        "historico_financeiro": fluxo_dict
-    }
+    dados_backup = {"sistema": "Fio&Caixa", "usuario_dono": usuario, "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'), "catalogo_servicos": carregar_servicos(), "historico_financeiro": fluxo_dict}
     return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
 
 def gerar_pdf_contabilidade(df, mes_ref):
@@ -723,24 +458,17 @@ def gerar_pdf_contabilidade(df, mes_ref):
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#00a8ff"), spaceAfter=15)
     story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
-
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
     for _, row in df.iterrows():
         dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
         table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
     t = Table(table_data, colWidths=[75, 60, 265, 80])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111823")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#00a8ff")),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-    ]))
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111823")), ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#00a8ff")), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
     story.append(t)
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- FUNÇÃO UNIVERSAL PARA DOWNLOAD COMPATÍVEL COM APK E WEB (RESOLVE TRAVAMENTO MOBILE) ---
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
     b64_data = base64.b64encode(dados_bytes).decode()
     html_code = f"""
@@ -758,36 +486,13 @@ def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_bo
     """
     components.html(html_code, height=65)
 
-# FUNÇÃO ÍCONE FLUTUANTE WHATSAPP
 def renderizar_whatsapp_flutuante():
     wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
     st.markdown(f"""
         <style>
-        .floating-wa {{
-            position: fixed;
-            width: 55px;
-            height: 55px;
-            bottom: 30px;
-            right: 30px;
-            background-color: #25d366;
-            border-radius: 50px;
-            text-align: center;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
-            z-index: 9999999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            transition: transform 0.3s ease;
-        }}
-        .floating-wa:hover {{
-            transform: scale(1.1);
-        }}
-        .floating-wa svg {{
-            width: 32px;
-            height: 32px;
-            fill: white;
-        }}
+        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background-color: #25d366; border-radius: 50px; text-align: center; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.3s ease; }}
+        .floating-wa:hover {{ transform: scale(1.1); }}
+        .floating-wa svg {{ width: 32px; height: 32px; fill: white; }}
         </style>
         <a href="https://api.whatsapp.com/send?phone=5537991598179&text={wa_msg}" class="floating-wa" target="_blank" title="Falar com Suporte">
             <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
@@ -808,81 +513,41 @@ query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
-    st.markdown("""
-    <style>
-        [data-testid="stSidebar"] {display: none !important;}
-        [data-testid="collapsedControl"] {display: none !important;}
-    </style>
-    """, unsafe_allow_html=True)
-
+    st.markdown('<style>[data-testid="stSidebar"] {display: none !important;} [data-testid="collapsedControl"] {display: none !important;}</style>', unsafe_allow_html=True)
     salao_id_clean = urllib.parse.unquote(str(salao_url)).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
-
-    HORARIOS_DISPONIVEIS = [
-        "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
-        "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", 
-        "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"
-    ]
-
+    HORARIOS_DISPONIVEIS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
-    st.markdown(f"""
-    <div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;">
-        <h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1>
-        <p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
     with st.form("form_agendamento_cliente", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
-        
         servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys())) if servicos_salao else None
         data_escolhida = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
-
         try:
             with engine.connect() as conn:
-                result = conn.execute(
-                    text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), 
-                    {"user": salao_id_clean, "dt": data_str}
-                )
+                result = conn.execute(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), {"user": salao_id_clean, "dt": data_str})
                 ocupados = [r[0] for r in result.fetchall()]
-        except Exception:
-            ocupados = []
-
+        except Exception: ocupados = []
         horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
         horario_escolhido = st.selectbox("Horário Disponível:", horarios_livres) if horarios_livres else None
-
-        if not horarios_livres:
-            st.warning("⚠️ Todos os horários estão preenchidos nesta data.")
-
+        if not horarios_livres: st.warning("⚠️ Todos os horários estão preenchidos nesta data.")
         enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", type="primary", use_container_width=True)
 
     if enviar_agendamento:
-        if not nome_cliente or not telefone_cliente:
-            st.warning("⚠️ Por favor, informe seu nome e telefone.")
-        elif not horario_escolhido or not servico_escolhido:
-            st.error("⚠️ Selecione um horário válido.")
+        if not nome_cliente or not telefone_cliente: st.warning("⚠️ Por favor, informe seu nome e telefone.")
+        elif not horario_escolhido or not servico_escolhido: st.error("⚠️ Selecione um horário válido.")
         else:
             try:
                 with engine.begin() as conn:
-                    conn.execute(text("""
-                        INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
-                        VALUES (:user, :nome, :contato, :servico, :data, :hora)
-                    """), {
-                        "user": salao_id_clean,
-                        "nome": nome_cliente.strip(),
-                        "contato": telefone_cliente.strip(),
-                        "servico": servico_escolhido,
-                        "data": data_str,
-                        "hora": horario_escolhido
-                    })
+                    conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 st.rerun()
-            except Exception as e:
-                st.error(f"Erro ao registrar agendamento: {e}")
+            except Exception as e: st.error(f"Erro ao registrar agendamento: {e}")
     st.stop()
 
 # ==============================================================================
@@ -906,17 +571,12 @@ if not st.session_state.autenticado:
         st.stop()
 
     if st.session_state.recuperando_senha:
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        st.markdown('<span class="login-tag">RECUPERAÇÃO</span>', unsafe_allow_html=True)
-        st.markdown('<h1 class="login-title">Redefinir Senha</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="login-subtitle">Confirme seus dados para cadastrar uma nova senha.</p>', unsafe_allow_html=True)
-        
+        st.markdown('<div class="login-card"><span class="login-tag">RECUPERAÇÃO</span><h1 class="login-title">Redefinir Senha</h1><p class="login-subtitle">Confirme seus dados para cadastrar uma nova senha.</p>', unsafe_allow_html=True)
         with st.form("form_recuperacao"):
             user_recup = st.text_input("Usuário:").strip().lower()
             email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
             nova_senha_recup = st.text_input("Nova Senha:", type="password")
             conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
-            
             if st.form_submit_button("Atualizar Senha", type="primary", use_container_width=True):
                 if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
                     if nova_senha_recup == conf_senha_recup and nova_senha_recup:
@@ -927,59 +587,30 @@ if not st.session_state.autenticado:
                         st.rerun()
                     else: st.error("As senhas não conferem.")
                 else: st.error("Usuário ou e-mail incorretos.")
-
         if st.button("Voltar ao Login", use_container_width=True):
             st.session_state.recuperando_senha = False
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    # --- CARD DE LOGIN MODIFICADO COM A INJEÇÃO DE FEATURES LATERAIS ---
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Ajustamos as colunas para dar espaço para o texto das features à esquerda e o login ao centro
     col_l1, col_l2, col_l3 = st.columns([1.3, 2.2, 0.7])
-
     with col_l1:
-        # AQUI FOI INSERIDO O SEU HTML DE LAYOUT (Features) COMPLETO
         st.markdown("""
         <div class="features-wrapper">
-            <!-- Item 1: Financeiro -->
-            <div class="feature-item">
-                <div class="icon-circle">💲</div>
-                <div class="feature-content">
-                    <p class="feature-title">Controle Financeiro</p>
-                    <p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p>
-                </div>
-            </div>
-            
-            <!-- Item 2: Agendamentos -->
-            <div class="feature-item">
-                <div class="icon-circle">📅</div>
-                <div class="feature-content">
-                    <p class="feature-title">Agendamentos</p>
-                    <p class="feature-desc">Organize horários, serviços e clientes.</p>
-                </div>
-            </div>
+            <div class="feature-item"><div class="icon-circle">💲</div><div class="feature-content"><p class="feature-title">Controle Financeiro</p><p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p></div></div>
+            <div class="feature-item"><div class="icon-circle">📅</div><div class="feature-content"><p class="feature-title">Agendamentos</p><p class="feature-desc">Organize horários, serviços e clientes.</p></div></div>
         </div>
         """, unsafe_allow_html=True)
-
     with col_l2:
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        st.markdown('<span class="login-tag">ACESSO AO SISTEMA</span>', unsafe_allow_html=True)
-        st.markdown('<h1 class="login-title">Entrar</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="login-subtitle">Informe seus dados para acessar o painel do seu salão.</p>', unsafe_allow_html=True)
-
+        st.markdown('<div class="login-card"><span class="login-tag">ACESSO AO SISTEMA</span><h1 class="login-title">Entrar</h1><p class="login-subtitle">Informe seus dados para acessar o painel do seu salão.</p>', unsafe_allow_html=True)
         tipo_acesso = st.radio("Selecione o Perfil:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
-
         with st.form("form_login_moderno"):
             usuario_input = st.text_input("Usuário / Login", placeholder="Digite seu usuário").strip().lower()
             senha_input = st.text_input("Senha", type="password", placeholder="Digite sua senha")
             senha2_input = st.text_input("Senha Secundária Admin", type="password", placeholder="Chave de segurança admin") if tipo_acesso == "Administrador Mestre" else ""
-            
             st.markdown("<br>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("Entrar", type="primary", use_container_width=True)
-
             if submit_login:
                 if tipo_acesso == "Administrador Mestre":
                     if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
@@ -987,8 +618,7 @@ if not st.session_state.autenticado:
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
                         st.rerun()
-                    else:
-                        st.error("Credenciais de administrador mestre inválidas.")
+                    else: st.error("Credenciais de administrador mestre inválidas.")
                 else:
                     if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                         dados_user = usuarios_cadastrados[usuario_input]
@@ -1000,9 +630,7 @@ if not st.session_state.autenticado:
                         st.session_state.usuario_logado = usuario_input
                         st.session_state.eh_admin = False
                         st.rerun()
-                    else:
-                        st.error("Usuário ou senha incorretos.")
-
+                    else: st.error("Usuário ou senha incorretos.")
         st.markdown("<hr style='border-color: #1f2937; margin: 20px 0;'>", unsafe_allow_html=True)
         col_rec_1, col_rec_2 = st.columns(2)
         with col_rec_1:
@@ -1010,26 +638,14 @@ if not st.session_state.autenticado:
             if st.button("Esqueci minha senha", use_container_width=True):
                 st.session_state.recuperando_senha = True
                 st.rerun()
-        
         with col_rec_2:
             st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem; margin-bottom:5px;'>Deseja adquirir o sistema?</p>", unsafe_allow_html=True)
             wa_login_msg = urllib.parse.quote("Olá! Gostaria de saber mais sobre a assinatura do Fio&Caixa.")
-            st.markdown(f"""
-                <a href="https://api.whatsapp.com/send?phone=5537991598179&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;">
-                    <svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
-                    Falar no WhatsApp
-                </a>
-            """, unsafe_allow_html=True)
-
+            st.markdown(f'<a href="https://api.whatsapp.com/send?phone=5537991598179&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Falar no WhatsApp</a>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-
-# ==============================================================================
-# INJETA O ÍCONE DO WHATSAPP FLUTUANTE GLOBAL APÓS O LOGIN
-# ==============================================================================
 renderizar_whatsapp_flutuante()
-
 
 # ==============================================================================
 # MODO ADMINISTRADOR MESTRE
@@ -1054,7 +670,6 @@ if st.session_state.eh_admin:
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Salão cadastrado com sucesso!")
                     st.rerun()
-
     with tab_ger:
         if usuarios_cadastrados:
             salao_sel = st.selectbox("Selecione um Salão:", list(usuarios_cadastrados.keys()))
@@ -1077,14 +692,12 @@ if st.session_state.eh_admin:
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
                     carregar_usuarios.clear()
                     st.rerun()
-
     with tab_config:
         nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "")
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
             st.rerun()
-
     with st.sidebar:
         st.markdown("---")
         if st.button("🚪 Sair do Mestre", use_container_width=True):
@@ -1099,47 +712,39 @@ df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 _, _, url_sistema_salva = carregar_admin_hashes()
 
-if not df_fluxo_caixa.empty:
-    hoje = pd.Timestamp(datetime.now(TZ).date())
-    df_limpo = df_fluxo_caixa.dropna(subset=['Data'])
-    df_diario = df_limpo[df_limpo['Data'].dt.date == hoje.date()]
-    df_semanal = df_limpo[df_limpo['Data'] >= (hoje - timedelta(days=7))]
-    df_mensal = df_limpo[df_limpo['Data'].dt.month == hoje.month]
+# Processamento de Dados (Geral e Dashboard Novo)
+hoje = pd.Timestamp(datetime.now(TZ).date())
+mes_atual = hoje.month
+ano_atual = hoje.year
+mes_passado = mes_atual - 1 if mes_atual > 1 else 12
+ano_passado = ano_atual if mes_atual > 1 else ano_atual - 1
 
-    ent_dia, sai_dia = df_diario[df_diario['Tipo'] == 'Entrada']['Valor'].sum(), df_diario[df_diario['Tipo'] == 'Saída']['Valor'].sum()
-    ent_sem, sai_sem = df_semanal[df_semanal['Tipo'] == 'Entrada']['Valor'].sum(), df_semanal[df_semanal['Tipo'] == 'Saída']['Valor'].sum()
-    ent_mes, sai_mes = df_mensal[df_mensal['Tipo'] == 'Entrada']['Valor'].sum(), df_mensal[df_mensal['Tipo'] == 'Saída']['Valor'].sum()
-    lucro_dia, lucro_sem, lucro_mes = ent_dia + sai_dia, ent_sem + sai_sem, ent_mes + sai_mes
+if not df_fluxo_caixa.empty:
+    df_limpo = df_fluxo_caixa.dropna(subset=['Data']).copy()
+    df_mes_atual = df_limpo[(df_limpo['Data'].dt.month == mes_atual) & (df_limpo['Data'].dt.year == ano_atual)]
+    df_mes_passado = df_limpo[(df_limpo['Data'].dt.month == mes_passado) & (df_limpo['Data'].dt.year == ano_passado)]
 else:
-    ent_dia = sai_dia = lucro_dia = ent_sem = sai_sem = lucro_sem = ent_mes = sai_mes = lucro_mes = 0
+    df_limpo = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+    df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+    df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
 base_url = (url_sistema_salva or "https://fioecaixa.streamlit.app").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
+wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
-mensagem_whatsapp = f"Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática:\n👉 {link_clientes}"
-wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(mensagem_whatsapp)}"
-
-# --- BOTÃO CONFIG NO INÍCIO DO DASHBOARD (CANTO SUPERIOR ESQUERDO) ---
+# Botão Popover (Configuração Rápida)
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
     with st.popover("⚙️ Config", use_container_width=False):
         st.subheader("⚙️ Configurações do Salão")
-        st.caption(f"Conectado como: **{nome_salao_titulo}**")
-
         st.markdown("---")
-        st.markdown("#### 💈 Serviços & Atendimentos")
-        st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
-
         opcoes_gerenciamento_pop = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
         servico_sel_pop = st.selectbox("Ação / Serviço:", opcoes_gerenciamento_pop, key="top_select_servico")
-
         nome_p_pop = "" if servico_sel_pop == "➕ Cadastrar Novo Serviço" else servico_sel_pop
         preco_p_pop = 0.0 if servico_sel_pop == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel_pop])
-
         novo_servico_pop = st.text_input("Nome do Serviço:", value=nome_p_pop, key=f"top_nome_{servico_sel_pop}")
         novo_preco_pop = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p_pop, step=5.0, key=f"top_prc_{servico_sel_pop}")
-
         col_tp1, col_tp2 = st.columns(2)
         with col_tp1:
             if st.button("💾 Salvar", type="primary", use_container_width=True, key="top_save_btn"):
@@ -1147,178 +752,208 @@ with col_top_left:
                     salvar_ou_atualizar_servico(servico_sel_pop, novo_servico_pop.strip(), novo_preco_pop)
                     st.success("Serviço atualizado com sucesso!")
                     st.rerun()
-                else:
-                    st.error("Informe o nome do serviço.")
-
+                else: st.error("Informe o nome do serviço.")
         with col_tp2:
             if servico_sel_pop != "➕ Cadastrar Novo Serviço":
                 if st.button("🗑️ Excluir", use_container_width=True, key="top_del_btn"):
                     deletar_servico_banco(servico_sel_pop)
                     st.warning("Serviço excluído com sucesso!")
                     st.rerun()
-
         st.markdown("---")
-        st.markdown("#### 📦 Backup e Dados")
-        backup_dados_pop = gerar_backup_json_completo()
-        renderizar_botao_download_apk(
-            backup_dados_pop.encode('utf-8'),
-            f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json",
-            "application/json",
-            "📥 Baixar Backup JSON"
-        )
-
+        renderizar_botao_download_apk(gerar_backup_json_completo().encode('utf-8'), f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", "application/json", "📥 Baixar Backup JSON")
         st.markdown("---")
         if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary", key="top_logout_btn"):
             st.session_state.clear()
             st.rerun()
 
-# --- CABEÇALHO DO PAINEL ---
-st.markdown(f"""
-<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;">
-    <div>
-        <h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2>
-        <p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
-# --- NAVEGAÇÃO POR TABS ---
-tab1, tab0, tab_agend, tab2 = st.tabs(["📊 Dashboard Vivo", "🚀 Lançamentos Rápidos", "📅 Agendamentos", "📜 Histórico & Relatórios"])
+# Tabs
+tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD VIVO
+# TAB 1: RELATÓRIOS (NOVO DASHBOARD - BASEADO NA IMAGEM)
 # ==============================================================================
-with tab1:
-    st.markdown("### 📊 Visão Geral de Desempenho")
+with tab_relatorios:
+    # 1. Cálculos de Desempenho (Mês Atual vs Mês Passado)
+    def agg_valores(df_m):
+        entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
+        pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
+        saidas = df_m[df_m['Tipo'] == 'Saída']['Valor'].sum()
+        faturamento = entradas + pendencias
+        lucro = entradas + saidas  # saidas é negativo
+        return faturamento, entradas, abs(saidas), lucro
+
+    fat_atual, ent_atual, sai_atual, lucro_atual = agg_valores(df_mes_atual)
+    fat_ant, ent_ant, sai_ant, lucro_ant = agg_valores(df_mes_passado)
+
+    def calc_perc(atual, anterior):
+        if anterior == 0: return 0 if atual == 0 else 100
+        return ((atual - anterior) / anterior) * 100
+
+    perc_fat = calc_perc(fat_atual, fat_ant)
+    perc_ent = calc_perc(ent_atual, ent_ant)
+    perc_sai = calc_perc(sai_atual, sai_ant)
+    perc_luc = calc_perc(lucro_atual, lucro_ant)
+
+    def render_perc(val, reverse_colors=False):
+        if val == 0: return f'<span class="kpi-perc perc-neutral">0% vs mês anterior</span>'
+        seta = "▲" if val > 0 else "▼"
+        cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
+        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
+
+    # 2. Renderizar 4 KPIs Superiores
+    col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+    with col_k1:
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_atual:,.2f}</div>{render_perc(perc_fat)}</div>', unsafe_allow_html=True)
+    with col_k2:
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
+    with col_k3:
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
+    with col_k4:
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
     
-    c_kpi1, c_kpi2, c_kpi3, c_kpi4 = st.columns(4)
-    
-    with c_kpi1:
-        st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">Faturamento Hoje</div>
-            <div class="kpi-value">R$ {ent_dia:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c_kpi2:
-        st.markdown(f"""
-        <div class="kpi-card kpi-card-neutral">
-            <div class="kpi-title">Líquido do Dia</div>
-            <div class="kpi-value">R$ {lucro_dia:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c_kpi3:
-        st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">Faturamento Semanal</div>
-            <div class="kpi-value">R$ {ent_sem:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c_kpi4:
-        st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">Faturamento Mensal</div>
-            <div class="kpi-value">R$ {ent_mes:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
     st.markdown("<br>", unsafe_allow_html=True)
 
-    col_chart1, col_chart2 = st.columns([1, 1])
-
-    with col_chart1:
-        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-        st.markdown("#### 🎯 Distribuição Financeira (Mês Atual)")
-        if ent_mes > 0 or abs(sai_mes) > 0:
-            labels = ['Receitas (Entradas)', 'Despesas (Saídas)']
-            valores = [ent_mes, abs(sai_mes)]
+    # 3. Gráfico Principal (Fluxo de Caixa - Área Sobreposta)
+    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
+    
+    if not df_mes_atual.empty:
+        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
+        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
+        
+        for col in ['Entrada', 'Saída', 'Pendência']:
+            if col not in df_group: df_group[col] = 0
             
-            fig_donut = go.Figure(data=[go.Pie(
-                labels=labels, 
-                values=valores, 
-                hole=.6,
-                marker=dict(colors=['#00E676', '#FF5252']),
-                textinfo='percent+label',
-                hoverinfo='value',
-                textfont=dict(color='#ffffff', size=14)
-            )])
-            fig_donut.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#ffffff', size=13),
-                showlegend=False,
-                margin=dict(l=10, r=10, t=20, b=20),
-                height=320
-            )
-            st.plotly_chart(fig_donut, use_container_width=True)
+        df_group['Saída_Abs'] = df_group['Saída'].abs()
+        df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
+
+        fig_area = go.Figure()
+        
+        # Lucro (Verde)
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#00E676', width=2), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)', marker=dict(size=6)))
+        # Entradas (Azul)
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#00a8ff', width=2), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)', marker=dict(size=6)))
+        # Saídas (Vermelho)
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#FF5252', width=2), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)', marker=dict(size=6)))
+        
+        fig_area.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
+            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
+            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
+            margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
+        )
+        st.plotly_chart(fig_area, use_container_width=True)
+    else:
+        st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 4. Seção Inferior (Resumo Financeiro & Categorias)
+    col_bottom1, col_bottom2 = st.columns(2)
+    
+    with col_bottom1:
+        st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
+        
+        if ent_atual > 0 or sai_atual > 0:
+            total_op = ent_atual + sai_atual
+            perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
+            perc_sai_donut = (sai_atual / total_op) * 100 if total_op > 0 else 0
+
+            col_donut_img, col_donut_leg = st.columns([1, 1.2])
+            with col_donut_img:
+                fig_donut = go.Figure(data=[go.Pie(
+                    labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual],
+                    hole=.65, marker=dict(colors=['#00a8ff', '#FF5252']),
+                    textinfo='none', hoverinfo='label+percent'
+                )])
+                fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
+                st.plotly_chart(fig_donut, use_container_width=True)
+            
+            with col_donut_leg:
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background-color: #00a8ff; border-radius: 50%;"></div>
+                        <span style="font-weight: bold; color: #ffffff;">Entradas</span>
+                    </div>
+                    <span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
+                </div>
+                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background-color: #FF5252; border-radius: 50%;"></div>
+                        <span style="font-weight: bold; color: #ffffff;">Saídas</span>
+                    </div>
+                    <span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
+                </div>
+                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
+                """, unsafe_allow_html=True)
         else:
-            st.info("Sem movimentações suficientes neste mês.")
+            st.info("Sem dados suficientes neste mês.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    with col_chart2:
-        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-        st.markdown("#### 📈 Fluxo Diário de Caixas")
-        if not df_fluxo_caixa.empty:
-            df_chart = df_fluxo_caixa.copy()
-            df_chart['DataStr'] = df_chart['Data'].dt.strftime('%d/%m')
-            df_group = df_chart.groupby(['DataStr', 'Tipo'])['Valor'].sum().reset_index()
+    with col_bottom2:
+        st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
+        
+        if sai_atual > 0:
+            df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
+            df_desp['Valor'] = df_desp['Valor'].abs()
+            top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
             
-            fig_bar = px.bar(
-                df_group, 
-                x='DataStr', 
-                y='Valor', 
-                color='Tipo',
-                color_discrete_map={'Entrada': '#00E676', 'Saída': '#FF5252', 'Pendência': '#FFD700'},
-                barmode='group'
-            )
-            fig_bar.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#ffffff'),
-                xaxis=dict(title='', showgrid=False, tickfont=dict(color='#ffffff')),
-                yaxis=dict(title='Valor (R$)', showgrid=True, gridcolor='rgba(255,255,255,0.1)', tickfont=dict(color='#ffffff')),
-                legend=dict(title='', orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color='#ffffff')),
-                margin=dict(l=10, r=10, t=20, b=20),
-                height=320
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            cores_barras = ['#00a8ff', '#00E676', '#FF5252', '#94a3b8']
+            
+            html_barras = ""
+            for i, (desc, valor) in enumerate(top_desp.items()):
+                perc_cat = (valor / sai_atual) * 100
+                cor = cores_barras[i % len(cores_barras)]
+                nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
+                
+                html_barras += f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
+                    <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
+                    <div style="width: 25%; background: #1a2332; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
+                        <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
+                    </div>
+                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
+                </div>
+                """
+            st.markdown(html_barras, unsafe_allow_html=True)
         else:
-            st.info("Registre movimentações para ativar o histórico gráfico.")
+            st.info("Nenhuma despesa registrada neste mês.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 0: LANÇAMENTOS RÁPIDOS
+# TAB 2: AÇÕES RÁPIDAS
 # ==============================================================================
-with tab0:
+with tab_acoes:
     st.markdown('### 🚀 Ações Rápidas do Caixa')
     col_a, col_b, col_c, col_d = st.columns(4)
-
     with col_a:
         if st.button("✂️ Novo Atendimento", key="btn_atend", use_container_width=True, type="primary"):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_atendimento' else 'new_atendimento'
             st.rerun()
-
     with col_b:
         if st.button("🛍️ Nova Despesa", key="btn_venda", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_venda' else 'new_venda'
             st.rerun()
-
     with col_c:
         if st.button("💰 Anotar Fiado", key="btn_receber", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_receber' else 'new_receber'
             st.rerun()
-
     with col_d:
         if st.button("💸 Baixar Fiado", key="btn_pagar", use_container_width=True):
             st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
             st.rerun()
 
     if st.session_state.formulario_ativo == 'new_atendimento':
-        st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
-        st.markdown("#### ✂️ Registrar Novo Atendimento")
+        st.markdown('<div class="ui-card-highlight"><h4>✂️ Registrar Novo Atendimento</h4>', unsafe_allow_html=True)
         if list(servicos.keys()):
             servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos.keys()), key="f_atend_serv")
             preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
@@ -1329,10 +964,8 @@ with tab0:
                 st.success("Atendimento registrado no caixa!")
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
     elif st.session_state.formulario_ativo == 'new_venda':
-        st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
-        st.markdown("#### 🛍️ Registrar Nova Despesa")
+        st.markdown('<div class="ui-card-highlight"><h4>🛍️ Registrar Nova Despesa</h4>', unsafe_allow_html=True)
         descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc", placeholder="Ex: Produto de limpeza, conta de luz...")
         valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val")
         data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt")
@@ -1343,10 +976,8 @@ with tab0:
                 st.success("Despesa lançada!")
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
     elif st.session_state.formulario_ativo == 'new_receber':
-        st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
-        st.markdown("#### 💰 Registrar Atendimento Fiado")
+        st.markdown('<div class="ui-card-highlight"><h4>💰 Registrar Atendimento Fiado</h4>', unsafe_allow_html=True)
         if list(servicos.keys()):
             nome_devedor = st.text_input("Nome do Cliente Devedor:", key="f_fiado_nome")
             servico_pendente = st.selectbox("Serviço Realizado:", list(servicos.keys()), key="f_fiado_serv")
@@ -1359,10 +990,8 @@ with tab0:
                     st.success("Fiado registrado!")
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
     elif st.session_state.formulario_ativo == 'new_pagar':
-        st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
-        st.markdown("#### 💸 Dar Baixa em Fiado")
+        st.markdown('<div class="ui-card-highlight"><h4>💸 Dar Baixa em Fiado</h4>', unsafe_allow_html=True)
         df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
         if not df_pendencias.empty:
             opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
@@ -1375,12 +1004,11 @@ with tab0:
                 st.session_state.formulario_ativo = 'none'
                 st.success("Pagamento registrado no caixa!")
                 st.rerun()
-        else:
-            st.info("Nenhum fiado pendente no momento.")
+        else: st.info("Nenhum fiado pendente no momento.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB AGENDAMENTOS (ATUALIZADA COM CAIXA PREMIUM E BOTÃO DE ATUALIZAR)
+# TAB 3: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
     st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
@@ -1390,51 +1018,33 @@ with tab_agend:
         st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real.</p>", unsafe_allow_html=True)
     with col_ag_btn:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True):
-            st.rerun()
+        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Botão para enviar link de agendamento via WhatsApp (Sem mostrar link em texto feio na tela)
-    st.markdown(f"""
-    <a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">
-        📲 Enviar Link de Agendamento por WhatsApp para Clientes
-    </a>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
         df_display = df_agendamentos.copy()
-        try:
-            df_display['Data'] = pd.to_datetime(df_display['Data']).dt.strftime('%d/%m/%Y')
-        except Exception:
-            pass
+        try: df_display['Data'] = pd.to_datetime(df_display['Data']).dt.strftime('%d/%m/%Y')
+        except Exception: pass
             
-        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-        st.markdown("#### 📋 Clientes Agendados")
+        st.markdown('<div class="ui-card"><h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
         st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-        st.markdown("#### 🛠️ Ações em Agendamento")
+        st.markdown('<div class="ui-card"><h4>🛠️ Ações em Agendamento</h4>', unsafe_allow_html=True)
         opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
         agend_selecionado = st.selectbox("Selecione o Cliente:", list(opcoes_agend.keys()))
-
         id_sel = opcoes_agend[agend_selecionado]
         row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
         num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
 
         if num_clean:
-            if not num_clean.startswith('55') and len(num_clean) <= 11:
-                num_clean = '55' + num_clean
+            if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
             msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
             wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-            
-            st.markdown(f"""
-            <a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:0.7rem;border-radius:12px;text-decoration:none;font-weight:700;margin-bottom:12px;">
-                💬 Chamar Cliente no WhatsApp
-            </a>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:0.7rem;border-radius:12px;text-decoration:none;font-weight:700;margin-bottom:12px;">💬 Chamar Cliente no WhatsApp</a>', unsafe_allow_html=True)
 
         if st.button("✅ Concluir / Excluir Agendamento", type="primary", use_container_width=True):
             deletar_agendamento(id_sel)
@@ -1442,17 +1052,12 @@ with tab_agend:
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.markdown("""
-        <div class="ui-card" style="text-align: center; padding: 40px;">
-            <h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4>
-            <p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="ui-card" style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 2: HISTÓRICO & RELATÓRIOS
+# TAB 4: HISTÓRICO & RELATÓRIOS
 # ==============================================================================
-with tab2:
+with tab_historico:
     st.subheader("📜 Histórico Financeiro Completo")
     if not df_fluxo_caixa.empty:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
@@ -1460,7 +1065,6 @@ with tab2:
 
         st.markdown('<div class="ui-card">', unsafe_allow_html=True)
         modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
-        
         if modo_filtro == "Por Mês Fechado":
             meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
             mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
@@ -1477,22 +1081,18 @@ with tab2:
         st.markdown('</div>', unsafe_allow_html=True)
 
         if not df_exibicao.empty:
-            tot_ent = df_exibicao[df_exibicao['Tipo'] == 'Entrada']['Valor'].sum()
-            tot_sai = abs(df_exibicao[df_exibicao['Tipo'] == 'Saída']['Valor'].sum())
-            tot_liq = tot_ent - tot_sai
+            df_vis = df_exibicao.sort_index(ascending=False).copy()
+            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
+            df_vis = df_vis.drop(columns=['Mês/Ano', 'id'], errors='ignore')
 
-            st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
-            st.markdown("#### 📊 Balanço do Período Selecionado")
-            m_h1, m_h2, m_h3 = st.columns(3)
-            with m_h1:
-                st.markdown(f'<div class="kpi-card"><div class="kpi-title">Receita Total</div><div class="kpi-value">R$ {tot_ent:.2f}</div></div>', unsafe_allow_html=True)
-            with m_h2:
-                st.markdown(f'<div class="kpi-card kpi-card-expense"><div class="kpi-title">Despesas Totais</div><div class="kpi-value">R$ {tot_sai:.2f}</div></div>', unsafe_allow_html=True)
-            with m_h3:
-                st.markdown(f'<div class="kpi-card kpi-card-neutral"><div class="kpi-title">Resultado Líquido</div><div class="kpi-value">R$ {tot_liq:.2f}</div></div>', unsafe_allow_html=True)
+            def colorir_linha(row):
+                cols = len(row)
+                if row['Tipo'] == 'Entrada': return ['background-color: #0d3320; color: #00E676; font-weight: 700;'] * cols
+                elif row['Tipo'] == 'Saída': return ['background-color: #3d1418; color: #FF5252; font-weight: 700;'] * cols
+                return ['background-color: #3d310d; color: #FFD700; font-weight: 700;'] * cols
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            
+            st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+
             col_down1, col_down2 = st.columns(2)
             with col_down1:
                 csv_bytes = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
@@ -1500,28 +1100,10 @@ with tab2:
             with col_down2:
                 pdf_bytes = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
                 renderizar_botao_download_apk(pdf_bytes, f"{nome_arq}.pdf", "application/pdf", "📕 Baixar Relatório PDF")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            df_vis = df_vis.drop(columns=['Mês/Ano', 'id'], errors='ignore')
-
-            def colorir_linha(row):
-                cols = len(row)
-                if row['Tipo'] == 'Entrada':
-                    return ['background-color: #0d3320; color: #00E676; font-weight: 700;'] * cols
-                elif row['Tipo'] == 'Saída':
-                    return ['background-color: #3d1418; color: #FF5252; font-weight: 700;'] * cols
-                return ['background-color: #3d310d; color: #FFD700; font-weight: 700;'] * cols
-
-            st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
 
             st.markdown('<div class="ui-card">', unsafe_allow_html=True)
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
-                opcoes_del_fluxo = {
-                    f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id']
-                    for _, row in df_exibicao.iterrows()
-                }
+                opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
                 if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
@@ -1529,60 +1111,11 @@ with tab2:
                     st.warning("Registro excluído!")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("Nenhum registro no período selecionado.")
-    else:
-        st.info("Histórico de caixa vazio.")
+        else: st.info("Nenhum registro no período selecionado.")
+    else: st.info("Histórico de caixa vazio.")
 
 # ==============================================================================
-# MENU LATERAL (CONFIGURAÇÕES DO SISTEMA & GERENCIAMENTO DE SERVIÇOS)
+# MENU LATERAL OCULTADO - FUNÇÕES MOVIDAS PARA O BOTÃO "CONFIG" ACIMA
 # ==============================================================================
 with st.sidebar:
-    st.title("⚙️ Configurações")
-    nome_s = st.session_state.usuario_logado.title() if st.session_state.usuario_logado else "Salão"
-    st.caption(f"Conectado como: **{nome_s}**")
-
-    st.markdown("---")
-    st.subheader("💈 Serviços & Atendimentos")
-    st.write("Crie novos serviços, altere nomes, edite preços ou remova serviços antigos.")
-
-    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Ação / Serviço:", opcoes_gerenciamento, key="sidebar_select_servico")
-    
-    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_p = 0.0 if servico_sel == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel])
-    
-    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key=f"side_nome_{servico_sel}")
-    novo_preco = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p, step=5.0, key=f"side_prc_{servico_sel}")
-
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        if st.button("💾 Salvar", type="primary", use_container_width=True, key="side_save_btn"):
-            if novo_servico.strip():
-                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
-                st.success("Serviço atualizado com sucesso!")
-                st.rerun()
-            else:
-                st.error("Informe o nome do serviço.")
-
-    with col_s2:
-        if servico_sel != "➕ Cadastrar Novo Serviço":
-            if st.button("🗑️ Excluir", use_container_width=True, key="side_del_btn"):
-                deletar_servico_banco(servico_sel)
-                st.warning("Serviço excluído com sucesso!")
-                st.rerun()
-
-    st.markdown("---")
-    st.subheader("📦 Backup e Dados")
-    backup_dados = gerar_backup_json_completo()
-    renderizar_botao_download_apk(
-        backup_dados.encode('utf-8'),
-        f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json",
-        "application/json",
-        "📥 Baixar Backup JSON"
-    )
-
-    st.markdown("---")
-    if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary"):
-        st.session_state.clear()
-        st.rerun()
+    st.info("As configurações do salão foram movidas para o botão '⚙️ Config' no topo da tela inicial.")
