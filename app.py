@@ -49,11 +49,10 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM (Com correções definitivas de contraste) ---
+# --- DESIGN & CSS ULTRA PREMIUM ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
     
-    # Alternância de Tema na tela de login
     if st.session_state.tema_escuro:
         bg_style = f'background-image: linear-gradient(180deg, rgba(15, 15, 15, 0.95) 0%, rgba(5, 5, 8, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
         app_bg = "#000000"
@@ -88,7 +87,7 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        /* CORREÇÃO CRUCIAL E DEFINITIVA PARA TODOS OS INPUTS, SELECTS E DATAS */
+        /* INPUTS E SELECTS */
         div[data-baseweb="select"] > div, 
         div[data-baseweb="input"] > div, 
         input, select, textarea, 
@@ -111,38 +110,18 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
         }}
 
-        /* MENUS SUSPENSOS E OPÇÕES DO SELECT (Remove fundo branco) */
-        ul[data-baseweb="menu"], 
-        div[data-baseweb="popover"], 
-        li[role="option"],
-        div[data-testid="stSelectboxVirtualDropdown"] {{
+        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES (ABA EM BRANCO) */
+        div[data-testid="stPopoverBody"] {{
             background-color: {card_bg} !important;
+            border: 2px solid #00a8ff !important;
+            border-radius: 16px !important;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.9) !important;
+            z-index: 999999 !important;
+        }}
+        div[data-testid="stPopoverBody"] * {{
             color: #ffffff !important;
-            border: 1px solid #222e3e !important;
         }}
-        li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
-            background-color: #1a2332 !important;
-            color: #00a8ff !important;
-        }}
-
-        /* CALENDÁRIO / DATEPICKER (Remove fundo branco e texto invisível) */
-        div[data-baseweb="calendar"], 
-        div[data-baseweb="calendar"] > div,
-        div[role="application"] {{
-            background-color: {input_bg} !important;
-            color: #ffffff !important;
-            border: 1px solid #222e3e !important;
-        }}
-        div[data-baseweb="calendar"] * {{
-            color: #ffffff !important;
-            background-color: transparent !important;
-        }}
-        div[data-baseweb="calendar"] [aria-selected="true"] {{
-            background-color: #00a8ff !important;
-            color: #ffffff !important;
-            border-radius: 50% !important;
-        }}
-
+        
         div[data-testid="stPopover"] button,
         [data-testid="stPopoverButton"] {{
             background-color: #1a2332 !important;
@@ -159,18 +138,31 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
         }}
 
-        /* --- CSS DASHBOARD RELATÓRIOS V2 --- */
-        .kpi-card-v2 {{
-            background-color: {card_bg};
-            border: 1px solid #1f2937;
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+        /* MENUS SUSPENSOS E CALENDÁRIO */
+        ul[data-baseweb="menu"], 
+        li[role="option"],
+        div[data-testid="stSelectboxVirtualDropdown"] {{
+            background-color: {card_bg} !important;
+            color: #ffffff !important;
+            border: 1px solid #222e3e !important;
         }}
+        li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
+            background-color: #1a2332 !important;
+            color: #00a8ff !important;
+        }}
+
+        div[data-baseweb="calendar"], 
+        div[data-baseweb="calendar"] > div,
+        div[role="application"] {{
+            background-color: {input_bg} !important;
+            color: #ffffff !important;
+            border: 1px solid #222e3e !important;
+        }}
+        div[data-baseweb="calendar"] * {{ color: #ffffff !important; background-color: transparent !important; }}
+        div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #00a8ff !important; color: #ffffff !important; border-radius: 50% !important; }}
+
+        /* --- DASHBOARD V2 --- */
+        .kpi-card-v2 {{ background-color: {card_bg}; border: 1px solid #1f2937; border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.4); height: 100%; display: flex; flex-direction: column; justify-content: space-between; }}
         .kpi-title-v2 {{ font-size: 0.95rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 5px; }}
         .kpi-value-v2 {{ font-size: 1.9rem; font-weight: 800; margin-bottom: 10px; }}
         .kpi-val-green {{ color: #00E676 !important; }}
@@ -181,41 +173,17 @@ def set_background_com_logo(image_path):
         .perc-down {{ color: #FF5252 !important; }}
         .perc-neutral {{ color: #94a3b8 !important; }}
 
-        .ui-card {{
-            background: {card_bg};
-            border: 1px solid #1f2937;
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        }}
-        .ui-card-highlight {{
-            background: linear-gradient(145deg, {card_bg} 0%, #172233 100%);
-            border: 1px solid #00a8ff;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);
-        }}
+        .ui-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
+        .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #172233 100%); border: 1px solid #00a8ff; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15); }}
 
-        /* --- CSS LOGIN --- */
+        /* --- CSS LOGIN LIMPO --- */
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
-        .login-tag {{ color: #00a8ff !important; font-size: 0.8rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 8px; display: block; text-align: center; }}
-        .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; line-height: 1.1; text-align: center; }}
-        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem; margin-bottom: 28px; line-height: 1.4; text-align: center; }}
-
-        .stButton > button {{
-            background-color: #1a2332 !important;
-            color: #ffffff !important;
-            border: 1px solid #2a364f !important;
-            border-radius: 12px !important;
-            font-weight: 700 !important;
-            padding: 12px 20px !important;
-            transition: all 0.2s ease !important;
-            width: 100% !important;
-        }}
+        .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
+        
+        .stButton > button {{ background-color: #1a2332 !important; color: #ffffff !important; border: 1px solid #2a364f !important; border-radius: 12px !important; font-weight: 700 !important; padding: 12px 20px !important; transition: all 0.2s ease !important; width: 100% !important; }}
         .stButton > button:hover {{ background-color: #243044 !important; border-color: #00a8ff !important; color: #00a8ff !important; }}
-        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; }}
-        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; }}
+        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
+        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
 
         .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
         .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
@@ -227,21 +195,16 @@ def set_background_com_logo(image_path):
 
 set_background_com_logo("logo.png")
 
-# Oculta menus padrão do Streamlit
 st.markdown("""
     <style>
         footer, [data-testid="stFooter"], .stFooter, 
-        #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {
-            display: none !important;
-        }
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
+        #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
         .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 96% !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO BANCO DE DADOS OTIMIZADA ---
+# --- CONEXÃO BANCO DE DADOS ---
 if "DB_URL" in st.secrets:
     DB_URL = st.secrets["DB_URL"]
 else:
@@ -261,28 +224,16 @@ except Exception as e:
 @st.cache_resource
 def inicializar_banco():
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);
-        """))
-        try:
-            conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);"))
+        try: conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
         except Exception: pass
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT);
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);
-        """))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT);"))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
     return True
 
-try:
-    inicializar_banco()
+try: inicializar_banco()
 except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
@@ -305,8 +256,7 @@ def salvar_admin_hashes(password1, password2, url=""):
                 ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
             """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
         carregar_admin_hashes.clear()
-    except Exception as e:
-        st.error(f"Erro ao salvar configurações administrativas: {e}")
+    except Exception as e: st.error(f"Erro: {e}")
 
 def atualizar_url_sistema(url):
     try:
@@ -483,7 +433,6 @@ def renderizar_whatsapp_flutuante():
         </a>
     """, unsafe_allow_html=True)
 
-
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
@@ -527,12 +476,11 @@ if salao_url:
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 st.rerun()
-        except Exception as e: 
-            st.error(f"Erro ao registrar agendamento: {e}")
+        except Exception as e: st.error(f"Erro ao registrar agendamento: {e}")
     st.stop()
 
 # ==============================================================================
-# TELA DE AUTENTICAÇÃO E LOGIN (Limpa, centralizada e com Botão Escuro)
+# TELA DE AUTENTICAÇÃO E LOGIN (Minimalista)
 # ==============================================================================
 if not st.session_state.autenticado:
     admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
@@ -552,26 +500,29 @@ if not st.session_state.autenticado:
         st.stop()
 
     if st.session_state.recuperando_senha:
-        st.markdown('<div class="login-card"><span class="login-tag">RECUPERAÇÃO</span><h1 class="login-title">Redefinir Senha</h1><p class="login-subtitle">Confirme seus dados para cadastrar uma nova senha.</p>', unsafe_allow_html=True)
-        with st.form("form_recuperacao"):
-            user_recup = st.text_input("Usuário:").strip().lower()
-            email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
-            nova_senha_recup = st.text_input("Nova Senha:", type="password")
-            conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
-            if st.form_submit_button("Atualizar Senha", type="primary", use_container_width=True):
-                if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
-                    if nova_senha_recup == conf_senha_recup and nova_senha_recup:
-                        usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
-                        salvar_usuarios(usuarios_cadastrados)
-                        st.success("✅ Senha alterada com sucesso!")
-                        st.session_state.recuperando_senha = False
-                        st.rerun()
-                    else: st.error("As senhas não conferem.")
-                else: st.error("Usuário ou e-mail incorretos.")
-        if st.button("Voltar ao Login", use_container_width=True):
-            st.session_state.recuperando_senha = False
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<br><br>', unsafe_allow_html=True)
+        _, col_rec_centro, _ = st.columns([1, 2, 1])
+        with col_rec_centro:
+            st.markdown('<div class="login-card"><h1 class="login-title">Redefinir Senha</h1>', unsafe_allow_html=True)
+            with st.form("form_recuperacao"):
+                user_recup = st.text_input("Usuário:").strip().lower()
+                email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
+                nova_senha_recup = st.text_input("Nova Senha:", type="password")
+                conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
+                if st.form_submit_button("Atualizar Senha", type="primary", use_container_width=True):
+                    if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
+                        if nova_senha_recup == conf_senha_recup and nova_senha_recup:
+                            usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
+                            salvar_usuarios(usuarios_cadastrados)
+                            st.success("✅ Senha alterada com sucesso!")
+                            st.session_state.recuperando_senha = False
+                            st.rerun()
+                        else: st.error("As senhas não conferem.")
+                    else: st.error("Usuário ou e-mail incorretos.")
+            if st.button("Voltar ao Login", use_container_width=True):
+                st.session_state.recuperando_senha = False
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
     # --- BOTÃO MODO ESCURO 🌑 ---
@@ -583,32 +534,33 @@ if not st.session_state.autenticado:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- LOGIN CENTRALIZADO (Sem os elementos circulados/features) ---
+    # --- LOGIN MINIMALISTA ---
     _, col_login_centro, _ = st.columns([1, 2, 1])
     
     with col_login_centro:
-        st.markdown('<div class="login-card"><span class="login-tag">ACESSO AO SISTEMA</span><h1 class="login-title">Entrar</h1><p class="login-subtitle">Informe seus dados para acessar o painel do seu salão.</p>', unsafe_allow_html=True)
-        tipo_acesso = st.radio("Selecione o Perfil:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
+        st.markdown('<div class="login-card"><h1 class="login-title">Fio & Caixa</h1>', unsafe_allow_html=True)
+        tipo_acesso = st.radio("Acesso como:", ["Salão", "Admin"], horizontal=True, label_visibility="collapsed")
+        
         with st.form("form_login_moderno"):
-            usuario_input = st.text_input("Usuário / Login", placeholder="Digite seu usuário").strip().lower()
-            senha_input = st.text_input("Senha", type="password", placeholder="Digite sua senha")
-            senha2_input = st.text_input("Senha Secundária Admin", type="password", placeholder="Chave de segurança admin") if tipo_acesso == "Administrador Mestre" else ""
+            usuario_input = st.text_input("Usuário / Login").strip().lower()
+            senha_input = st.text_input("Senha", type="password")
+            senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin" else ""
             st.markdown("<br>", unsafe_allow_html=True)
-            submit_login = st.form_submit_button("Entrar", type="primary", use_container_width=True)
+            submit_login = st.form_submit_button("Entrar no Sistema", type="primary", use_container_width=True)
             if submit_login:
-                if tipo_acesso == "Administrador Mestre":
+                if tipo_acesso == "Admin":
                     if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
                         st.rerun()
-                    else: st.error("Credenciais de administrador mestre inválidas.")
+                    else: st.error("Credenciais inválidas.")
                 else:
                     if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                         dados_user = usuarios_cadastrados[usuario_input]
                         data_venc = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
                         if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
-                            st.error("❌ Acesso bloqueado. Licença expirada ou suspensa.")
+                            st.error("❌ Acesso bloqueado. Licença expirada.")
                             st.stop()
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = usuario_input
@@ -616,18 +568,17 @@ if not st.session_state.autenticado:
                         st.rerun()
                     else: st.error("Usuário ou senha incorretos.")
         
-        st.markdown("<hr style='border-color: #1f2937; margin: 20px 0;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
         
-        col_rec_1, col_rec_2 = st.columns(2)
-        with col_rec_1:
-            st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem; margin-bottom:5px;'>Problemas para acessar?</p>", unsafe_allow_html=True)
+        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
+        col_esqueci, col_whats = st.columns(2)
+        with col_esqueci:
             if st.button("Esqueci minha senha", use_container_width=True):
                 st.session_state.recuperando_senha = True
                 st.rerun()
-        with col_rec_2:
-            st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem; margin-bottom:5px;'>Deseja adquirir o sistema?</p>", unsafe_allow_html=True)
-            wa_login_msg = urllib.parse.quote("Olá! Gostaria de saber mais sobre a assinatura do Fio&Caixa.")
-            st.markdown(f'<a href="https://api.whatsapp.com/send?phone=5537991598179&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Falar no WhatsApp</a>', unsafe_allow_html=True)
+        with col_whats:
+            wa_login_msg = urllib.parse.quote("Olá! Gostaria de falar sobre o sistema Fio&Caixa.")
+            st.markdown(f'<a href="https://api.whatsapp.com/send?phone=5537991598179&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -698,7 +649,7 @@ df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 _, _, url_sistema_salva = carregar_admin_hashes()
 
-# Processamento de Dados (Geral e Dashboard Novo)
+# Processamento de Dados
 hoje = pd.Timestamp(datetime.now(TZ).date())
 mes_atual = hoje.month
 ano_atual = hoje.year
@@ -719,11 +670,11 @@ link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
-# Botão Popover (Configuração Rápida)
+# Botão Popover (Configuração Rápida - AGORA CORRIGIDO E VISÍVEL)
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
-    with st.popover("⚙️ Config", use_container_width=False):
-        st.subheader("⚙️ Configurações do Salão")
+    with st.popover("⚙️ Configurações", use_container_width=False):
+        st.subheader("⚙️ Configurar Salão")
         st.markdown("---")
         opcoes_gerenciamento_pop = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
         servico_sel_pop = st.selectbox("Ação / Serviço:", opcoes_gerenciamento_pop, key="top_select_servico")
@@ -731,6 +682,7 @@ with col_top_left:
         preco_p_pop = 0.0 if servico_sel_pop == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel_pop])
         novo_servico_pop = st.text_input("Nome do Serviço:", value=nome_p_pop, key=f"top_nome_{servico_sel_pop}")
         novo_preco_pop = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p_pop, step=5.0, key=f"top_prc_{servico_sel_pop}")
+        
         col_tp1, col_tp2 = st.columns(2)
         with col_tp1:
             if st.button("💾 Salvar", type="primary", use_container_width=True, key="top_save_btn"):
@@ -745,6 +697,7 @@ with col_top_left:
                     deletar_servico_banco(servico_sel_pop)
                     st.warning("Serviço excluído com sucesso!")
                     st.rerun()
+                    
         st.markdown("---")
         renderizar_botao_download_apk(gerar_backup_json_completo().encode('utf-8'), f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", "application/json", "📥 Baixar Backup JSON")
         st.markdown("---")
@@ -788,24 +741,18 @@ with tab_relatorios:
         return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
 
     col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-    with col_k1:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_atual:,.2f}</div>{render_perc(perc_fat)}</div>', unsafe_allow_html=True)
-    with col_k2:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
-    with col_k3:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
-    with col_k4:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
+    with col_k1: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_atual:,.2f}</div>{render_perc(perc_fat)}</div>', unsafe_allow_html=True)
+    with col_k2: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
+    with col_k3: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
+    with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
+    st.markdown('<div class="ui-card"><h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
     
     if not df_mes_atual.empty:
         df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
         df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
-        
         for col in ['Entrada', 'Saída', 'Pendência']:
             if col not in df_group: df_group[col] = 0
             
@@ -825,14 +772,12 @@ with tab_relatorios:
             margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
         )
         st.plotly_chart(fig_area, use_container_width=True)
-    else:
-        st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
+    else: st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
     st.markdown('</div>', unsafe_allow_html=True)
 
     col_bottom1, col_bottom2 = st.columns(2)
     with col_bottom1:
-        st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
-        st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
+        st.markdown('<div class="ui-card" style="height: 100%;"><h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
         if ent_atual > 0 or sai_atual > 0:
             total_op = ent_atual + sai_atual
             perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
@@ -840,11 +785,7 @@ with tab_relatorios:
 
             col_donut_img, col_donut_leg = st.columns([1, 1.2])
             with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(
-                    labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual],
-                    hole=.65, marker=dict(colors=['#00a8ff', '#FF5252']),
-                    textinfo='none', hoverinfo='label+percent'
-                )])
+                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#00a8ff', '#FF5252']), textinfo='none', hoverinfo='label+percent')])
                 fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
                 st.plotly_chart(fig_donut, use_container_width=True)
             with col_donut_leg:
@@ -852,28 +793,22 @@ with tab_relatorios:
                 st.markdown(f"""
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #00a8ff; border-radius: 50%;"></div>
-                        <span style="font-weight: bold; color: #ffffff;">Entradas</span>
-                    </div>
-                    <span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
+                        <div style="width: 12px; height: 12px; background-color: #00a8ff; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
+                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
                 </div>
                 <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #FF5252; border-radius: 50%;"></div>
-                        <span style="font-weight: bold; color: #ffffff;">Saídas</span>
-                    </div>
-                    <span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
+                        <div style="width: 12px; height: 12px; background-color: #FF5252; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
+                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
                 </div>
                 <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
                 """, unsafe_allow_html=True)
-        else:
-            st.info("Sem dados suficientes neste mês.")
+        else: st.info("Sem dados suficientes neste mês.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_bottom2:
-        st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
-        st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
+        st.markdown('<div class="ui-card" style="height: 100%;"><h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
         if sai_atual > 0:
             df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
             df_desp['Valor'] = df_desp['Valor'].abs()
@@ -895,8 +830,7 @@ with tab_relatorios:
                 </div>
                 """
             st.markdown(html_barras, unsafe_allow_html=True)
-        else:
-            st.info("Nenhuma despesa registrada neste mês.")
+        else: st.info("Nenhuma despesa registrada neste mês.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
@@ -1083,9 +1017,3 @@ with tab_historico:
             st.markdown('</div>', unsafe_allow_html=True)
         else: st.info("Nenhum registro no período selecionado.")
     else: st.info("Histórico de caixa vazio.")
-
-# ==============================================================================
-# MENU LATERAL OCULTADO - FUNÇÕES MOVIDAS PARA O BOTÃO "CONFIG" ACIMA
-# ==============================================================================
-with st.sidebar:
-    st.info("As configurações do salão foram movidas para o botão '⚙️ Config' no topo da tela inicial.")
