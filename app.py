@@ -33,6 +33,14 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
+# ESTADOS DE SESSÃO INICIAIS
+if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
+if 'autenticado' not in st.session_state: st.session_state.autenticado = False
+if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
+if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
+if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
+if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
+
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
 @st.cache_data
 def get_image_base64(image_path):
@@ -41,19 +49,28 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM (Com correções de contraste em select/options) ---
+# --- DESIGN & CSS ULTRA PREMIUM (Com correções definitivas de contraste) ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
-    if encoded_string:
-        bg_style = f'background-image: linear-gradient(180deg, rgba(20, 5, 8, 0.92) 0%, rgba(8, 11, 15, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
+    
+    # Alternância de Tema na tela de login
+    if st.session_state.tema_escuro:
+        bg_style = f'background-image: linear-gradient(180deg, rgba(15, 15, 15, 0.95) 0%, rgba(5, 5, 8, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
+        app_bg = "#000000"
+        card_bg = "#111823"
+        input_bg = "#0b1017"
     else:
-        bg_style = 'background: radial-gradient(circle at top, #2b080c 0%, #0d1117 60%, #080a0f 100%) !important;'
+        bg_style = 'background: radial-gradient(circle at top, #2b080c 0%, #171c24 60%, #0f141c 100%) !important;'
+        app_bg = "#0f141c"
+        card_bg = "#1e293b"
+        input_bg = "#0f172a"
 
     st.markdown(
         f"""
         <style>
         .stApp {{
             {bg_style}
+            background-color: {app_bg} !important;
             background-size: cover !important;
             background-position: center !important;
             background-attachment: fixed !important;
@@ -71,10 +88,16 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        input[type="text"], input[type="password"], input[type="number"], textarea, 
-        div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {{
-            background-color: #0b1017 !important;
+        /* CORREÇÃO CRUCIAL E DEFINITIVA PARA TODOS OS INPUTS, SELECTS E DATAS */
+        div[data-baseweb="select"] > div, 
+        div[data-baseweb="input"] > div, 
+        input, select, textarea, 
+        [data-testid="stTextInput"] input, 
+        [data-testid="stNumberInput"] input, 
+        [data-testid="stDateInput"] input {{
+            background-color: {input_bg} !important;
             color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
             border: 1.5px solid #222e3e !important;
             border-radius: 12px !important;
             padding: 12px 14px !important;
@@ -82,53 +105,34 @@ def set_background_com_logo(image_path):
             transition: all 0.2s ease-in-out !important;
         }}
         
-        /* CORREÇÃO CRUCIAL PARA SELECT E OPTIONS (Evita texto branco em fundo branco) */
-        select, option {{
-            background-color: #1a1a1a !important;
-            color: #ffffff !important;
-        }}
-        
-        input:focus, div[data-baseweb="input"] > div:focus-within {{
+        input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
             border-color: #00a8ff !important;
             box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
+            background-color: {input_bg} !important;
         }}
 
-        div[data-testid="stPopover"] button,
-        div[data-testid="stPopover"] button *,
-        [data-testid="stPopoverButton"],
-        [data-testid="stPopoverButton"] * {{
+        /* MENUS SUSPENSOS E OPÇÕES DO SELECT (Remove fundo branco) */
+        ul[data-baseweb="menu"], 
+        div[data-baseweb="popover"], 
+        li[role="option"],
+        div[data-testid="stSelectboxVirtualDropdown"] {{
+            background-color: {card_bg} !important;
             color: #ffffff !important;
-            font-weight: 800 !important;
-            font-size: 0.95rem !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-        }}
-
-        div[data-testid="stPopover"] button,
-        [data-testid="stPopoverButton"] {{
-            background-color: #1a2332 !important;
-            border: 1.5px solid #00a8ff !important;
-            border-radius: 12px !important;
-            padding: 8px 18px !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-            transition: all 0.2s ease-in-out !important;
-        }}
-
-        div[data-testid="stPopover"] button:hover,
-        [data-testid="stPopoverButton"]:hover {{
-            background-color: #243044 !important;
-            border-color: #00a8ff !important;
-            box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
-        }}
-
-        div[data-baseweb="popover"], div[data-baseweb="calendar"], div[role="dialog"] {{
-            background-color: #0b1017 !important;
             border: 1px solid #222e3e !important;
-            border-radius: 12px !important;
-            color: #ffffff !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+        }}
+        li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
+            background-color: #1a2332 !important;
+            color: #00a8ff !important;
         }}
 
+        /* CALENDÁRIO / DATEPICKER (Remove fundo branco e texto invisível) */
+        div[data-baseweb="calendar"], 
+        div[data-baseweb="calendar"] > div,
+        div[role="application"] {{
+            background-color: {input_bg} !important;
+            color: #ffffff !important;
+            border: 1px solid #222e3e !important;
+        }}
         div[data-baseweb="calendar"] * {{
             color: #ffffff !important;
             background-color: transparent !important;
@@ -139,22 +143,25 @@ def set_background_com_logo(image_path):
             border-radius: 50% !important;
         }}
 
-        div[data-baseweb="menu"], ul[data-baseweb="menu"], [data-baseweb="popover"] ul {{
-            background-color: #0b1017 !important;
-            border: 1px solid #222e3e !important;
-        }}
-        li[data-baseweb="option"], [data-baseweb="menu"] li {{
-            background-color: #0b1017 !important;
-            color: #ffffff !important;
-        }}
-        li[data-baseweb="option"]:hover, [data-baseweb="menu"] li:hover {{
+        div[data-testid="stPopover"] button,
+        [data-testid="stPopoverButton"] {{
             background-color: #1a2332 !important;
-            color: #00a8ff !important;
+            border: 1.5px solid #00a8ff !important;
+            border-radius: 12px !important;
+            padding: 8px 18px !important;
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        }}
+
+        div[data-testid="stPopover"] button:hover {{
+            background-color: #243044 !important;
+            box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
         }}
 
         /* --- CSS DASHBOARD RELATÓRIOS V2 --- */
         .kpi-card-v2 {{
-            background-color: #111823;
+            background-color: {card_bg};
             border: 1px solid #1f2937;
             border-radius: 14px;
             padding: 20px;
@@ -164,33 +171,18 @@ def set_background_com_logo(image_path):
             flex-direction: column;
             justify-content: space-between;
         }}
-        .kpi-title-v2 {{
-            font-size: 0.95rem;
-            color: #94a3b8 !important;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }}
-        .kpi-value-v2 {{
-            font-size: 1.9rem;
-            font-weight: 800;
-            margin-bottom: 10px;
-        }}
+        .kpi-title-v2 {{ font-size: 0.95rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 5px; }}
+        .kpi-value-v2 {{ font-size: 1.9rem; font-weight: 800; margin-bottom: 10px; }}
         .kpi-val-green {{ color: #00E676 !important; }}
         .kpi-val-red {{ color: #FF5252 !important; }}
         .kpi-val-blue {{ color: #00a8ff !important; }}
-        .kpi-perc {{
-            font-size: 0.85rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }}
+        .kpi-perc {{ font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 5px; }}
         .perc-up {{ color: #00E676 !important; }}
         .perc-down {{ color: #FF5252 !important; }}
         .perc-neutral {{ color: #94a3b8 !important; }}
 
         .ui-card {{
-            background: #111823;
+            background: {card_bg};
             border: 1px solid #1f2937;
             border-radius: 16px;
             padding: 24px;
@@ -198,33 +190,18 @@ def set_background_com_logo(image_path):
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }}
         .ui-card-highlight {{
-            background: linear-gradient(145deg, #111823 0%, #172233 100%);
+            background: linear-gradient(145deg, {card_bg} 0%, #172233 100%);
             border: 1px solid #00a8ff;
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 0 20px rgba(0, 168, 255, 0.15);
         }}
 
-        /* --- CSS LOGIN E FEATURES --- */
-        .features-wrapper {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
-        .feature-item {{
-            display: flex; align-items: center; background: linear-gradient(145deg, #111823 0%, #172233 100%);
-            border: 1px solid #1f2937; border-radius: 16px; padding: 16px 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); transition: transform 0.2s ease, border-color 0.2s ease;
-        }}
-        .feature-item:hover {{ transform: translateY(-2px); border-color: #00a8ff; }}
-        .icon-circle {{
-            font-size: 26px; background: #1a2332; border: 1.5px solid #00a8ff;
-            min-width: 55px; height: 55px; display: flex; align-items: center;
-            justify-content: center; border-radius: 50%; margin-right: 18px;
-            box-shadow: 0 0 15px rgba(0, 168, 255, 0.15);
-        }}
-        .feature-title {{ color: #ffffff !important; font-weight: 800 !important; font-size: 1.1rem !important; margin-bottom: 4px !important; }}
-        .feature-desc {{ color: #94a3b8 !important; font-size: 0.9rem !important; line-height: 1.3 !important; margin: 0 !important; }}
-        .login-card {{ background: #111823; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
-        .login-tag {{ color: #00a8ff !important; font-size: 0.8rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 8px; display: block; }}
-        .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; line-height: 1.1; }}
-        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem; margin-bottom: 28px; line-height: 1.4; }}
+        /* --- CSS LOGIN --- */
+        .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
+        .login-tag {{ color: #00a8ff !important; font-size: 0.8rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 8px; display: block; text-align: center; }}
+        .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; line-height: 1.1; text-align: center; }}
+        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem; margin-bottom: 28px; line-height: 1.4; text-align: center; }}
 
         .stButton > button {{
             background-color: #1a2332 !important;
@@ -241,7 +218,7 @@ def set_background_com_logo(image_path):
         .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; }}
 
         .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
-        .stTabs [data-baseweb="tab"] {{ background-color: #111823; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
+        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
         .stTabs [aria-selected="true"] {{ background-color: #1a2332 !important; color: #00a8ff !important; font-weight: bold; border-top: 3px solid #00a8ff !important; }}
         </style>
         """,
@@ -258,10 +235,7 @@ st.markdown("""
             display: none !important;
         }
         [data-testid="collapsedControl"] {
-            display: flex !important; visibility: visible !important; position: fixed !important;
-            top: 12px !important; right: 15px !important; z-index: 9999999 !important; 
-            background-color: #111823 !important; border: 1px solid #00a8ff !important;
-            border-radius: 50% !important; padding: 8px !important; width: 45px !important; height: 45px !important;
+            display: none !important;
         }
         .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 96% !important; }
     </style>
@@ -509,12 +483,6 @@ def renderizar_whatsapp_flutuante():
         </a>
     """, unsafe_allow_html=True)
 
-# ESTADOS DE SESSÃO
-if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
-if 'autenticado' not in st.session_state: st.session_state.autenticado = False
-if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
-if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
-if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
@@ -564,7 +532,7 @@ if salao_url:
     st.stop()
 
 # ==============================================================================
-# TELA DE AUTENTICAÇÃO E LOGIN
+# TELA DE AUTENTICAÇÃO E LOGIN (Limpa, centralizada e com Botão Escuro)
 # ==============================================================================
 if not st.session_state.autenticado:
     admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
@@ -606,16 +574,19 @@ if not st.session_state.autenticado:
         st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
+    # --- BOTÃO MODO ESCURO 🌑 ---
+    col_vazia, col_btn_tema = st.columns([8, 1])
+    with col_btn_tema:
+        if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
+            st.session_state.tema_escuro = not st.session_state.tema_escuro
+            st.rerun()
+
     st.markdown("<br>", unsafe_allow_html=True)
-    col_l1, col_l2, col_l3 = st.columns([1.3, 2.2, 0.7])
-    with col_l1:
-        st.markdown("""
-        <div class="features-wrapper">
-            <div class="feature-item"><div class="icon-circle">💲</div><div class="feature-content"><p class="feature-title">Controle Financeiro</p><p class="feature-desc">Entradas, saídas e lucro na palma da mão.</p></div></div>
-            <div class="feature-item"><div class="icon-circle">📅</div><div class="feature-content"><p class="feature-title">Agendamentos</p><p class="feature-desc">Organize horários, serviços e clientes.</p></div></div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_l2:
+    
+    # --- LOGIN CENTRALIZADO (Sem os elementos circulados/features) ---
+    _, col_login_centro, _ = st.columns([1, 2, 1])
+    
+    with col_login_centro:
         st.markdown('<div class="login-card"><span class="login-tag">ACESSO AO SISTEMA</span><h1 class="login-title">Entrar</h1><p class="login-subtitle">Informe seus dados para acessar o painel do seu salão.</p>', unsafe_allow_html=True)
         tipo_acesso = st.radio("Selecione o Perfil:", ["Usuário / Salão", "Administrador Mestre"], horizontal=True)
         with st.form("form_login_moderno"):
@@ -644,7 +615,9 @@ if not st.session_state.autenticado:
                         st.session_state.eh_admin = False
                         st.rerun()
                     else: st.error("Usuário ou senha incorretos.")
+        
         st.markdown("<hr style='border-color: #1f2937; margin: 20px 0;'>", unsafe_allow_html=True)
+        
         col_rec_1, col_rec_2 = st.columns(2)
         with col_rec_1:
             st.markdown("<p style='text-align: center; color: #64748b !important; font-size: 0.88rem; margin-bottom:5px;'>Problemas para acessar?</p>", unsafe_allow_html=True)
