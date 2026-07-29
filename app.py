@@ -722,6 +722,15 @@ with tab_relatorios:
         lucro = entradas + saidas
         return faturamento, entradas, abs(saidas), lucro
 
+    def agg_valores_dia(df_m, data_ref):
+        if df_m.empty:
+            return 0.0
+        df_dia = df_m[df_m['Data'].dt.date == data_ref]
+        entradas_dia = df_dia[df_dia['Tipo'] == 'Entrada']['Valor'].sum()
+        pendencias_dia = df_dia[df_dia['Tipo'] == 'Pendência']['Valor'].sum()
+        return entradas_dia + pendencias_dia
+
+    fat_dia_atual = agg_valores_dia(df_limpo, hoje.date())
     fat_atual, ent_atual, sai_atual, lucro_atual = agg_valores(df_mes_atual)
     fat_ant, ent_ant, sai_ant, lucro_ant = agg_valores(df_mes_passado)
 
@@ -729,7 +738,6 @@ with tab_relatorios:
         if anterior == 0: return 0 if atual == 0 else 100
         return ((atual - anterior) / anterior) * 100
 
-    perc_fat = calc_perc(fat_atual, fat_ant)
     perc_ent = calc_perc(ent_atual, ent_ant)
     perc_sai = calc_perc(sai_atual, sai_ant)
     perc_luc = calc_perc(lucro_atual, lucro_ant)
@@ -741,7 +749,7 @@ with tab_relatorios:
         return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
 
     col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-    with col_k1: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_atual:,.2f}</div>{render_perc(perc_fat)}</div>', unsafe_allow_html=True)
+    with col_k1: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_dia_atual:,.2f}</div></div>', unsafe_allow_html=True)
     with col_k2: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
     with col_k3: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
     with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
