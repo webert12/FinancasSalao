@@ -41,7 +41,7 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM ---
+# --- DESIGN & CSS ULTRA PREMIUM (Com correções de contraste em select/options) ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
     if encoded_string:
@@ -80,6 +80,12 @@ def set_background_com_logo(image_path):
             padding: 12px 14px !important;
             font-size: 1rem !important;
             transition: all 0.2s ease-in-out !important;
+        }}
+        
+        /* CORREÇÃO CRUCIAL PARA SELECT E OPTIONS (Evita texto branco em fundo branco) */
+        select, option {{
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
         }}
         
         input:focus, div[data-baseweb="input"] > div:focus-within {{
@@ -136,6 +142,10 @@ def set_background_com_logo(image_path):
         div[data-baseweb="menu"], ul[data-baseweb="menu"], [data-baseweb="popover"] ul {{
             background-color: #0b1017 !important;
             border: 1px solid #222e3e !important;
+        }}
+        li[data-baseweb="option"], [data-baseweb="menu"] li {{
+            background-color: #0b1017 !important;
+            color: #ffffff !important;
         }}
         li[data-baseweb="option"]:hover, [data-baseweb="menu"] li:hover {{
             background-color: #1a2332 !important;
@@ -538,16 +548,19 @@ if salao_url:
         enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", type="primary", use_container_width=True)
 
     if enviar_agendamento:
-        if not nome_cliente or not telefone_cliente: st.warning("⚠️ Por favor, informe seu nome e telefone.")
-        elif not horario_escolhido or not servico_escolhido: st.error("⚠️ Selecione um horário válido.")
-        else:
-            try:
+        try:
+            if not nome_cliente or not telefone_cliente: 
+                st.warning("⚠️ Por favor, informe seu nome e telefone.")
+            elif not horario_escolhido or not servico_escolhido: 
+                st.error("⚠️ Selecione um horário válido.")
+            else:
                 with engine.begin() as conn:
                     conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 st.rerun()
-            except Exception as e: st.error(f"Erro ao registrar agendamento: {e}")
+        except Exception as e: 
+            st.error(f"Erro ao registrar agendamento: {e}")
     st.stop()
 
 # ==============================================================================
@@ -772,16 +785,15 @@ st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-conte
 tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
-# TAB 1: RELATÓRIOS (NOVO DASHBOARD - BASEADO NA IMAGEM)
+# TAB 1: RELATÓRIOS
 # ==============================================================================
 with tab_relatorios:
-    # 1. Cálculos de Desempenho (Mês Atual vs Mês Passado)
     def agg_valores(df_m):
         entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
         pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
         saidas = df_m[df_m['Tipo'] == 'Saída']['Valor'].sum()
         faturamento = entradas + pendencias
-        lucro = entradas + saidas  # saidas é negativo
+        lucro = entradas + saidas
         return faturamento, entradas, abs(saidas), lucro
 
     fat_atual, ent_atual, sai_atual, lucro_atual = agg_valores(df_mes_atual)
@@ -802,7 +814,6 @@ with tab_relatorios:
         cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
         return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
 
-    # 2. Renderizar 4 KPIs Superiores
     col_k1, col_k2, col_k3, col_k4 = st.columns(4)
     with col_k1:
         st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_atual:,.2f}</div>{render_perc(perc_fat)}</div>', unsafe_allow_html=True)
@@ -815,7 +826,6 @@ with tab_relatorios:
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. Gráfico Principal (Fluxo de Caixa - Área Sobreposta)
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
     st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
     
@@ -830,12 +840,8 @@ with tab_relatorios:
         df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
 
         fig_area = go.Figure()
-        
-        # Lucro (Verde)
         fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#00E676', width=2), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)', marker=dict(size=6)))
-        # Entradas (Azul)
         fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#00a8ff', width=2), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)', marker=dict(size=6)))
-        # Saídas (Vermelho)
         fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#FF5252', width=2), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)', marker=dict(size=6)))
         
         fig_area.update_layout(
@@ -850,13 +856,10 @@ with tab_relatorios:
         st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 4. Seção Inferior (Resumo Financeiro & Categorias)
     col_bottom1, col_bottom2 = st.columns(2)
-    
     with col_bottom1:
         st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
         st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
-        
         if ent_atual > 0 or sai_atual > 0:
             total_op = ent_atual + sai_atual
             perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
@@ -871,7 +874,6 @@ with tab_relatorios:
                 )])
                 fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
                 st.plotly_chart(fig_donut, use_container_width=True)
-            
             with col_donut_leg:
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown(f"""
@@ -883,7 +885,6 @@ with tab_relatorios:
                     <span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
                 </div>
                 <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
-                
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <div style="width: 12px; height: 12px; background-color: #FF5252; border-radius: 50%;"></div>
@@ -900,20 +901,16 @@ with tab_relatorios:
     with col_bottom2:
         st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
         st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
-        
         if sai_atual > 0:
             df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
             df_desp['Valor'] = df_desp['Valor'].abs()
             top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            
             cores_barras = ['#00a8ff', '#00E676', '#FF5252', '#94a3b8']
-            
             html_barras = ""
             for i, (desc, valor) in enumerate(top_desp.items()):
                 perc_cat = (valor / sai_atual) * 100
                 cor = cores_barras[i % len(cores_barras)]
                 nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
-                
                 html_barras += f"""
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
                     <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
