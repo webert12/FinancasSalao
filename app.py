@@ -1030,7 +1030,9 @@ with tab_historico:
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
                 opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
-                if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=test_write := True):
+               test_write = True
+               if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
+
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
                     deletar_movimentacao_fluxo(id_apagar)
                     st.warning("Registro excluído!")
