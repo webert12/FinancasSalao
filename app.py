@@ -221,7 +221,7 @@ except Exception as e:
     st.error(f"Erro de conexão com o banco de dados: {e}")
     st.stop()
 
-# --- CORREÇÃO DO ERRO ReadOnlySqlTransaction ---
+# --- INICIALIZAÇÃO DO BANCO ---
 @st.cache_resource
 def inicializar_banco():
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
@@ -284,10 +284,17 @@ def salvar_usuarios(usuarios_dict):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
+            # CORREÇÃO: Tratamento seguro para impedir NoneType no strftime
+            venc_val = v["vencimento"]
+            if hasattr(venc_val, 'strftime'):
+                venc_str = venc_val.strftime('%Y-%m-%d')
+            else:
+                venc_str = str(venc_val) if venc_val else datetime.now(TZ).strftime('%Y-%m-%d')
+                
             conn.execute(text("""
                 INSERT INTO usuarios (id, senha, email, tipo, vencimento, status) VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
                 ON CONFLICT (id) DO UPDATE SET senha = EXCLUDED.senha, email = EXCLUDED.email, tipo = EXCLUDED.tipo, vencimento = EXCLUDED.vencimento, status = EXCLUDED.status
-            """), {"id": k, "senha": v["senha"], "email": v.get("email", ""), "tipo": v["tipo"], "vencimento": str(v["vencimento"]), "status": v["status"]})
+            """), {"id": k, "senha": v["senha"], "email": v.get("email", ""), "tipo": v["tipo"], "vencimento": venc_str, "status": v["status"]})
     carregar_usuarios.clear()
 
 @st.cache_data(ttl=300)
@@ -570,7 +577,11 @@ if not st.session_state.autenticado:
                 else:
                     if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
                         dados_user = usuarios_cadastrados[usuario_input]
-                        data_venc = datetime.strptime(dados_user["vencimento"], "%Y-%m-%d").date()
+                        try:
+                            data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
+                        except Exception:
+                            data_venc = datetime.now(TZ).date() + timedelta(days=30)
+                        
                         if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
                             st.error("❌ Acesso bloqueado. Licença expirada.")
                             st.stop()
@@ -627,11 +638,18 @@ if st.session_state.eh_admin:
                 e_email = st.text_input("E-mail:", value=dados.get("email", ""))
                 e_senha_nova = st.text_input("Alterar Senha (opcional):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
-                e_venc = st.date_input("Vencimento:", datetime.strptime(dados['vencimento'], "%Y-%m-%d"))
+                
+                try:
+                    data_venc_atual = datetime.strptime(str(dados['vencimento']), "%Y-%m-%d").date()
+                except Exception:
+                    data_venc_atual = datetime.now(TZ).date()
+                    
+                e_venc = st.date_input("Vencimento:", data_venc_atual)
                 e_status = st.selectbox("Status:", ["Ativo", "Suspenso"], index=0 if dados['status'] == "Ativo" else 1)
                 if st.button("Salvar Modificações"):
                     senha_f = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
-                    usuarios_cadastrados[salao_sel] = {"senha": senha_f, "email": e_email.strip().lower(), "tipo": e_tipo, "vencimento": e_venc.strftime("%Y-%m-%d"), "status": e_status}
+                    venc_str_save = e_venc.strftime("%Y-%m-%d") if hasattr(e_venc, 'strftime') else str(e_venc)
+                    usuarios_cadastrados[salao_sel] = {"senha": senha_f, "email": e_email.strip().lower(), "tipo": e_tipo, "vencimento": venc_str_save, "status": e_status}
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Conta atualizada!")
                     st.rerun()
