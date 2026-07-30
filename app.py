@@ -176,12 +176,25 @@ def set_background_com_logo(image_path):
         .ui-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
         .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #172233 100%); border: 1px solid #00a8ff; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15); }}
 
-        /* --- CSS LOGIN LIMPO --- */
+        /* --- CSS LOGIN & BOTÕES --- */
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
         .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
         
-        .stButton > button {{ background-color: #1a2332 !important; color: #ffffff !important; border: 1px solid #2a364f !important; border-radius: 12px !important; font-weight: 700 !important; padding: 12px 20px !important; transition: all 0.2s ease !important; width: 100% !important; }}
-        .stButton > button:hover {{ background-color: #243044 !important; border-color: #00a8ff !important; color: #00a8ff !important; }}
+        .stButton > button, [data-testid="stDownloadButton"] > button {{ 
+            background-color: #1a2332 !important; 
+            color: #ffffff !important; 
+            border: 1px solid #2a364f !important; 
+            border-radius: 12px !important; 
+            font-weight: 700 !important; 
+            padding: 12px 20px !important; 
+            transition: all 0.2s ease !important; 
+            width: 100% !important; 
+        }}
+        .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{ 
+            background-color: #243044 !important; 
+            border-color: #00a8ff !important; 
+            color: #00a8ff !important; 
+        }}
         .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
         .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
 
@@ -421,21 +434,14 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
-    b64_data = base64.b64encode(dados_bytes).decode()
-    html_code = f"""
-    <div style="width: 100%; margin: 5px 0;">
-        <a href="data:{mime_type};base64,{b64_data}" download="{nome_arquivo}" 
-           style="display: flex; align-items: center; justify-content: center; width: 100%; 
-                  background-color: {cor_bg}; color: #ffffff; border: 1px solid #00a8ff; 
-                  border-radius: 12px; font-weight: 700; padding: 12px 20px; text-decoration: none; 
-                  box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.2s ease;"
-           onmouseover="this.style.backgroundColor='{cor_hover}'; this.style.borderColor='#00a8ff';"
-           onmouseout="this.style.backgroundColor='{cor_bg}'; this.style.borderColor='#00a8ff';">
-            {label_botao}
-        </a>
-    </div>
-    """
-    components.html(html_code, height=65)
+    # Utilizando o componente nativo do Streamlit para garantir o download
+    st.download_button(
+        label=label_botao,
+        data=dados_bytes,
+        file_name=nome_arquivo,
+        mime=mime_type,
+        use_container_width=True
+    )
 
 def renderizar_whatsapp_flutuante():
     wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
