@@ -110,7 +110,7 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
         }}
 
-        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES (ABA EM BRANCO) */
+        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES */
         div[data-testid="stPopoverBody"] {{
             background-color: {card_bg} !important;
             border: 2px solid #00a8ff !important;
@@ -284,7 +284,6 @@ def salvar_usuarios(usuarios_dict):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
-            # CORREÇÃO: Tratamento seguro para impedir NoneType no strftime
             venc_val = v["vencimento"]
             if hasattr(venc_val, 'strftime'):
                 venc_str = venc_val.strftime('%Y-%m-%d')
