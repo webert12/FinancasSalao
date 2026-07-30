@@ -459,6 +459,22 @@ def renderizar_whatsapp_flutuante():
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
+# SOLUÇÃO 2: Captura dinâmica da URL Pai quando embutido em IFRAME/Dispositivos Móveis
+components.html("""
+    <script>
+    (function() {
+        var params = new URLSearchParams(window.parent.location.search);
+        var salao = params.get('salao');
+        if (salao) {
+            var currentParams = new URLSearchParams(window.location.search);
+            if (currentParams.get('salao') !== salao) {
+                window.parent.postMessage({type: 'streamlit:setQueryParams', queryParams: {salao: salao}}, '*');
+            }
+        }
+    })();
+    </script>
+""", height=0)
+
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
