@@ -221,9 +221,11 @@ except Exception as e:
     st.error(f"Erro de conexão com o banco de dados: {e}")
     st.stop()
 
+# --- CORREÇÃO DO ERRO ReadOnlySqlTransaction ---
 @st.cache_resource
 def inicializar_banco():
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);"))
         conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT);"))
@@ -250,7 +252,8 @@ def carregar_admin_hashes():
 
 def salvar_admin_hashes(password1, password2, url=""):
     try:
-        with engine.begin() as conn:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
             conn.execute(text("""
                 INSERT INTO admin_config (id, hash1, hash2, url_sistema) VALUES (1, :h1, :h2, :url)
                 ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
@@ -260,7 +263,8 @@ def salvar_admin_hashes(password1, password2, url=""):
 
 def atualizar_url_sistema(url):
     try:
-        with engine.begin() as conn:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
             conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
         carregar_admin_hashes.clear()
     except Exception: pass
@@ -277,7 +281,8 @@ def carregar_usuarios():
 
 def salvar_usuarios(usuarios_dict):
     if not usuarios_dict: return
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
             conn.execute(text("""
                 INSERT INTO usuarios (id, senha, email, tipo, vencimento, status) VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
@@ -302,7 +307,8 @@ def carregar_servicos():
 
 def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
             conn.execute(text("UPDATE servicos SET nome = :novo, preco = :preco WHERE usuario_id = :user AND nome = :antigo"), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
         else:
@@ -311,7 +317,8 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
 
 def deletar_servico_banco(nome):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
     carregar_servicos_por_salao.clear()
 
@@ -335,20 +342,23 @@ def carregar_fluxo():
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
     carregar_fluxo_por_usuario.clear()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("UPDATE fluxo_caixa SET tipo = 'Entrada', data = :data, descricao = :desc WHERE id = :id AND usuario_id = :user"), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
 def deletar_movimentacao_fluxo(id_registro):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
@@ -367,7 +377,8 @@ def carregar_agendamentos():
 
 def deletar_agendamento(id_agendamento):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.begin() as conn:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
 def gerar_backup_json_completo():
@@ -471,7 +482,8 @@ if salao_url:
             elif not horario_escolhido or not servico_escolhido: 
                 st.error("⚠️ Selecione um horário válido.")
             else:
-                with engine.begin() as conn:
+                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                    conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
                     conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
@@ -625,7 +637,8 @@ if st.session_state.eh_admin:
                     st.rerun()
             if st.checkbox(f"Confirmar exclusão de {salao_sel}"):
                 if st.button("EXCLUIR PERMANENTEMENTE", type="primary"):
-                    with engine.begin() as conn:
+                    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
                     carregar_usuarios.clear()
                     st.rerun()
