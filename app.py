@@ -683,7 +683,7 @@ link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
-# Botão Popover (Configuração Rápida - AGORA CORRIGIDO E VISÍVEL)
+# Botão Popover (Configuração Rápida)
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
     with st.popover("⚙️ Configurações", use_container_width=False):
@@ -1030,9 +1030,7 @@ with tab_historico:
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
                 opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
-               test_write = True
-               if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
-
+                if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
                     deletar_movimentacao_fluxo(id_apagar)
                     st.warning("Registro excluído!")
