@@ -439,7 +439,7 @@ def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_bo
     data_url = f"data:{mime_type};base64,{b64}"
     
     html_btn = f"""
-    <a href="{data_url}" download="{nome_arquivo}" target="_blank" style="
+    <a href="{data_url}" download="{nome_arquivo}" style="
         display: flex;
         align-items: center;
         justify-content: center;
