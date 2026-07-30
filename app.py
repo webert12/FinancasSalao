@@ -436,32 +436,74 @@ def gerar_pdf_contabilidade(df, mes_ref):
 # --- SOLUÇÃO DEFINITIVA DE DOWNLOAD PARA WEBVIEW / APK ---
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
     b64 = base64.b64encode(dados_bytes).decode('utf-8')
-    data_url = f"data:{mime_type};base64,{b64}"
+    # Gera um ID único para cada botão evitar conflitos de JavaScript
+    btn_id = f"btn_dl_{hashlib.md5((nome_arquivo + label_botao).encode()).hexdigest()[:8]}"
     
     html_btn = f"""
-    <a href="{data_url}" download="{nome_arquivo}" style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        background-color: {cor_bg};
-        color: #ffffff !important;
-        border: 1px solid #2a364f;
-        border-radius: 12px;
-        font-weight: 700;
-        padding: 12px 20px;
-        text-decoration: none !important;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        font-size: 1rem;
-        box-sizing: border-box;
-        transition: all 0.2s ease;
-        margin-bottom: 10px;
-        text-align: center;
-        cursor: pointer;
-    " onmouseover="this.style.backgroundColor='{cor_hover}'; this.style.borderColor='#00a8ff'; this.style.color='#00a8ff';" 
-       onmouseout="this.style.backgroundColor='{cor_bg}'; this.style.borderColor='#2a364f'; this.style.color='#ffffff';">
-        {label_botao}
-    </a>
+    <div style="margin-bottom: 10px;">
+        <button id="{btn_id}" onclick="executarDownload_{btn_id}()" style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            background-color: {cor_bg};
+            color: #ffffff !important;
+            border: 1px solid #2a364f;
+            border-radius: 12px;
+            font-weight: 700;
+            padding: 12px 20px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            text-align: center;
+            cursor: pointer;
+        " onmouseover="this.style.backgroundColor='{cor_hover}'; this.style.borderColor='#00a8ff'; this.style.color='#00a8ff';" 
+           onmouseout="this.style.backgroundColor='{cor_bg}'; this.style.borderColor='#2a364f'; this.style.color='#ffffff';">
+            {label_botao}
+        </button>
+    </div>
+
+    <script>
+    function executarDownload_{btn_id}() {{
+        try {{
+            var b64Data = "{b64}";
+            var fileName = "{nome_arquivo}";
+            var mimeType = "{mime_type}";
+
+            // 1. Converte Base64 para Array Binário (Blob)
+            var byteCharacters = atob(b64Data);
+            var byteNumbers = new Array(byteCharacters.length);
+            for (var i = 0; i < byteCharacters.length; i++) {{
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }}
+            var byteArray = new Uint8Array(byteNumbers);
+            var blob = new Blob([byteArray], {{type: mimeType}});
+            
+            // 2. Cria URL de objeto binário na memória do navegador
+            var blobUrl = URL.createObjectURL(blob);
+
+            // 3. Cria elemento oculto e simula o clique de download
+            var a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Limpa o objeto da memória após disparo
+            setTimeout(function() {{
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }}, 2000);
+
+        }} catch (err) {{
+            // Fallback para abrir em nova aba caso o APK restrinja criação de Blob
+            var dataUrl = "data:" + mimeType + ";base64," + b64Data;
+            window.open(dataUrl, '_blank');
+        }}
+    }}
+    </script>
     """
     st.markdown(html_btn, unsafe_allow_html=True)
 
