@@ -110,7 +110,7 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
         }}
 
-        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES */
+        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES (ABA EM BRANCO) */
         div[data-testid="stPopoverBody"] {{
             background-color: {card_bg} !important;
             border: 2px solid #00a8ff !important;
@@ -176,25 +176,12 @@ def set_background_com_logo(image_path):
         .ui-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
         .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #172233 100%); border: 1px solid #00a8ff; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15); }}
 
-        /* --- CSS LOGIN & BOTÕES --- */
+        /* --- CSS LOGIN LIMPO --- */
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
         .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
         
-        .stButton > button, [data-testid="stDownloadButton"] > button {{ 
-            background-color: #1a2332 !important; 
-            color: #ffffff !important; 
-            border: 1px solid #2a364f !important; 
-            border-radius: 12px !important; 
-            font-weight: 700 !important; 
-            padding: 12px 20px !important; 
-            transition: all 0.2s ease !important; 
-            width: 100% !important; 
-        }}
-        .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{ 
-            background-color: #243044 !important; 
-            border-color: #00a8ff !important; 
-            color: #00a8ff !important; 
-        }}
+        .stButton > button {{ background-color: #1a2332 !important; color: #ffffff !important; border: 1px solid #2a364f !important; border-radius: 12px !important; font-weight: 700 !important; padding: 12px 20px !important; transition: all 0.2s ease !important; width: 100% !important; }}
+        .stButton > button:hover {{ background-color: #243044 !important; border-color: #00a8ff !important; color: #00a8ff !important; }}
         .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
         .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
 
@@ -297,6 +284,7 @@ def salvar_usuarios(usuarios_dict):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
+            # CORREÇÃO: Tratamento seguro para impedir NoneType no strftime
             venc_val = v["vencimento"]
             if hasattr(venc_val, 'strftime'):
                 venc_str = venc_val.strftime('%Y-%m-%d')
@@ -434,13 +422,21 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
-    st.download_button(
-        label=label_botao,
-        data=dados_bytes,
-        file_name=nome_arquivo,
-        mime=mime_type,
-        use_container_width=True
-    )
+    b64_data = base64.b64encode(dados_bytes).decode()
+    html_code = f"""
+    <div style="width: 100%; margin: 5px 0;">
+        <a href="data:{mime_type};base64,{b64_data}" download="{nome_arquivo}" 
+           style="display: flex; align-items: center; justify-content: center; width: 100%; 
+                  background-color: {cor_bg}; color: #ffffff; border: 1px solid #00a8ff; 
+                  border-radius: 12px; font-weight: 700; padding: 12px 20px; text-decoration: none; 
+                  box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.2s ease;"
+           onmouseover="this.style.backgroundColor='{cor_hover}'; this.style.borderColor='#00a8ff';"
+           onmouseout="this.style.backgroundColor='{cor_bg}'; this.style.borderColor='#00a8ff';">
+            {label_botao}
+        </a>
+    </div>
+    """
+    components.html(html_code, height=65)
 
 def renderizar_whatsapp_flutuante():
     wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
@@ -458,21 +454,6 @@ def renderizar_whatsapp_flutuante():
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
-components.html("""
-    <script>
-    (function() {
-        var params = new URLSearchParams(window.parent.location.search);
-        var salao = params.get('salao');
-        if (salao) {
-            var currentParams = new URLSearchParams(window.location.search);
-            if (currentParams.get('salao') !== salao) {
-                window.parent.postMessage({type: 'streamlit:setQueryParams', queryParams: {salao: salao}}, '*');
-            }
-        }
-    })();
-    </script>
-""", height=0)
-
 query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
@@ -480,7 +461,7 @@ if salao_url:
     st.markdown('<style>[data-testid="stSidebar"] {display: none !important;} [data-testid="collapsedControl"] {display: none !important;}</style>', unsafe_allow_html=True)
     salao_id_clean = urllib.parse.unquote(str(salao_url)).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
-    HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+    HORARIOS_DISPONIVEIS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
     st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
@@ -529,7 +510,7 @@ if not st.session_state.autenticado:
         with st.form("primeiro_acesso"):
             nova_adm_pass1 = st.text_input("Senha Principal Admin:", type="password")
             nova_adm_pass2 = st.text_input("Senha Secundária Admin:", type="password")
-            url_padrao_app = st.text_input("URL Base do App (Ex: https://agendamentos-3jcf.onrender.com):")
+            url_padrao_app = st.text_input("URL Base do App (Ex: https://fioecaixa.streamlit.app):")
             if st.form_submit_button("Salvar Inicialização"):
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
@@ -612,6 +593,7 @@ if not st.session_state.autenticado:
         
         st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
         
+        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
             if st.button("Esqueci minha senha", use_container_width=True):
@@ -679,9 +661,7 @@ if st.session_state.eh_admin:
                     carregar_usuarios.clear()
                     st.rerun()
     with tab_config:
-        # ATUALIZADO AQUI COM O NOVO LINK FORNECIDO
-        url_padrao_atual = url_sistema_salva if url_sistema_salva else "https://agendamentos-3jcf.onrender.com"
-        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_padrao_atual)
+        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "")
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
@@ -716,8 +696,7 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-# ATUALIZADO AQUI COM O NOVO LINK FORNECIDO COMO PADRÃO
-base_url = (url_sistema_salva or "https://agendamentos-3jcf.onrender.com").rstrip('/')
+base_url = (url_sistema_salva or "https://fioecaixa.streamlit.app").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
