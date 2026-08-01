@@ -1019,7 +1019,7 @@ with tab_historico:
 
             st.markdown('<div class="ui-card">', unsafe_allow_html=True)
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
-                opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].dt.strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
+                opcoes_del_fluxo = {f"#{row['id']} - opcoes_del_fluxo = {f"#{row['id']} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
                 if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
