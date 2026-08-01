@@ -180,6 +180,19 @@ def set_background_com_logo(image_path):
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
         .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
         
+        /* CARD DE SUCESSO - AGENDAMENTO */
+        .success-card {{
+            background-color: {card_bg};
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 6px solid #00E676;
+            color: #ffffff;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            margin-top: 20px;
+        }}
+        .success-card h3 {{ margin-top: 0; color: #00E676 !important; }}
+        .success-card hr {{ border-color: #333333; margin: 15px 0; }}
+
         .stButton > button, [data-testid="stDownloadButton"] > button {{ 
             background-color: #1a2332 !important; 
             color: #ffffff !important; 
@@ -237,15 +250,13 @@ except Exception as e:
 # --- INICIALIZAÇÃO DO BANCO ---
 @st.cache_resource
 def inicializar_banco():
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         conn.execute(text("CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);"))
         conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
-        # Garantir colunas essenciais caso a tabela seja antiga
         conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cliente_contato VARCHAR(100);"))
         conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS cliente_telefone VARCHAR(100);"))
     return True
@@ -268,8 +279,7 @@ def carregar_admin_hashes():
 
 def salvar_admin_hashes(password1, password2, url=""):
     try:
-        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+        with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO admin_config (id, hash1, hash2, url_sistema) VALUES (1, :h1, :h2, :url)
                 ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
@@ -279,8 +289,7 @@ def salvar_admin_hashes(password1, password2, url=""):
 
 def atualizar_url_sistema(url):
     try:
-        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+        with engine.begin() as conn:
             conn.execute(text("UPDATE admin_config SET url_sistema = :url WHERE id = 1"), {"url": url})
         carregar_admin_hashes.clear()
     except Exception: pass
@@ -297,8 +306,7 @@ def carregar_usuarios():
 
 def salvar_usuarios(usuarios_dict):
     if not usuarios_dict: return
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         for k, v in usuarios_dict.items():
             venc_val = v["vencimento"]
             if hasattr(venc_val, 'strftime'):
@@ -329,8 +337,7 @@ def carregar_servicos():
 
 def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
             conn.execute(text("UPDATE servicos SET nome = :novo, preco = :preco WHERE usuario_id = :user AND nome = :antigo"), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
         else:
@@ -339,8 +346,7 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
 
 def deletar_servico_banco(nome):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
     carregar_servicos_por_salao.clear()
 
@@ -365,23 +371,20 @@ def carregar_fluxo():
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
     carregar_fluxo_por_usuario.clear()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         conn.execute(text("UPDATE fluxo_caixa SET tipo = 'Entrada', data = :data, descricao = :desc WHERE id = :id AND usuario_id = :user"), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
 def deletar_movimentacao_fluxo(id_registro):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
@@ -401,8 +404,7 @@ def carregar_agendamentos():
 
 def deletar_agendamento(id_agendamento):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+    with engine.begin() as conn:
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
 def gerar_backup_json_completo():
@@ -490,7 +492,7 @@ if salao_url:
 
     st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
-    with st.form("form_agendamento_cliente", clear_on_submit=True):
+    with st.form("form_agendamento_cliente", clear_on_submit=False):
         nome_cliente = st.text_input("Seu Nome Completo:")
         telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
         servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys())) if servicos_salao else None
@@ -515,8 +517,8 @@ if salao_url:
             st.error("⚠️ Selecione um horário válido.")
         else:
             try:
-                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                    conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+                # O USO DO 'begin()' GARANTE QUE O SALVAMENTO SEJA INSTANTÂNEO NO BANCO!
+                with engine.begin() as conn:
                     conn.execute(text("""
                         INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, cliente_telefone, servico_nome, data, hora) 
                         VALUES (:user, :nome, :contato, :contato, :servico, :data, :hora)
@@ -528,8 +530,26 @@ if salao_url:
                         "data": data_str, 
                         "hora": horario_escolhido
                     })
-                st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
+                
                 st.balloons()
+                
+                # MENSAGEM DE SUCESSO PREMIUM APLICADA
+                mensagem_sucesso = f"""
+                <div class="success-card">
+                    <h3>🎉 Agendamento Confirmado!</h3>
+                    <p>Olá, <b>{nome_cliente}</b>! Seu horário foi reservado com sucesso no sistema do salão.</p>
+                    <hr>
+                    <p>📅 <b>Data:</b> {data_escolhida.strftime('%d/%m/%Y')}</p>
+                    <p>⏰ <b>Horário:</b> {horario_escolhido}</p>
+                    <p>✂️ <b>Serviço:</b> {servico_escolhido}</p>
+                    <br>
+                    <p style="font-size: 13px; color: #bbbbbb;">
+                        Agradecemos a preferência! Por favor, chegue com 5 minutos de antecedência.
+                    </p>
+                </div>
+                """
+                st.markdown(mensagem_sucesso, unsafe_allow_html=True)
+                
             except Exception as e: 
                 st.error(f"Erro ao registrar agendamento no banco: {e}")
     st.stop()
@@ -688,8 +708,7 @@ if st.session_state.eh_admin:
                     st.rerun()
             if st.checkbox(f"Confirmar exclusão de {salao_sel}"):
                 if st.button("EXCLUIR PERMANENTEMENTE", type="primary"):
-                    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+                    with engine.begin() as conn:
                         conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
                     carregar_usuarios.clear()
                     st.rerun()
@@ -1019,7 +1038,8 @@ with tab_historico:
 
             st.markdown('<div class="ui-card">', unsafe_allow_html=True)
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
-                opcoes_del_fluxo = {f"#{row['id']} - opcoes_del_fluxo = {f"#{row['id']} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
+                # CORREÇÃO DO ERRO DE SINTAXE AQUI NA LINHA ABAIXO!
+                opcoes_del_fluxo = {f"#{row['id']} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
                 if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
                     id_apagar = opcoes_del_fluxo[reg_selecionado]
