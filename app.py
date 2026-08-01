@@ -434,7 +434,6 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
-    # Utilizando o componente nativo do Streamlit para garantir o download
     st.download_button(
         label=label_botao,
         data=dados_bytes,
@@ -459,7 +458,6 @@ def renderizar_whatsapp_flutuante():
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
-# SOLUÇÃO 2: Captura dinâmica da URL Pai quando embutido em IFRAME/Dispositivos Móveis
 components.html("""
     <script>
     (function() {
@@ -482,7 +480,7 @@ if salao_url:
     st.markdown('<style>[data-testid="stSidebar"] {display: none !important;} [data-testid="collapsedControl"] {display: none !important;}</style>', unsafe_allow_html=True)
     salao_id_clean = urllib.parse.unquote(str(salao_url)).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
-    HORARIOS_DISPONIVEIS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"]
+    HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
     st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
@@ -531,7 +529,7 @@ if not st.session_state.autenticado:
         with st.form("primeiro_acesso"):
             nova_adm_pass1 = st.text_input("Senha Principal Admin:", type="password")
             nova_adm_pass2 = st.text_input("Senha Secundária Admin:", type="password")
-            url_padrao_app = st.text_input("URL Base do App (Ex: https://fioecaixa.streamlit.app):")
+            url_padrao_app = st.text_input("URL Base do App (Ex: https://agendamentos-3jcf.onrender.com):")
             if st.form_submit_button("Salvar Inicialização"):
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
@@ -614,7 +612,6 @@ if not st.session_state.autenticado:
         
         st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
         
-        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
             if st.button("Esqueci minha senha", use_container_width=True):
@@ -682,7 +679,9 @@ if st.session_state.eh_admin:
                     carregar_usuarios.clear()
                     st.rerun()
     with tab_config:
-        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "")
+        # ATUALIZADO AQUI COM O NOVO LINK FORNECIDO
+        url_padrao_atual = url_sistema_salva if url_sistema_salva else "https://agendamentos-3jcf.onrender.com"
+        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_padrao_atual)
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
@@ -717,7 +716,8 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-base_url = (url_sistema_salva or "https://fioecaixa.streamlit.app").rstrip('/')
+# ATUALIZADO AQUI COM O NOVO LINK FORNECIDO COMO PADRÃO
+base_url = (url_sistema_salva or "https://agendamentos-3jcf.onrender.com").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
