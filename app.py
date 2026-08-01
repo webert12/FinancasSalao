@@ -13,11 +13,6 @@ import re
 import decimal
 import base64
 import streamlit.components.v1 as components
-import urllib.parse
-
-# Link oficial do seu sistema de agendamento
-LINK_AGENDAMENTO = "https://agendamentos-doy4.onrender.com/"
-
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -31,6 +26,9 @@ from reportlab.lib import colors
 # --- CONFIGURAÇÃO DE SEGURANÇA E HORÁRIO ---
 SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
+
+# URL OFICIAL NO RENDER
+RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com/"
 
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
@@ -185,7 +183,7 @@ def set_background_com_logo(image_path):
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
         .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
         
-        .stButton > button {{ 
+        .stButton > button, [data-testid="stDownloadButton"] > button {{ 
             background-color: #1a2332 !important; 
             color: #ffffff !important; 
             border: 1px solid #2a364f !important; 
@@ -195,38 +193,13 @@ def set_background_com_logo(image_path):
             transition: all 0.2s ease !important; 
             width: 100% !important; 
         }}
-        .stButton > button:hover {{ 
+        .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{ 
             background-color: #243044 !important; 
             border-color: #00a8ff !important; 
             color: #00a8ff !important; 
         }}
         .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
         .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
-
-        /* BOTÃO DE DOWNLOAD COMPATÍVEL COM APK / WEBVIEW */
-        .custom-dl-btn {{
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            width: 100% !important;
-            background-color: #1a2332 !important;
-            color: #ffffff !important;
-            border: 1px solid #2a364f !important;
-            border-radius: 12px !important;
-            font-weight: 700 !important;
-            padding: 12px 20px !important;
-            font-size: 1rem !important;
-            box-sizing: border-box !important;
-            transition: all 0.2s ease !important;
-            text-align: center !important;
-            cursor: pointer !important;
-            margin-bottom: 8px !important;
-        }}
-        .custom-dl-btn:hover {{
-            background-color: #243044 !important;
-            border-color: #00a8ff !important;
-            color: #00a8ff !important;
-        }}
 
         .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
         .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
@@ -463,20 +436,13 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- SOLUÇÃO DEFINITIVA DE DOWNLOAD COMPATÍVEL COM APK / WEBVIEW / NAVEGADORES ---
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
-    b64 = base64.b64encode(dados_bytes).decode('utf-8')
-    href = f"data:{mime_type};base64,{b64}"
-    
-    st.markdown(
-        f"""
-        <a href="{href}" download="{nome_arquivo}" target="_blank" style="text-decoration: none; width: 100%;">
-            <div class="custom-dl-btn">
-                {label_botao}
-            </div>
-        </a>
-        """,
-        unsafe_allow_html=True
+    st.download_button(
+        label=label_botao,
+        data=dados_bytes,
+        file_name=nome_arquivo,
+        mime=mime_type,
+        use_container_width=True
     )
 
 def renderizar_whatsapp_flutuante():
@@ -517,7 +483,7 @@ if salao_url:
     st.markdown('<style>[data-testid="stSidebar"] {display: none !important;} [data-testid="collapsedControl"] {display: none !important;}</style>', unsafe_allow_html=True)
     salao_id_clean = urllib.parse.unquote(str(salao_url)).strip().lower()
     nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
-    HORARIOS_DISPONIVEIS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"]
+    HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
     st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
@@ -566,7 +532,7 @@ if not st.session_state.autenticado:
         with st.form("primeiro_acesso"):
             nova_adm_pass1 = st.text_input("Senha Principal Admin:", type="password")
             nova_adm_pass2 = st.text_input("Senha Secundária Admin:", type="password")
-            url_padrao_app = st.text_input("URL Base do App (Ex: https://fioecaixa.streamlit.app):")
+            url_padrao_app = st.text_input("URL Base do App:", value=RENDER_BASE_URL)
             if st.form_submit_button("Salvar Inicialização"):
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
@@ -600,6 +566,7 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
+    # --- BOTÃO MODO ESCURO 🌑 ---
     col_vazia, col_btn_tema = st.columns([8, 1])
     with col_btn_tema:
         if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
@@ -608,6 +575,7 @@ if not st.session_state.autenticado:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # --- LOGIN MINIMALISTA ---
     _, col_login_centro, _ = st.columns([1, 2, 1])
     
     with col_login_centro:
@@ -647,6 +615,7 @@ if not st.session_state.autenticado:
         
         st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
         
+        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
             if st.button("Esqueci minha senha", use_container_width=True):
@@ -714,7 +683,7 @@ if st.session_state.eh_admin:
                     carregar_usuarios.clear()
                     st.rerun()
     with tab_config:
-        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "")
+        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else RENDER_BASE_URL)
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
@@ -733,6 +702,7 @@ df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 _, _, url_sistema_salva = carregar_admin_hashes()
 
+# Processamento de Dados
 hoje = pd.Timestamp(datetime.now(TZ).date())
 mes_atual = hoje.month
 ano_atual = hoje.year
@@ -748,11 +718,14 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-base_url = (url_sistema_salva or "https://fioecaixa.streamlit.app").rstrip('/')
+# FORÇA O USO DA URL DO RENDER (Ignora a URL antiga do Streamlit salva no banco)
+base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
+
+# Botão Popover (Configuração Rápida)
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
     with st.popover("⚙️ Configurações", use_container_width=False):
@@ -789,6 +762,7 @@ with col_top_left:
 
 st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
+# Tabs
 tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
@@ -840,49 +814,22 @@ with tab_relatorios:
     st.markdown('<div class="ui-card"><h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
     
     if not df_mes_atual.empty:
-        df_mes_atual_copy = df_mes_atual.copy()
-        df_mes_atual_copy['Data_Dia'] = df_mes_atual_copy['Data'].dt.date
-        
-        # Gerar intervalo de datas completo do dia 01 do mês até a data atual (ou maior data do mês)
-        inicio_mes = hoje.replace(day=1).date()
-        fim_mes = max(hoje.date(), df_mes_atual_copy['Data_Dia'].max())
-        intervalo_datas = pd.date_range(start=inicio_mes, end=fim_mes, freq='D').date
-        
-        # Agrupar por dia e tipo de movimentação
-        df_group = df_mes_atual_copy.groupby(['Data_Dia', 'Tipo'])['Valor'].sum().unstack(fill_value=0)
-        
-        # Reindexar para preencher dias sem movimentação com 0, criando um fluxo contínuo em linha
-        df_group = df_group.reindex(intervalo_datas, fill_value=0).reset_index()
-        df_group.rename(columns={'index': 'Data_Dia'}, inplace=True)
-        
+        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
+        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
         for col in ['Entrada', 'Saída', 'Pendência']:
-            if col not in df_group: 
-                df_group[col] = 0
+            if col not in df_group: df_group[col] = 0
             
         df_group['Saída_Abs'] = df_group['Saída'].abs()
         df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
-        df_group['DataStr'] = df_group['Data_Dia'].apply(lambda d: d.strftime('%d/%m'))
 
         fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(
-            x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro',
-            line=dict(color='#00E676', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)',
-            marker=dict(size=7, color='#00E676')
-        ))
-        fig_area.add_trace(go.Scatter(
-            x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas',
-            line=dict(color='#00a8ff', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)',
-            marker=dict(size=7, color='#00a8ff')
-        ))
-        fig_area.add_trace(go.Scatter(
-            x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas',
-            line=dict(color='#FF5252', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)',
-            marker=dict(size=7, color='#FF5252')
-        ))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#00E676', width=2), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#00a8ff', width=2), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#FF5252', width=2), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)', marker=dict(size=6)))
         
         fig_area.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
-            xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8'), type='category'),
+            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
             yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
             margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
