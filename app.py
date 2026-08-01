@@ -28,7 +28,7 @@ SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
 
 # URL OFICIAL NO RENDER
-RENDER_BASE_URL = "https://financassalao3.onrender.com"
+RENDER_BASE_URL = "https://agendamentos-3jcf.onrender.com"
 
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
