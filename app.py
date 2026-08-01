@@ -434,6 +434,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
     return buffer.getvalue()
 
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
+    # Utilizando o componente nativo do Streamlit para garantir o download
     st.download_button(
         label=label_botao,
         data=dados_bytes,
@@ -458,6 +459,7 @@ def renderizar_whatsapp_flutuante():
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
+# SOLUÇÃO 2: Captura dinâmica da URL Pai quando embutido em IFRAME/Dispositivos Móveis
 components.html("""
     <script>
     (function() {
@@ -612,6 +614,7 @@ if not st.session_state.autenticado:
         
         st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
         
+        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
             if st.button("Esqueci minha senha", use_container_width=True):
@@ -679,9 +682,7 @@ if st.session_state.eh_admin:
                     carregar_usuarios.clear()
                     st.rerun()
     with tab_config:
-        # ATUALIZADO AQUI COM O NOVO LINK FORNECIDO
-        url_padrao_atual = url_sistema_salva if url_sistema_salva else "https://agendamentos-3jcf.onrender.com"
-        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_padrao_atual)
+        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "")
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
@@ -716,7 +717,7 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-# ATUALIZADO AQUI COM O NOVO LINK FORNECIDO COMO PADRÃO
+# Alteração da Base URL Aqui
 base_url = (url_sistema_salva or "https://agendamentos-3jcf.onrender.com").rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
