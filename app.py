@@ -321,7 +321,7 @@ def carregar_servicos_por_salao(salao_id):
             rows = result.fetchall()
             if rows: return {row[0]: float(row[1]) for row in rows}
     except Exception: pass
-    return {"Corte de Cabelo": 30.00, "Barba": 30.00,  "Lavar": 30.00, "Combo Cabelo e Barba": 50.00}
+    return {"Corte de Cabelo": 30.00, "Barba": 30.00, "Combo Cabelo e Barba": 50.00}
 
 def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
