@@ -13,6 +13,11 @@ import re
 import decimal
 import base64
 import streamlit.components.v1 as components
+import urllib.parse
+
+# Link oficial do seu sistema de agendamento
+LINK_AGENDAMENTO = "https://agendamentos-doy4.onrender.com/"
+
 
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
@@ -835,22 +840,49 @@ with tab_relatorios:
     st.markdown('<div class="ui-card"><h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
     
     if not df_mes_atual.empty:
-        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
-        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
+        df_mes_atual_copy = df_mes_atual.copy()
+        df_mes_atual_copy['Data_Dia'] = df_mes_atual_copy['Data'].dt.date
+        
+        # Gerar intervalo de datas completo do dia 01 do mês até a data atual (ou maior data do mês)
+        inicio_mes = hoje.replace(day=1).date()
+        fim_mes = max(hoje.date(), df_mes_atual_copy['Data_Dia'].max())
+        intervalo_datas = pd.date_range(start=inicio_mes, end=fim_mes, freq='D').date
+        
+        # Agrupar por dia e tipo de movimentação
+        df_group = df_mes_atual_copy.groupby(['Data_Dia', 'Tipo'])['Valor'].sum().unstack(fill_value=0)
+        
+        # Reindexar para preencher dias sem movimentação com 0, criando um fluxo contínuo em linha
+        df_group = df_group.reindex(intervalo_datas, fill_value=0).reset_index()
+        df_group.rename(columns={'index': 'Data_Dia'}, inplace=True)
+        
         for col in ['Entrada', 'Saída', 'Pendência']:
-            if col not in df_group: df_group[col] = 0
+            if col not in df_group: 
+                df_group[col] = 0
             
         df_group['Saída_Abs'] = df_group['Saída'].abs()
         df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
+        df_group['DataStr'] = df_group['Data_Dia'].apply(lambda d: d.strftime('%d/%m'))
 
         fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#00E676', width=2), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#00a8ff', width=2), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#FF5252', width=2), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(
+            x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro',
+            line=dict(color='#00E676', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)',
+            marker=dict(size=7, color='#00E676')
+        ))
+        fig_area.add_trace(go.Scatter(
+            x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas',
+            line=dict(color='#00a8ff', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)',
+            marker=dict(size=7, color='#00a8ff')
+        ))
+        fig_area.add_trace(go.Scatter(
+            x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas',
+            line=dict(color='#FF5252', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)',
+            marker=dict(size=7, color='#FF5252')
+        ))
         
         fig_area.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
-            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
+            xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8'), type='category'),
             yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
             margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
