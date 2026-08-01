@@ -28,7 +28,7 @@ SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
 
 # URL OFICIAL NO RENDER
-RENDER_BASE_URL = "https://agendamentos-3jcf.onrender.com"
+RENDER_BASE_URL = "https://financassalao1.onrender.com"
 
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
@@ -718,11 +718,12 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-# Alteração da Base URL Aqui - Prioriza o Render informado
-base_url = (url_sistema_salva or RENDER_BASE_URL).rstrip('/')
+# FORÇA O USO DA URL DO RENDER (Ignora a URL antiga do Streamlit salva no banco)
+base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
+
 
 # Botão Popover (Configuração Rápida)
 col_top_left, _ = st.columns([1, 4])
