@@ -27,6 +27,9 @@ from reportlab.lib import colors
 SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
 
+# URL OFICIAL NO RENDER
+RENDER_BASE_URL = "https://agendamentos-3jcf.onrender.com"
+
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
@@ -529,7 +532,7 @@ if not st.session_state.autenticado:
         with st.form("primeiro_acesso"):
             nova_adm_pass1 = st.text_input("Senha Principal Admin:", type="password")
             nova_adm_pass2 = st.text_input("Senha Secundária Admin:", type="password")
-            url_padrao_app = st.text_input("URL Base do App (Ex: https://agendamentos-3jcf.onrender.com):", value="https://agendamentos-3jcf.onrender.com")
+            url_padrao_app = st.text_input("URL Base do App:", value=RENDER_BASE_URL)
             if st.form_submit_button("Salvar Inicialização"):
                 if nova_adm_pass1 and nova_adm_pass2:
                     salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
@@ -680,7 +683,7 @@ if st.session_state.eh_admin:
                     carregar_usuarios.clear()
                     st.rerun()
     with tab_config:
-        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else "https://agendamentos-3jcf.onrender.com")
+        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else RENDER_BASE_URL)
         if st.button("Salvar URL Global"):
             atualizar_url_sistema(nova_url_input.strip())
             st.success("URL Salva!")
@@ -716,7 +719,7 @@ else:
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
 # Alteração da Base URL Aqui - Prioriza o Render informado
-base_url = (url_sistema_salva or "https://agendamentos-3jcf.onrender.com").rstrip('/')
+base_url = (url_sistema_salva or RENDER_BASE_URL).rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
