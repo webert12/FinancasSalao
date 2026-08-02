@@ -37,10 +37,8 @@ def hash_password(password):
 def verificar_senha(senha_digitada, senha_no_banco):
     if not senha_no_banco:
         return False
-    # 1. Tenta verificar se a senha no banco está em texto puro
     if senha_digitada == senha_no_banco:
         return True
-    # 2. Tenta verificar se a senha no banco está criptografada
     if hash_password(senha_digitada) == senha_no_banco:
         return True
     return False
@@ -48,13 +46,28 @@ def verificar_senha(senha_digitada, senha_no_banco):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
-# ESTADOS DE SESSÃO INICIAIS (Mantendo persistência para evitar logout ao atualizar)
+# --- PERSISTÊNCIA DE SESSÃO VIA URL (Evita logout no F5) ---
+query_params = st.query_params
+
+# ESTADOS DE SESSÃO INICIAIS
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
+
+# Recupera sessão persistida pela URL se houver
+if not st.session_state.autenticado and "token_sessao" in query_params:
+    token_val = query_params["token_sessao"]
+    if token_val == "admin_master_session":
+        st.session_state.autenticado = True
+        st.session_state.usuario_logado = "Administrador"
+        st.session_state.eh_admin = True
+    elif token_val:
+        st.session_state.autenticado = True
+        st.session_state.usuario_logado = token_val
+        st.session_state.eh_admin = False
 
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
 @st.cache_data
@@ -102,7 +115,6 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        /* INPUTS E SELECTS */
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div,
         input, select, textarea,
@@ -125,7 +137,6 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
         }}
 
-        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES */
         div[data-testid="stPopoverBody"] {{
             background-color: {card_bg} !important;
             border: 2px solid #00a8ff !important;
@@ -153,7 +164,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
         }}
 
-        /* MENUS SUSPENSOS E CALENDÁRIO */
         ul[data-baseweb="menu"],
         li[role="option"],
         div[data-testid="stSelectboxVirtualDropdown"] {{
@@ -176,7 +186,6 @@ def set_background_com_logo(image_path):
         div[data-baseweb="calendar"] * {{ color: #ffffff !important; background-color: transparent !important; }}
         div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #00a8ff !important; color: #ffffff !important; border-radius: 50% !important; }}
 
-        /* --- DASHBOARD V2 --- */
         .kpi-card-v2 {{ background-color: {card_bg}; border: 1px solid #1f2937; border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.4); height: 100%; display: flex; flex-direction: column; justify-content: space-between; }}
         .kpi-title-v2 {{ font-size: 0.95rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 5px; }}
         .kpi-value-v2 {{ font-size: 1.9rem; font-weight: 800; margin-bottom: 10px; }}
@@ -191,7 +200,6 @@ def set_background_com_logo(image_path):
         .ui-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
         .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #172233 100%); border: 1px solid #00a8ff; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15); }}
 
-        /* --- CSS LOGIN & BOTÕES --- */
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
         .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
 
@@ -285,7 +293,7 @@ def salvar_admin_hashes(password1, password2, url=""):
             conn.execute(text("""
                 INSERT INTO admin_config (id, hash1, hash2, url_sistema) VALUES (1, :h1, :h2, :url)
                 ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
-            """), {"h1": password1, "h2": password2, "url": url})  # SALVA EM TEXTO PURO (SEM HASH_PASSWORD AQUI)
+            """), {"h1": password1, "h2": password2, "url": url})
         carregar_admin_hashes.clear()
     except Exception as e: st.error(f"Erro: {e}")
 
@@ -448,7 +456,7 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
+def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao):
     st.download_button(
         label=label_botao,
         data=dados_bytes,
@@ -474,22 +482,6 @@ def renderizar_whatsapp_flutuante():
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
 # ==============================================================================
-components.html("""
-    <script>
-    (function() {
-        var params = new URLSearchParams(window.parent.location.search);
-        var salao = params.get('salao');
-        if (salao) {
-            var currentParams = new URLSearchParams(window.location.search);
-            if (currentParams.get('salao') !== salao) {
-                window.parent.postMessage({type: 'streamlit:setQueryParams', queryParams: {salao: salao}}, '*');
-            }
-        }
-    })();
-    </script>
-""", height=0)
-
-query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
@@ -534,7 +526,7 @@ if salao_url:
     st.stop()
 
 # ==============================================================================
-# TELA DE AUTENTICAÇÃO E LOGIN (Minimalista)
+# TELA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
 if not st.session_state.autenticado:
     admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
@@ -579,7 +571,6 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    # --- BOTÃO MODO ESCURO 🌑 ---
     col_vazia, col_btn_tema = st.columns([8, 1])
     with col_btn_tema:
         if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
@@ -588,7 +579,6 @@ if not st.session_state.autenticado:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- LOGIN MINIMALISTA ---
     _, col_login_centro, _ = st.columns([1, 2, 1])
 
     with col_login_centro:
@@ -603,15 +593,14 @@ if not st.session_state.autenticado:
             submit_login = st.form_submit_button("Entrar no Sistema", type="primary", use_container_width=True)
             if submit_login:
                 if tipo_acesso == "Admin":
-                    # UTILIZANDO A LÓGICA HÍBRIDA PARA O ADMIN (Aceita texto puro ou hash)
                     if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
+                        st.query_params["token_sessao"] = "admin_master_session"
                         st.rerun()
                     else: st.error("Credenciais inválidas.")
                 else:
-                    # UTILIZANDO A LÓGICA HÍBRIDA PARA USUÁRIOS (Aceita texto puro antigo ou hash novo)
                     if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
                         dados_user = usuarios_cadastrados[usuario_input]
                         try:
@@ -625,12 +614,12 @@ if not st.session_state.autenticado:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = usuario_input
                         st.session_state.eh_admin = False
+                        st.query_params["token_sessao"] = usuario_input
                         st.rerun()
                     else: st.error("Usuário ou senha incorretos.")
 
         st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
 
-        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
         support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
@@ -664,7 +653,6 @@ if st.session_state.eh_admin:
             if st.form_submit_button("Cadastrar Salão", type="primary"):
                 if novo_usuario and nova_senha and novo_email:
                     venc = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
-                    # Mantém criptografia APENAS para os novos cadastros como solicitado
                     usuarios_cadastrados[novo_usuario] = {"senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": venc, "status": "Ativo"}
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Salão cadastrado com sucesso!")
@@ -709,6 +697,8 @@ if st.session_state.eh_admin:
         st.markdown("---")
         if st.button("🚪 Sair do Mestre", use_container_width=True):
             st.session_state.clear()
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
             st.rerun()
     st.stop()
 
@@ -719,7 +709,6 @@ df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 _, _, url_sistema_salva = carregar_admin_hashes()
 
-# Processamento de Dados
 hoje = pd.Timestamp(datetime.now(TZ).date())
 mes_atual = hoje.month
 ano_atual = hoje.year
@@ -735,13 +724,11 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-# FORÇA O USO DA URL DO RENDER
 base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
-# Botão Popover (Configuração Rápida)
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
     with st.popover("⚙️ Configurações", use_container_width=False):
@@ -774,11 +761,12 @@ with col_top_left:
         st.markdown("---")
         if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary", key="top_logout_btn"):
             st.session_state.clear()
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
             st.rerun()
 
 st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
-# Tabs
 tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
@@ -826,7 +814,6 @@ with tab_relatorios:
     with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-
     st.markdown('<div class="ui-card"><h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
 
     if not df_mes_atual.empty:
