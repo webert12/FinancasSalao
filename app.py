@@ -14,6 +14,9 @@ import decimal
 import base64
 import streamlit.components.v1 as components
 
+# --- Criptografia ---
+from cryptography.fernet import Fernet
+
 # --- Bibliotecas de Conexão Direta SQL ---
 from sqlalchemy import create_engine, text
 
@@ -23,9 +26,31 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-# --- CONFIGURAÇÃO DE SEGURANÇA E HORÁRIO ---
+# --- CONFIGURAÇÃO DE SEGURANÇA, CHAVES E HORÁRIO ---
 SALT = "salao_fio_caixa_2026_security"
 TZ = ZoneInfo("America/Sao_Paulo")
+
+# Chave mestra estática ou derivada para criptografia interna
+SECRET_FERNET_KEY = b'12345678901234567890123456789012' 
+try:
+    key_bytes = base64.urlsafe_b64encode(hashlib.sha256(SALT.encode()).digest())
+    cipher_suite = Fernet(key_bytes)
+except Exception:
+    cipher_suite = Fernet(Fernet.generate_key())
+
+def criptografar_dado(texto):
+    if not texto: return ""
+    try:
+        return cipher_suite.encrypt(str(texto).encode('utf-8')).decode('utf-8')
+    except Exception:
+        return str(texto)
+
+def descriptografar_dado(token_criptografado):
+    if not token_criptografado: return ""
+    try:
+        return cipher_suite.decrypt(str(token_criptografado).encode('utf-8')).decode('utf-8')
+    except Exception:
+        return str(token_criptografado)
 
 # URL OFICIAL NO RENDER
 RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com/"
@@ -36,9 +61,19 @@ def hash_password(password):
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
+# --- SINCRONIZAÇÃO DE SESSÃO VIA URL (EVITA VOLTAR AO LOGIN AO ATUALIZAR) ---
+query_params = st.query_params
+
+if 'autenticado' not in st.session_state:
+    if query_params.get("auth") == "true" and query_params.get("user"):
+        st.session_state.autenticado = True
+        st.session_state.usuario_logado = query_params.get("user")
+        st.session_state.eh_admin = (query_params.get("admin") == "true")
+    else:
+        st.session_state.autenticado = False
+
 # ESTADOS DE SESSÃO INICIAIS
 if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
-if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
@@ -90,7 +125,6 @@ def set_background_com_logo(image_path):
             letter-spacing: -0.5px;
         }}
 
-        /* INPUTS E SELECTS */
         div[data-baseweb="select"] > div, 
         div[data-baseweb="input"] > div, 
         input, select, textarea, 
@@ -113,7 +147,6 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
         }}
 
-        /* CORREÇÃO DEFINITIVA DO POPOVER DE CONFIGURAÇÕES */
         div[data-testid="stPopoverBody"] {{
             background-color: {card_bg} !important;
             border: 2px solid #00a8ff !important;
@@ -136,74 +169,21 @@ def set_background_com_logo(image_path):
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
         }}
 
-        div[data-testid="stPopover"] button:hover {{
-            background-color: #243044 !important;
-            box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
-        }}
-
-        /* MENUS SUSPENSOS E CALENDÁRIO */
-        ul[data-baseweb="menu"], 
-        li[role="option"],
-        div[data-testid="stSelectboxVirtualDropdown"] {{
-            background-color: {card_bg} !important;
-            color: #ffffff !important;
-            border: 1px solid #222e3e !important;
-        }}
-        li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
-            background-color: #1a2332 !important;
-            color: #00a8ff !important;
-        }}
-
-        div[data-baseweb="calendar"], 
-        div[data-baseweb="calendar"] > div,
-        div[role="application"] {{
-            background-color: {input_bg} !important;
-            color: #ffffff !important;
-            border: 1px solid #222e3e !important;
-        }}
-        div[data-baseweb="calendar"] * {{ color: #ffffff !important; background-color: transparent !important; }}
-        div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #00a8ff !important; color: #ffffff !important; border-radius: 50% !important; }}
-
-        /* --- DASHBOARD V2 --- */
         .kpi-card-v2 {{ background-color: {card_bg}; border: 1px solid #1f2937; border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.4); height: 100%; display: flex; flex-direction: column; justify-content: space-between; }}
         .kpi-title-v2 {{ font-size: 0.95rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 5px; }}
         .kpi-value-v2 {{ font-size: 1.9rem; font-weight: 800; margin-bottom: 10px; }}
         .kpi-val-green {{ color: #00E676 !important; }}
         .kpi-val-red {{ color: #FF5252 !important; }}
         .kpi-val-blue {{ color: #00a8ff !important; }}
-        .kpi-perc {{ font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 5px; }}
-        .perc-up {{ color: #00E676 !important; }}
-        .perc-down {{ color: #FF5252 !important; }}
-        .perc-neutral {{ color: #94a3b8 !important; }}
-
         .ui-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
         .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #172233 100%); border: 1px solid #00a8ff; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15); }}
-
-        /* --- CSS LOGIN & BOTÕES --- */
         .login-card {{ background: {card_bg}; border: 1px solid #1f2937; border-radius: 20px; padding: 40px 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75); max-width: 460px; margin: 0 auto; }}
         .login-title {{ color: #ffffff !important; font-size: 2.2rem; font-weight: 800; margin-bottom: 28px; line-height: 1.1; text-align: center; }}
         
         .stButton > button, [data-testid="stDownloadButton"] > button {{ 
-            background-color: #1a2332 !important; 
-            color: #ffffff !important; 
-            border: 1px solid #2a364f !important; 
-            border-radius: 12px !important; 
-            font-weight: 700 !important; 
-            padding: 12px 20px !important; 
-            transition: all 0.2s ease !important; 
-            width: 100% !important; 
-        }}
-        .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{ 
-            background-color: #243044 !important; 
-            border-color: #00a8ff !important; 
-            color: #00a8ff !important; 
+            background-color: #1a2332 !important; color: #ffffff !important; border: 1px solid #2a364f !important; border-radius: 12px !important; font-weight: 700 !important; padding: 12px 20px !important; transition: all 0.2s ease !important; width: 100% !important; 
         }}
         .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
-        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
-
-        .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
-        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
-        .stTabs [aria-selected="true"] {{ background-color: #1a2332 !important; color: #00a8ff !important; font-weight: bold; border-top: 3px solid #00a8ff !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -256,7 +236,7 @@ except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
+# --- FUNÇÕES DE PERSISTÊNCIA & CRIPTOGRAFIA DE DADOS ---
 @st.cache_data(ttl=600)
 def carregar_admin_hashes():
     try:
@@ -291,7 +271,8 @@ def carregar_usuarios():
         with engine.connect() as conn:
             result = conn.execute(text("SELECT id, senha, email, tipo, vencimento, status FROM usuarios"))
             rows = result.fetchall()
-            if rows: return {row[0]: {"id": row[0], "senha": row[1], "email": row[2], "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
+            if rows: 
+                return {row[0]: {"id": row[0], "senha": row[1], "email": descriptografar_dado(row[2]), "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
     except Exception: pass
     return {}
 
@@ -301,15 +282,13 @@ def salvar_usuarios(usuarios_dict):
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
             venc_val = v["vencimento"]
-            if hasattr(venc_val, 'strftime'):
-                venc_str = venc_val.strftime('%Y-%m-%d')
-            else:
-                venc_str = str(venc_val) if venc_val else datetime.now(TZ).strftime('%Y-%m-%d')
+            venc_str = venc_val.strftime('%Y-%m-%d') if hasattr(venc_val, 'strftime') else (str(venc_val) if venc_val else datetime.now(TZ).strftime('%Y-%m-%d'))
+            email_cifrado = criptografar_dado(v.get("email", ""))
                 
             conn.execute(text("""
                 INSERT INTO usuarios (id, senha, email, tipo, vencimento, status) VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
                 ON CONFLICT (id) DO UPDATE SET senha = EXCLUDED.senha, email = EXCLUDED.email, tipo = EXCLUDED.tipo, vencimento = EXCLUDED.vencimento, status = EXCLUDED.status
-            """), {"id": k, "senha": v["senha"], "email": v.get("email", ""), "tipo": v["tipo"], "vencimento": venc_str, "status": v["status"]})
+            """), {"id": k, "senha": v["senha"], "email": email_cifrado, "tipo": v["tipo"], "vencimento": venc_str, "status": v["status"]})
     carregar_usuarios.clear()
 
 @st.cache_data(ttl=300)
@@ -319,7 +298,7 @@ def carregar_servicos_por_salao(salao_id):
         with engine.connect() as conn:
             result = conn.execute(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), {"user": salao_id_clean})
             rows = result.fetchall()
-            if rows: return {row[0]: float(row[1]) for row in rows}
+            if rows: return {descriptografar_dado(row[0]): float(row[1]) for row in rows}
     except Exception: pass
     return {"Corte de Cabelo": 30.00, "Barba": 30.00, "Combo Cabelo e Barba": 50.00}
 
@@ -329,19 +308,22 @@ def carregar_servicos():
 
 def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    nome_novo_cript = criptografar_dado(nome_novo)
+    nome_antigo_cript = criptografar_dado(nome_antigo) if nome_antigo else ""
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
-            conn.execute(text("UPDATE servicos SET nome = :novo, preco = :preco WHERE usuario_id = :user AND nome = :antigo"), {"novo": nome_novo, "preco": float(preco), "user": usuario, "antigo": nome_antigo})
+            conn.execute(text("UPDATE servicos SET nome = :novo, preco = :preco WHERE usuario_id = :user AND nome = :antigo"), {"novo": nome_novo_cript, "preco": float(preco), "user": usuario, "antigo": nome_antigo_cript})
         else:
-            conn.execute(text("INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
+            conn.execute(text("INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"), {"user": usuario, "nome": nome_novo_cript, "preco": float(preco)})
     carregar_servicos_por_salao.clear()
 
 def deletar_servico_banco(nome):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    nome_cript = criptografar_dado(nome)
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-        conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
+        conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome_cript})
     carregar_servicos_por_salao.clear()
 
 @st.cache_data(ttl=60)
@@ -351,7 +333,10 @@ def carregar_fluxo_por_usuario(usuario):
             result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
             rows = result.fetchall()
             if rows:
-                df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+                dados_limpos = []
+                for r in rows:
+                    dados_limpos.append([r[0], r[1], r[2], descriptografar_dado(r[3]), r[4]])
+                df = pd.DataFrame(dados_limpos, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
                 df['Data'] = pd.to_datetime(df['Data'])
                 return df
     except Exception: pass
@@ -364,17 +349,19 @@ def carregar_fluxo():
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
+    desc_criptografada = criptografar_dado(descricao)
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-        conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
+        conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": desc_criptografada, "valor": float(valor)})
     carregar_fluxo_por_usuario.clear()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
+    desc_cript = criptografar_dado(nova_descricao)
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-        conn.execute(text("UPDATE fluxo_caixa SET tipo = 'Entrada', data = :data, descricao = :desc WHERE id = :id AND usuario_id = :user"), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
+        conn.execute(text("UPDATE fluxo_caixa SET tipo = 'Entrada', data = :data, descricao = :desc WHERE id = :id AND usuario_id = :user"), {"data": data_hoje, "desc": desc_cript, "id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
 
 def deletar_movimentacao_fluxo(id_registro):
@@ -389,7 +376,11 @@ def carregar_agendamentos_por_usuario_direto(usuario):
         with engine.connect() as conn:
             result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), {"user": usuario})
             rows = result.fetchall()
-            if rows: return pd.DataFrame(rows, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
+            if rows: 
+                dados_descript = []
+                for r in rows:
+                    dados_descript.append([r[0], descriptografar_dado(r[1]), descriptografar_dado(r[2]), descriptografar_dado(r[3]), r[4], r[5]])
+                return pd.DataFrame(dados_descript, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
     except Exception: pass
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
@@ -436,14 +427,8 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
-def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao, cor_bg="#1a2332", cor_hover="#243044"):
-    st.download_button(
-        label=label_botao,
-        data=dados_bytes,
-        file_name=nome_arquivo,
-        mime=mime_type,
-        use_container_width=True
-    )
+def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao):
+    st.download_button(label=label_botao, data=dados_bytes, file_name=nome_arquivo, mime=mime_type, use_container_width=True)
 
 def renderizar_whatsapp_flutuante():
     wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
@@ -476,7 +461,6 @@ components.html("""
     </script>
 """, height=0)
 
-query_params = st.query_params
 salao_url = query_params.get("salao", None)
 
 if salao_url:
@@ -511,9 +495,12 @@ if salao_url:
             elif not horario_escolhido or not servico_escolhido: 
                 st.error("⚠️ Selecione um horário válido.")
             else:
+                nome_cif = criptografar_dado(nome_cliente.strip())
+                fone_cif = criptografar_dado(telefone_cliente.strip())
+                serv_cif = criptografar_dado(servico_escolhido)
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-                    conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
+                    conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cif, "contato": fone_cif, "servico": serv_cif, "data": data_str, "hora": horario_escolhido})
                 st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
                 st.balloons()
                 st.rerun()
@@ -566,7 +553,6 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    # --- BOTÃO MODO ESCURO 🌑 ---
     col_vazia, col_btn_tema = st.columns([8, 1])
     with col_btn_tema:
         if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
@@ -574,8 +560,6 @@ if not st.session_state.autenticado:
             st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # --- LOGIN MINIMALISTA ---
     _, col_login_centro, _ = st.columns([1, 2, 1])
     
     with col_login_centro:
@@ -594,6 +578,8 @@ if not st.session_state.autenticado:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
+                        # Grava na URL para evitar perder o login ao atualizar
+                        st.query_params.update({"auth": "true", "user": "Administrador", "admin": "true"})
                         st.rerun()
                     else: st.error("Credenciais inválidas.")
                 else:
@@ -610,12 +596,12 @@ if not st.session_state.autenticado:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = usuario_input
                         st.session_state.eh_admin = False
+                        # Grava na URL para travar a sessão mesmo se atualizar a página
+                        st.query_params.update({"auth": "true", "user": usuario_input, "admin": "false"})
                         st.rerun()
                     else: st.error("Usuário ou senha incorretos.")
         
         st.markdown("<hr style='border-color: #1f2937; margin: 15px 0;'>", unsafe_allow_html=True)
-        
-        # FOOTER DO LOGIN (CONTATOS E RECUPERAÇÃO)
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
             if st.button("Esqueci minha senha", use_container_width=True):
@@ -691,6 +677,7 @@ if st.session_state.eh_admin:
     with st.sidebar:
         st.markdown("---")
         if st.button("🚪 Sair do Mestre", use_container_width=True):
+            st.query_params.clear() # Limpa os parâmetros de URL ao sair
             st.session_state.clear()
             st.rerun()
     st.stop()
@@ -702,7 +689,6 @@ df_fluxo_caixa = carregar_fluxo()
 servicos = carregar_servicos()
 _, _, url_sistema_salva = carregar_admin_hashes()
 
-# Processamento de Dados
 hoje = pd.Timestamp(datetime.now(TZ).date())
 mes_atual = hoje.month
 ano_atual = hoje.year
@@ -718,14 +704,11 @@ else:
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
-# FORÇA O USO DA URL DO RENDER (Ignora a URL antiga do Streamlit salva no banco)
 base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
 nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
-
-# Botão Popover (Configuração Rápida)
 col_top_left, _ = st.columns([1, 4])
 with col_top_left:
     with st.popover("⚙️ Configurações", use_container_width=False):
@@ -757,12 +740,12 @@ with col_top_left:
         renderizar_botao_download_apk(gerar_backup_json_completo().encode('utf-8'), f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", "application/json", "📥 Baixar Backup JSON")
         st.markdown("---")
         if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary", key="top_logout_btn"):
+            st.query_params.clear() # Limpa os parâmetros de URL ao sair
             st.session_state.clear()
             st.rerun()
 
 st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
-# Tabs
 tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
@@ -778,8 +761,7 @@ with tab_relatorios:
         return faturamento, entradas, abs(saidas), lucro
 
     def agg_valores_dia(df_m, data_ref):
-        if df_m.empty:
-            return 0.0
+        if df_m.empty: return 0.0
         df_dia = df_m[df_m['Data'].dt.date == data_ref]
         entradas_dia = df_dia[df_dia['Tipo'] == 'Entrada']['Valor'].sum()
         pendencias_dia = df_dia[df_dia['Tipo'] == 'Pendência']['Valor'].sum()
@@ -810,7 +792,6 @@ with tab_relatorios:
     with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-
     st.markdown('<div class="ui-card"><h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
     
     if not df_mes_atual.empty:
@@ -837,64 +818,6 @@ with tab_relatorios:
         st.plotly_chart(fig_area, use_container_width=True)
     else: st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
     st.markdown('</div>', unsafe_allow_html=True)
-
-    col_bottom1, col_bottom2 = st.columns(2)
-    with col_bottom1:
-        st.markdown('<div class="ui-card" style="height: 100%;"><h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
-        if ent_atual > 0 or sai_atual > 0:
-            total_op = ent_atual + sai_atual
-            perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
-            perc_sai_donut = (sai_atual / total_op) * 100 if total_op > 0 else 0
-
-            col_donut_img, col_donut_leg = st.columns([1, 1.2])
-            with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#00a8ff', '#FF5252']), textinfo='none', hoverinfo='label+percent')])
-                fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
-                st.plotly_chart(fig_donut, use_container_width=True)
-            with col_donut_leg:
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #00a8ff; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #FF5252; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
-                """, unsafe_allow_html=True)
-        else: st.info("Sem dados suficientes neste mês.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col_bottom2:
-        st.markdown('<div class="ui-card" style="height: 100%;"><h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
-        if sai_atual > 0:
-            df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
-            df_desp['Valor'] = df_desp['Valor'].abs()
-            top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#00a8ff', '#00E676', '#FF5252', '#94a3b8']
-            html_barras = ""
-            for i, (desc, valor) in enumerate(top_desp.items()):
-                perc_cat = (valor / sai_atual) * 100
-                cor = cores_barras[i % len(cores_barras)]
-                nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
-                html_barras += f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
-                    <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: #1a2332; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
-                        <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
-                    </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
-                </div>
-                """
-            st.markdown(html_barras, unsafe_allow_html=True)
-        else: st.info("Nenhuma despesa registrada neste mês.")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: AÇÕES RÁPIDAS
