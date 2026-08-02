@@ -710,7 +710,18 @@ renderizar_whatsapp_flutuante()
 # MODO ADMINISTRADOR MESTRE
 # ==============================================================================
 if st.session_state.eh_admin:
-    st.title("👑 Gestão Geral de Salões (Admin)")
+    # --- CABEÇALHO DO ADMIN COM BOTÃO DE SAIR VISÍVEL ---
+    col_adm_title, col_adm_logout = st.columns([3, 1])
+    with col_adm_title:
+        st.title("👑 Gestão Geral de Salões (Admin)")
+    with col_adm_logout:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚪 Sair do Sistema", type="secondary", use_container_width=True, key="admin_top_logout_btn"):
+            st.session_state.clear()
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
+            st.rerun()
+
     tab_cad, tab_ger, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "🔧 Configurações Mestre"])
     admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
     usuarios_cadastrados = carregar_usuarios()
