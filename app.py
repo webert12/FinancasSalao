@@ -33,6 +33,18 @@ RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com/"
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
+# LÓGICA HÍBRIDA DE SENHA: Aceita texto puro ou hash criptografado
+def verificar_senha(senha_digitada, senha_no_banco):
+    if not senha_no_banco:
+        return False
+    # 1. Tenta verificar se a senha no banco está em texto puro
+    if senha_digitada == senha_no_banco:
+        return True
+    # 2. Tenta verificar se a senha no banco está criptografada
+    if hash_password(senha_digitada) == senha_no_banco:
+        return True
+    return False
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
@@ -273,7 +285,7 @@ def salvar_admin_hashes(password1, password2, url=""):
             conn.execute(text("""
                 INSERT INTO admin_config (id, hash1, hash2, url_sistema) VALUES (1, :h1, :h2, :url)
                 ON CONFLICT (id) DO UPDATE SET hash1 = EXCLUDED.hash1, hash2 = EXCLUDED.hash2, url_sistema = EXCLUDED.url_sistema
-            """), {"h1": hash_password(password1), "h2": hash_password(password2), "url": url})
+            """), {"h1": password1, "h2": password2, "url": url})  # SALVA EM TEXTO PURO (SEM HASH_PASSWORD AQUI)
         carregar_admin_hashes.clear()
     except Exception as e: st.error(f"Erro: {e}")
 
@@ -591,14 +603,16 @@ if not st.session_state.autenticado:
             submit_login = st.form_submit_button("Entrar no Sistema", type="primary", use_container_width=True)
             if submit_login:
                 if tipo_acesso == "Admin":
-                    if usuario_input == "admin" and hash_password(senha_input) == admin_hash1 and hash_password(senha2_input) == admin_hash2:
+                    # UTILIZANDO A LÓGICA HÍBRIDA PARA O ADMIN (Aceita texto puro ou hash)
+                    if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
                         st.rerun()
                     else: st.error("Credenciais inválidas.")
                 else:
-                    if usuario_input in usuarios_cadastrados and usuarios_cadastrados[usuario_input]["senha"] == hash_password(senha_input):
+                    # UTILIZANDO A LÓGICA HÍBRIDA PARA USUÁRIOS (Aceita texto puro antigo ou hash novo)
+                    if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
                         dados_user = usuarios_cadastrados[usuario_input]
                         try:
                             data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
@@ -650,6 +664,7 @@ if st.session_state.eh_admin:
             if st.form_submit_button("Cadastrar Salão", type="primary"):
                 if novo_usuario and nova_senha and novo_email:
                     venc = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
+                    # Mantém criptografia APENAS para os novos cadastros como solicitado
                     usuarios_cadastrados[novo_usuario] = {"senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": venc, "status": "Ativo"}
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Salão cadastrado com sucesso!")
