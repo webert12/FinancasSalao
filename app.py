@@ -490,6 +490,92 @@ if salao_url:
     HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
+    # --- 5.5. VERIFICAÇÃO DE ACESSO ADMIN (VIA URL) ---
+    # O painel só abre se o link for algo como: ?salao=nome&admin=true
+    modo_admin = query_params.get("admin", "false").lower() == "true"
+
+    if modo_admin:
+        st.title("⚙️ Painel de Controle do Salão")
+        st.markdown(f"**Gestão de serviços para:** {nome_salao_formatado}")
+        
+        # ATENÇÃO: No futuro, o ideal é ler essa senha do banco de dados 
+        # para que cada salão tenha a sua própria senha exclusiva.
+        senha_admin = st.text_input("Digite a Senha de Acesso:", type="password")
+        
+        if senha_admin == "admin123":
+            st.success("Acesso Liberado!")
+            st.markdown("---")
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.markdown("### 📋 Seus Serviços")
+                try:
+                    import pandas as pd # Importado aqui para garantir
+                    with engine.connect() as conn:
+                        df_servicos = pd.read_sql(
+                            text("SELECT nome AS \"Serviço\", preco AS \"Valor (R$)\", duracao_minutos AS \"Duração (min)\" FROM servicos WHERE usuario_id = :user ORDER BY nome ASC"),
+                            conn, params={"user": salao_id_clean}
+                        )
+                    if not df_servicos.empty:
+                        st.dataframe(df_servicos, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Nenhum serviço cadastrado ainda.")
+                except Exception as e:
+                    st.error(f"Erro ao carregar serviços: {e}")
+                    
+            with col2:
+                st.markdown("### ➕ Novo Serviço")
+                with st.form("form_novo_servico", clear_on_submit=True):
+                    novo_nome = st.text_input("Nome do Serviço:")
+                    novo_preco = st.number_input("Preço (R$):", min_value=0.0, step=5.0, format="%.2f")
+                    nova_duracao = st.number_input("Duração (Minutos):", min_value=30, step=30)
+                    
+                    btn_salvar = st.form_submit_button("Salvar Serviço", use_container_width=True)
+                    
+                    if btn_salvar:
+                        if novo_nome:
+                            try:
+                                with engine.begin() as conn:
+                                    conn.execute(
+                                        text("""
+                                        INSERT INTO servicos (usuario_id, nome, preco, duracao_minutos) 
+                                        VALUES (:user, :nome, :preco, :duracao)
+                                        """),
+                                        {"user": salao_id_clean, "nome": novo_nome.strip(), "preco": novo_preco, "duracao": nova_duracao}
+                                    )
+                                st.success("Adicionado! Dê um F5 (recarregar) na página.")
+                            except Exception as e:
+                                st.error(f"Erro ao salvar: {e}")
+                        else:
+                            st.warning("Preencha o nome do serviço.")
+                            
+                st.markdown("### 🗑️ Excluir Serviço")
+                with st.form("form_excluir_servico"):
+                    if not df_servicos.empty:
+                        servico_excluir = st.selectbox("Remover:", options=df_servicos["Serviço"].tolist())
+                        btn_excluir = st.form_submit_button("Excluir", use_container_width=True)
+                        
+                        if btn_excluir:
+                            try:
+                                with engine.begin() as conn:
+                                    conn.execute(
+                                        text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"),
+                                        {"user": salao_id_clean, "nome": servico_excluir}
+                                    )
+                                st.success("Excluído! Dê um F5 na página.")
+                            except Exception as e:
+                                st.error(f"Erro ao excluir: {e}")
+                    else:
+                        st.write("Nada para excluir.")
+                        st.form_submit_button("Excluir", disabled=True)
+
+        elif senha_admin != "":
+            st.error("Senha incorreta.")
+            
+        # Bloqueia a execução do resto do código (a tela de cliente não vai carregar)
+        st.stop()
+
     st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
     with st.form("form_agendamento_cliente", clear_on_submit=True):
