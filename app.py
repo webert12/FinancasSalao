@@ -28,7 +28,7 @@ SALT = st.secrets.get("SECURITY_SALT", "salao_fio_caixa_secure_default_2026")
 TZ = ZoneInfo("America/Sao_Paulo")
 
 # URL OFICIAL NO RENDER
-RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com"
+RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com/"
 
 def hash_password(password):
     return hashlib.sha256((password + SALT).encode()).hexdigest()
