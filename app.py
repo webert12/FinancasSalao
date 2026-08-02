@@ -50,7 +50,6 @@ st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide"
 query_params = st.query_params
 
 # ESTADOS DE SESSÃO INICIAIS
-if 'formulario_ativo' not in st.session_state: st.session_state.formulario_ativo = 'none'
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
@@ -767,6 +766,67 @@ with col_top_left:
 
 st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
+
+# ==============================================================================
+# FUNÇÕES DE DIÁLOGO (MODAIS PARA AÇÕES RÁPIDAS)
+# ==============================================================================
+
+@st.dialog("✂️ Registrar Novo Atendimento")
+def dialog_novo_atendimento(servicos_dict):
+    if list(servicos_dict.keys()):
+        servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_atend_serv_modal")
+        preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos_dict[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}_modal")
+        data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt_modal")
+        if st.button("Confirmar Entrada", type="primary", icon=":material/check_circle:", use_container_width=True):
+            inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
+            st.success("Atendimento registrado no caixa!")
+            st.rerun()
+
+@st.dialog("🛍️ Registrar Nova Despesa")
+def dialog_nova_despesa():
+    descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc_modal", placeholder="Ex: Produto de limpeza, conta de luz...")
+    valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val_modal")
+    data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt_modal")
+    if st.button("Lançar Saída", type="primary", icon=":material/remove_circle:", use_container_width=True):
+        if descricao_saida and valor_saida > 0:
+            inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
+            st.success("Despesa lançada!")
+            st.rerun()
+        else:
+            st.warning("Preencha a descrição e um valor válido.")
+
+@st.dialog("💰 Registrar Atendimento Fiado")
+def dialog_anotar_fiado(servicos_dict):
+    if list(servicos_dict.keys()):
+        nome_devedor = st.text_input("Nome do Cliente Devedor:", key="f_fiado_nome_modal")
+        servico_pendente = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_fiado_serv_modal")
+        preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos_dict[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}_modal")
+        data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt_modal")
+        if st.button("Anotar Pendência", type="primary", icon=":material/warning:", use_container_width=True):
+            if nome_devedor:
+                inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
+                st.success("Fiado registrado!")
+                st.rerun()
+            else:
+                st.warning("Informe o nome do cliente devedor.")
+
+@st.dialog("💸 Dar Baixa em Fiado")
+def dialog_baixar_fiado(df_fluxo):
+    df_pendencias = df_fluxo[df_fluxo['Tipo'] == 'Pendência']
+    if not df_pendencias.empty:
+        opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
+        pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel_modal")
+        if st.button("Confirmar Recebimento", type="primary", icon=":material/payments:", use_container_width=True):
+            id_alterar = opcoes_pendentes[pendencia_selecionada]
+            row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
+            nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
+            dar_baixa_fiado_direta(id_alterar, nova_desc)
+            st.success("Pagamento registrado no caixa!")
+            st.rerun()
+    else:
+        st.info("Nenhum fiado pendente no momento.")
+
+
 tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
@@ -903,79 +963,21 @@ with tab_relatorios:
 # TAB 2: AÇÕES RÁPIDAS
 # ==============================================================================
 with tab_acoes:
-    st.markdown('### 🚀 Ações Rápidas do Caixa')
+    st.markdown('### :material/bolt: Ações Rápidas do Caixa')
     col_a, col_b, col_c, col_d = st.columns(4)
     with col_a:
-        if st.button("✂️ Novo Atendimento", key="btn_atend", use_container_width=True, type="primary"):
-            st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_atendimento' else 'new_atendimento'
-            st.rerun()
+        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+            dialog_novo_atendimento(servicos)
     with col_b:
-        if st.button("🛍️ Nova Despesa", key="btn_venda", use_container_width=True):
-            st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_venda' else 'new_venda'
-            st.rerun()
+        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+            dialog_nova_despesa()
     with col_c:
-        if st.button("💰 Anotar Fiado", key="btn_receber", use_container_width=True):
-            st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_receber' else 'new_receber'
-            st.rerun()
+        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+            dialog_anotar_fiado(servicos)
     with col_d:
-        if st.button("💸 Baixar Fiado", key="btn_pagar", use_container_width=True):
-            st.session_state.formulario_ativo = 'none' if st.session_state.formulario_ativo == 'new_pagar' else 'new_pagar'
-            st.rerun()
+        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+            dialog_baixar_fiado(df_fluxo_caixa)
 
-    if st.session_state.formulario_ativo == 'new_atendimento':
-        st.markdown('<div class="ui-card-highlight"><h4>✂️ Registrar Novo Atendimento</h4>', unsafe_allow_html=True)
-        if list(servicos.keys()):
-            servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos.keys()), key="f_atend_serv")
-            preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}")
-            data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt")
-            if st.button("Confirmar Entrada 🟢", type="primary", key="f_atend_save", use_container_width=True):
-                inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
-                st.session_state.formulario_ativo = 'none'
-                st.success("Atendimento registrado no caixa!")
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    elif st.session_state.formulario_ativo == 'new_venda':
-        st.markdown('<div class="ui-card-highlight"><h4>🛍️ Registrar Nova Despesa</h4>', unsafe_allow_html=True)
-        descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc", placeholder="Ex: Produto de limpeza, conta de luz...")
-        valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val")
-        data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt")
-        if st.button("Lançar Saída 🔴", type="primary", key="f_venda_save", use_container_width=True):
-            if descricao_saida and valor_saida > 0:
-                inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
-                st.session_state.formulario_ativo = 'none'
-                st.success("Despesa lançada!")
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    elif st.session_state.formulario_ativo == 'new_receber':
-        st.markdown('<div class="ui-card-highlight"><h4>💰 Registrar Atendimento Fiado</h4>', unsafe_allow_html=True)
-        if list(servicos.keys()):
-            nome_devedor = st.text_input("Nome do Cliente Devedor:", key="f_fiado_nome")
-            servico_pendente = st.selectbox("Serviço Realizado:", list(servicos.keys()), key="f_fiado_serv")
-            preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}")
-            data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt")
-            if st.button("Anotar Pendência 🟡", type="primary", key="f_fiado_save", use_container_width=True):
-                if nome_devedor:
-                    inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
-                    st.session_state.formulario_ativo = 'none'
-                    st.success("Fiado registrado!")
-                    st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    elif st.session_state.formulario_ativo == 'new_pagar':
-        st.markdown('<div class="ui-card-highlight"><h4>💸 Dar Baixa em Fiado</h4>', unsafe_allow_html=True)
-        df_pendencias = df_fluxo_caixa[df_fluxo_caixa['Tipo'] == 'Pendência']
-        if not df_pendencias.empty:
-            opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
-            pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel")
-            if st.button("Confirmar Recebimento 💵", type="primary", key="f_pago_save", use_container_width=True):
-                id_alterar = opcoes_pendentes[pendencia_selecionada]
-                row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
-                nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
-                dar_baixa_fiado_direta(id_alterar, nova_desc)
-                st.session_state.formulario_ativo = 'none'
-                st.success("Pagamento registrado no caixa!")
-                st.rerun()
-        else: st.info("Nenhum fiado pendente no momento.")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 3: AGENDAMENTOS
