@@ -263,7 +263,8 @@ def inicializar_banco():
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);"))
         conn.execute(text("ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;"))
-        conn.execute(text("CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT);"))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT, whatsapp TEXT);"))
+        conn.execute(text("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp TEXT;"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
@@ -308,9 +309,20 @@ def atualizar_url_sistema(url):
 def carregar_usuarios():
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, senha, email, tipo, vencimento, status FROM usuarios"))
+            result = conn.execute(text("SELECT id, senha, email, tipo, vencimento, status, whatsapp FROM usuarios"))
             rows = result.fetchall()
-            if rows: return {row[0]: {"id": row[0], "senha": row[1], "email": row[2], "tipo": row[3], "vencimento": row[4], "status": row[5]} for row in rows}
+            if rows: 
+                return {
+                    row[0]: {
+                        "id": row[0], 
+                        "senha": row[1], 
+                        "email": row[2], 
+                        "tipo": row[3], 
+                        "vencimento": row[4], 
+                        "status": row[5],
+                        "whatsapp": row[6] if len(row) > 6 and row[6] is not None else ""
+                    } for row in rows
+                }
     except Exception: pass
     return {}
 
@@ -326,9 +338,24 @@ def salvar_usuarios(usuarios_dict):
                 venc_str = str(venc_val) if venc_val else datetime.now(TZ).strftime('%Y-%m-%d')
 
             conn.execute(text("""
-                INSERT INTO usuarios (id, senha, email, tipo, vencimento, status) VALUES (:id, :senha, :email, :tipo, :vencimento, :status)
-                ON CONFLICT (id) DO UPDATE SET senha = EXCLUDED.senha, email = EXCLUDED.email, tipo = EXCLUDED.tipo, vencimento = EXCLUDED.vencimento, status = EXCLUDED.status
-            """), {"id": k, "senha": v["senha"], "email": v.get("email", ""), "tipo": v["tipo"], "vencimento": venc_str, "status": v["status"]})
+                INSERT INTO usuarios (id, senha, email, tipo, vencimento, status, whatsapp) 
+                VALUES (:id, :senha, :email, :tipo, :vencimento, :status, :whatsapp)
+                ON CONFLICT (id) DO UPDATE SET 
+                    senha = EXCLUDED.senha, 
+                    email = EXCLUDED.email, 
+                    tipo = EXCLUDED.tipo, 
+                    vencimento = EXCLUDED.vencimento, 
+                    status = EXCLUDED.status,
+                    whatsapp = EXCLUDED.whatsapp
+            """), {
+                "id": k, 
+                "senha": v["senha"], 
+                "email": v.get("email", ""), 
+                "tipo": v["tipo"], 
+                "vencimento": venc_str, 
+                "status": v["status"],
+                "whatsapp": v.get("whatsapp", "")
+            })
     carregar_usuarios.clear()
 
 @st.cache_data(ttl=300)
@@ -490,7 +517,45 @@ if salao_url:
     HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
+    # Busca WhatsApp do dono do salão
+    todos_usuarios = carregar_usuarios()
+    dados_dono = todos_usuarios.get(salao_id_clean, {})
+    wa_dono = dados_dono.get("whatsapp", "")
+
     st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
+
+    # Exibe confirmação com o botão do WhatsApp
+    if st.session_state.get("agendamento_sucesso"):
+        dados_ag = st.session_state.agendamento_sucesso
+        st.success(f"🎉 Agendado com sucesso para {dados_ag['nome']} às {dados_ag['hora']} dia {dados_ag['data_formatada']}!")
+        st.balloons()
+
+        wa_dono_clean = re.sub(r'\D', '', str(dados_ag.get("wa_dono", "")))
+        if wa_dono_clean:
+            if not wa_dono_clean.startswith('55') and len(wa_dono_clean) <= 11:
+                wa_dono_clean = '55' + wa_dono_clean
+            
+            msg_wa = urllib.parse.quote(
+                f"Olá! Acabei de realizar um agendamento pelo site:\n\n"
+                f"👤 *Cliente:* {dados_ag['nome']}\n"
+                f"📱 *Contato:* {dados_ag['contato']}\n"
+                f"✂️ *Serviço:* {dados_ag['servico']}\n"
+                f"📅 *Data:* {dados_ag['data_formatada']}\n"
+                f"⏰ *Horário:* {dados_ag['hora']}"
+            )
+            link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
+            
+            st.markdown(f'''
+                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:800; font-size:1.1rem; margin-top:15px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);">
+                    <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
+                    Confirmar e Enviar no WhatsApp do Salão
+                </a>
+            ''', unsafe_allow_html=True)
+
+        if st.button("Fazer Outro Agendamento", use_container_width=True):
+            del st.session_state.agendamento_sucesso
+            st.rerun()
+        st.stop()
 
     with st.form("form_agendamento_cliente", clear_on_submit=True):
         nome_cliente = st.text_input("Seu Nome Completo:")
@@ -498,6 +563,7 @@ if salao_url:
         servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys())) if servicos_salao else None
         data_escolhida = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
         data_str = data_escolhida.strftime("%Y-%m-%d")
+        data_formatada = data_escolhida.strftime("%d/%m/%Y")
         try:
             with engine.connect() as conn:
                 result = conn.execute(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), {"user": salao_id_clean, "dt": data_str})
@@ -518,8 +584,15 @@ if salao_url:
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
                     conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
-                st.success(f"🎉 Agendado com sucesso para {nome_cliente} às {horario_escolhido}!")
-                st.balloons()
+                
+                st.session_state.agendamento_sucesso = {
+                    "nome": nome_cliente.strip(),
+                    "contato": telefone_cliente.strip(),
+                    "servico": servico_escolhido,
+                    "hora": horario_escolhido,
+                    "data_formatada": data_formatada,
+                    "wa_dono": wa_dono
+                }
                 st.rerun()
         except Exception as e: st.error(f"Erro ao registrar agendamento: {e}")
     st.stop()
@@ -646,13 +719,21 @@ if st.session_state.eh_admin:
         with st.form("form_cadastro_cliente"):
             novo_usuario = st.text_input("Usuário do Salão (sem espaços):").strip().lower()
             novo_email = st.text_input("E-mail de Contato:").strip().lower()
+            novo_whatsapp = st.text_input("WhatsApp do Salão (com DDD, ex: 5537999999999):").strip()
             nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
             tipo_conta = st.selectbox("Perfil:", ["Teste", "Cliente"])
             dias_validade = st.number_input("Dias de Acesso:", min_value=1, value=30)
             if st.form_submit_button("Cadastrar Salão", type="primary"):
                 if novo_usuario and nova_senha and novo_email:
                     venc = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
-                    usuarios_cadastrados[novo_usuario] = {"senha": hash_password(nova_senha), "email": novo_email, "tipo": tipo_conta, "vencimento": venc, "status": "Ativo"}
+                    usuarios_cadastrados[novo_usuario] = {
+                        "senha": hash_password(nova_senha), 
+                        "email": novo_email, 
+                        "whatsapp": novo_whatsapp,
+                        "tipo": tipo_conta, 
+                        "vencimento": venc, 
+                        "status": "Ativo"
+                    }
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Salão cadastrado com sucesso!")
                     st.rerun()
@@ -662,6 +743,7 @@ if st.session_state.eh_admin:
             dados = usuarios_cadastrados[salao_sel]
             with st.expander("📝 Editar Conta", expanded=True):
                 e_email = st.text_input("E-mail:", value=dados.get("email", ""))
+                e_whatsapp = st.text_input("WhatsApp (com DDD):", value=dados.get("whatsapp", ""))
                 e_senha_nova = st.text_input("Alterar Senha (opcional):", type="password")
                 e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
 
@@ -675,7 +757,14 @@ if st.session_state.eh_admin:
                 if st.button("Salvar Modificações"):
                     senha_f = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
                     venc_str_save = e_venc.strftime("%Y-%m-%d") if hasattr(e_venc, 'strftime') else str(e_venc)
-                    usuarios_cadastrados[salao_sel] = {"senha": senha_f, "email": e_email.strip().lower(), "tipo": e_tipo, "vencimento": venc_str_save, "status": e_status}
+                    usuarios_cadastrados[salao_sel] = {
+                        "senha": senha_f, 
+                        "email": e_email.strip().lower(), 
+                        "whatsapp": e_whatsapp.strip(),
+                        "tipo": e_tipo, 
+                        "vencimento": venc_str_save, 
+                        "status": e_status
+                    }
                     salvar_usuarios(usuarios_cadastrados)
                     st.success("Conta atualizada!")
                     st.rerun()
