@@ -1080,7 +1080,7 @@ with tab_acoes:
 
 
 # ==============================================================================
-# TAB 3: AGENDAMENTOS
+# TAB 3: AGENDAMENTOS (ATUALIZADA)
 # ==============================================================================
 with tab_agend:
     st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
@@ -1094,34 +1094,70 @@ with tab_agend:
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
+    
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        df_display = df_agendamentos.copy()
-        try: df_display['Data'] = pd.to_datetime(df_display['Data']).dt.strftime('%d/%m/%Y')
-        except Exception: pass
-
         st.markdown('<div class="ui-card"><h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
-        st.dataframe(df_display.drop(columns=['id'], errors='ignore'), use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Carrega os serviços para saber o preço na hora de faturar
+        servicos_salao = carregar_servicos()
 
-        st.markdown('<div class="ui-card"><h4>🛠️ Ações em Agendamento</h4>', unsafe_allow_html=True)
-        opcoes_agend = {f"{row['Cliente']} - {row['Data']} às {row['Horário']} ({row['Serviço']})": row['id'] for _, row in df_agendamentos.iterrows()}
-        agend_selecionado = st.selectbox("Selecione o Cliente:", list(opcoes_agend.keys()))
-        id_sel = opcoes_agend[agend_selecionado]
-        row_ag = df_agendamentos[df_agendamentos['id'] == id_sel].iloc[0]
-        num_clean = re.sub(r'\D', '', str(row_ag['Contato/WhatsApp']))
+        for index, row in df_agendamentos.iterrows():
+            id_ag = row['id']
+            cliente = row['Cliente']
+            contato = row['Contato/WhatsApp']
+            servico = row['Serviço']
+            data_bd = row['Data']
+            hora = row['Horário']
+            
+            # Tenta formatar a data bonitinha
+            try:
+                data_formatada = pd.to_datetime(data_bd).strftime('%d/%m/%Y')
+            except:
+                data_formatada = data_bd
 
-        if num_clean:
-            if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
-            msg_cli = urllib.parse.quote(f"Olá {row_ag['Cliente']}! Confirmando seu agendamento no {nome_salao_titulo} para {row_ag['Data']} às {row_ag['Horário']}.")
-            wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-            st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:0.7rem;border-radius:12px;text-decoration:none;font-weight:700;margin-bottom:12px;">💬 Chamar Cliente no WhatsApp</a>', unsafe_allow_html=True)
+            # Cria 4 colunas (Informação, WhatsApp, Confirmar, Cancelar)
+            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
+            
+            with col_info:
+                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
+            
+            with col_zap:
+                num_clean = re.sub(r'\D', '', str(contato))
+                if num_clean:
+                    if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
+                    msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
+                    wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
+                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
+                else:
+                    st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
 
-        if st.button("✅ Concluir / Excluir Agendamento", type="primary", use_container_width=True):
-            deletar_agendamento(id_sel)
-            st.success("Agendamento finalizado!")
-            st.rerun()
+            with col_conf:
+                # O botão tem um 'key' único baseado no ID do agendamento
+                if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
+                    # Pega o preço do serviço puxado do banco (se não achar, coloca R$0.0)
+                    preco_servico = float(servicos_salao.get(servico, 0.0))
+                    
+                    # 1) Lança o valor no fluxo de caixa contabilizando
+                    inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
+                    
+                    # 2) Deleta o agendamento pra sumir da fila e liberar a agenda
+                    deletar_agendamento(id_ag)
+                    
+                    # 3) Avisa o usuário e recarrega a página
+                    st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
+                    st.rerun()
+            
+            with col_canc:
+                if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
+                    deletar_agendamento(id_ag)
+                    st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
+                    st.rerun()
+            
+            # Linha de separação entre os clientes
+            st.markdown("<hr style='margin: 15px 0; border-color: #1f2937;'>", unsafe_allow_html=True)
+
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="ui-card" style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
