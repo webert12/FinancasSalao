@@ -1,7 +1,3 @@
-Gemini, quero fazer algumas mudanças, no meu sistema quero que as funções fique na lateral ao invés de ficar em horizontal, as configurações fique em vertical no canto esquerdo, assim fica um painel mais bonito e separado, os botões separados das configurações.
-
-Faça isso dentro do meu código original abaixo sem alterações nenhuma apenas atualização necessárias mantendo a estrutura original do código 
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
