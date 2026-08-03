@@ -482,6 +482,45 @@ def gerar_pdf_contabilidade(df, mes_ref):
     buffer.seek(0)
     return buffer.getvalue()
 
+# --- NOVA FUNÇÃO: GERAR NOTA FISCAL / RECIBO EM PDF ---
+def gerar_pdf_nota_fiscal(descricao, valor, data_str, cliente_nome="Cliente", salao_nome="Fio&Caixa"):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    story = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle('NFTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#00a8ff"), alignment=1, spaceAfter=8)
+    sub_style = ParagraphStyle('NFSub', parent=styles['Normal'], fontSize=10, textColor=colors.grey, alignment=1, spaceAfter=20)
+    body_style = ParagraphStyle('NFBody', parent=styles['Normal'], fontSize=11, leading=16, spaceAfter=8)
+
+    story.append(Paragraph(f"<b>{salao_nome.upper()}</b>", title_style))
+    story.append(Paragraph("COMPROVANTE DE SERVIÇO / NOTA FISCAL", sub_style))
+    story.append(Paragraph(f"<b>Emissão:</b> {datetime.now(TZ).strftime('%d/%m/%Y %H:%M')}", body_style))
+    story.append(Paragraph(f"<b>Data do Serviço:</b> {data_str}", body_style))
+    story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome}", body_style))
+    story.append(Paragraph("<br/>", body_style))
+
+    table_data = [
+        ["Descrição do Serviço", "Valor Total (R$)"],
+        [descricao, f"R$ {valor:.2f}"]
+    ]
+    t = Table(table_data, colWidths=[360, 140])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111823")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#00a8ff")),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('PADDING', (0,0), (-1,-1), 10),
+        ('ALIGN', (1,0), (1,-1), 'RIGHT')
+    ]))
+    story.append(t)
+    story.append(Paragraph("<br/><br/>", body_style))
+    story.append(Paragraph("<i>Agradecemos a preferência e volte sempre!</i>", sub_style))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao):
     st.download_button(
         label=label_botao,
@@ -1174,6 +1213,36 @@ with tab_historico:
                 renderizar_botao_download_apk(pdf_bytes, f"{nome_arq}.pdf", "application/pdf", "📕 Baixar Relatório PDF")
 
             st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+            
+            # --- SEÇÃO ADICIONADA: GERAR NOTA FISCAL / RECIBO ---
+            with st.expander("🧾 Emitir Nota Fiscal / Recibo de um Atendimento"):
+                df_entradas = df_exibicao[df_exibicao['Tipo'] == 'Entrada']
+                if not df_entradas.empty:
+                    opcoes_nf = {f"#{row['id']} - {row['Data'].strftime('%d/%m/%Y')} - {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_entradas.iterrows()}
+                    reg_nf_sel = st.selectbox("Selecione o Atendimento Realizado:", list(opcoes_nf.keys()), key="select_nf_item")
+                    id_nf = opcoes_nf[reg_nf_sel]
+                    row_nf = df_entradas[df_entradas['id'] == id_nf].iloc[0]
+                    
+                    cliente_nf = st.text_input("Nome do Cliente para constar no Recibo:", value="Cliente Geral", key="input_nome_cli_nf")
+                    
+                    dt_str_nf = row_nf['Data'].strftime('%d/%m/%Y') if hasattr(row_nf['Data'], 'strftime') else str(row_nf['Data'])
+                    pdf_nf_bytes = gerar_pdf_nota_fiscal(
+                        descricao=row_nf['Descrição'],
+                        valor=float(row_nf['Valor']),
+                        data_str=dt_str_nf,
+                        cliente_nome=cliente_nf.strip(),
+                        salao_nome=nome_salao_titulo
+                    )
+                    
+                    renderizar_botao_download_apk(
+                        pdf_nf_bytes,
+                        f"nota_fiscal_{id_nf}_{datetime.now(TZ).strftime('%d_%m_%Y')}.pdf",
+                        "application/pdf",
+                        "🧾 Baixar Nota Fiscal / Recibo PDF"
+                    )
+                else:
+                    st.info("Nenhum atendimento de entrada registrado no período para emitir Nota Fiscal.")
+
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
                 opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
