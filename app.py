@@ -522,7 +522,7 @@ if salao_url:
     dados_dono = todos_usuarios.get(salao_id_clean, {})
     wa_dono = dados_dono.get("whatsapp", "")
 
-    st.markdown(f'<div class="ui-card-highlight" style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
     # Exibe confirmação com o botão do WhatsApp
     if st.session_state.get("agendamento_sucesso"):
@@ -864,7 +864,7 @@ with col_top_left:
                 del st.query_params["token_sessao"]
             st.rerun()
 
-st.markdown(f'<div class="ui-card-highlight" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -926,8 +926,10 @@ def dialog_baixar_fiado(df_fluxo):
     else:
         st.info("Nenhum fiado pendente no momento.")
 
-
-tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Ações Rápidas", "📅 Agendamentos", "📜 Histórico"])
+# ==============================================================================
+# ABAS ATUALIZADAS E RENOMEADAS
+# ==============================================================================
+tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Serviços", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
 # TAB 1: RELATÓRIOS
@@ -974,7 +976,7 @@ with tab_relatorios:
     with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="ui-card"><h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
+    st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
 
     if not df_mes_atual.empty:
         df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
@@ -999,11 +1001,10 @@ with tab_relatorios:
         )
         st.plotly_chart(fig_area, use_container_width=True)
     else: st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     col_bottom1, col_bottom2 = st.columns(2)
     with col_bottom1:
-        st.markdown('<div class="ui-card" style="height: 100%;"><h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
         if ent_atual > 0 or sai_atual > 0:
             total_op = ent_atual + sai_atual
             perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
@@ -1031,10 +1032,9 @@ with tab_relatorios:
                 <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
                 """, unsafe_allow_html=True)
         else: st.info("Sem dados suficientes neste mês.")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col_bottom2:
-        st.markdown('<div class="ui-card" style="height: 100%;"><h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
         if sai_atual > 0:
             df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
             df_desp['Valor'] = df_desp['Valor'].abs()
@@ -1057,33 +1057,33 @@ with tab_relatorios:
                 """
             st.markdown(html_barras, unsafe_allow_html=True)
         else: st.info("Nenhuma despesa registrada neste mês.")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 2: AÇÕES RÁPIDAS
+# TAB 2: SERVIÇOS (Ações rápidas atualizadas e empilhadas)
 # ==============================================================================
 with tab_acoes:
-    st.markdown('### :material/bolt: Ações Rápidas do Caixa')
-    col_a, col_b, col_c, col_d = st.columns(4)
-    with col_a:
-        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
-            dialog_novo_atendimento(servicos)
-    with col_b:
-        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
-            dialog_nova_despesa()
-    with col_c:
-        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
-            dialog_anotar_fiado(servicos)
-    with col_d:
-        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
-            dialog_baixar_fiado(df_fluxo_caixa)
-
+    st.markdown('### :material/bolt: Serviços')
+    
+    # Removido o st.columns(4) - Agora os botões ficam 100% responsivos, um abaixo do outro
+    if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+        dialog_novo_atendimento(servicos)
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+        dialog_nova_despesa()
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+        dialog_anotar_fiado(servicos)
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+        dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
-# TAB 3: AGENDAMENTOS (ATUALIZADA)
+# TAB 3: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
-    st.markdown('<div class="ui-card-highlight">', unsafe_allow_html=True)
     col_ag_title, col_ag_btn = st.columns([3, 1])
     with col_ag_title:
         st.markdown("### 📅 Central de Agendamentos")
@@ -1091,14 +1091,14 @@ with tab_agend:
     with col_ag_btn:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        st.markdown('<div class="ui-card"><h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
+        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
         
         # Carrega os serviços para saber o preço na hora de faturar
         servicos_salao = carregar_servicos()
@@ -1157,10 +1157,8 @@ with tab_agend:
             
             # Linha de separação entre os clientes
             st.markdown("<hr style='margin: 15px 0; border-color: #1f2937;'>", unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="ui-card" style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 4: HISTÓRICO & RELATÓRIOS
@@ -1171,7 +1169,7 @@ with tab_historico:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
         df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
 
-        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        # Removido a <div ui-card> vazia que criava um retângulo oco
         modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
         if modo_filtro == "Por Mês Fechado":
             meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
@@ -1186,7 +1184,6 @@ with tab_historico:
             df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
             texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
             nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
-        st.markdown('</div>', unsafe_allow_html=True)
 
         if not df_exibicao.empty:
             df_vis = df_exibicao.sort_index(ascending=False).copy()
@@ -1201,6 +1198,7 @@ with tab_historico:
 
             st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
 
+            st.markdown("<br>", unsafe_allow_html=True)
             col_down1, col_down2 = st.columns(2)
             with col_down1:
                 csv_bytes = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
@@ -1209,7 +1207,9 @@ with tab_historico:
                 pdf_bytes = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
                 renderizar_botao_download_apk(pdf_bytes, f"{nome_arq}.pdf", "application/pdf", "📕 Baixar Relatório PDF")
 
-            st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Removido a <div ui-card> vazia na parte de baixo também
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
                 opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
@@ -1218,6 +1218,5 @@ with tab_historico:
                     deletar_movimentacao_fluxo(id_apagar)
                     st.warning("Registro excluído!")
                     st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
         else: st.info("Nenhum registro no período selecionado.")
     else: st.info("Histórico de caixa vazio.")
