@@ -220,10 +220,9 @@ def set_background_com_logo(image_path):
         .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
         .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
 
-        .stTabs [data-baseweb="tab-list"] {{ gap: 15px; background-color: transparent; display: flex; justify-content: center; }}
-        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 14px; border: 1.5px solid #1f2937; padding: 16px 32px; color: #94a3b8 !important; font-size: 1.15rem; font-weight: 700; min-width: 200px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.2s ease; }}
-        .stTabs [data-baseweb="tab"]:hover {{ border-color: #00a8ff; color: #ffffff !important; transform: translateY(-2px); }}
-        .stTabs [aria-selected="true"] {{ background: linear-gradient(135deg, #1a2332 0%, #243044 100%) !important; color: #00a8ff !important; font-weight: 800; border: 2px solid #00a8ff !important; box-shadow: 0 6px 20px rgba(0, 168, 255, 0.25) !important; }}
+        .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
+        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1f2937; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
+        .stTabs [aria-selected="true"] {{ background-color: #1a2332 !important; color: #00a8ff !important; font-weight: bold; border-top: 3px solid #00a8ff !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -236,7 +235,7 @@ st.markdown("""
         footer, [data-testid="stFooter"], .stFooter,
         #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton { display: none !important; }
         [data-testid="collapsedControl"] { display: none !important; }
-        .main .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 1200px !important; margin: 0 auto !important; }
+        .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 96% !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -711,6 +710,7 @@ renderizar_whatsapp_flutuante()
 # MODO ADMINISTRADOR MESTRE
 # ==============================================================================
 if st.session_state.eh_admin:
+    # --- CABEÇALHO DO ADMIN COM BOTÃO DE SAIR VISÍVEL ---
     col_adm_title, col_adm_logout = st.columns([3, 1])
     with col_adm_title:
         st.title("👑 Gestão Geral de Salões (Admin)")
@@ -866,6 +866,7 @@ with col_top_left:
 
 st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
+
 # ==============================================================================
 # FUNÇÕES DE DIÁLOGO (MODAIS PARA AÇÕES RÁPIDAS)
 # ==============================================================================
@@ -876,7 +877,7 @@ def dialog_novo_atendimento(servicos_dict):
         servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_atend_serv_modal")
         preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos_dict[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}_modal")
         data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt_modal")
-        if st.button("Confirmar Entrada", type="primary", use_container_width=True):
+        if st.button("Confirmar Entrada", type="primary", icon=":material/check_circle:", use_container_width=True):
             inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
             st.success("Atendimento registrado no caixa!")
             st.rerun()
@@ -886,7 +887,7 @@ def dialog_nova_despesa():
     descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc_modal", placeholder="Ex: Produto de limpeza, conta de luz...")
     valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val_modal")
     data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt_modal")
-    if st.button("Lançar Saída", type="primary", use_container_width=True):
+    if st.button("Lançar Saída", type="primary", icon=":material/remove_circle:", use_container_width=True):
         if descricao_saida and valor_saida > 0:
             inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
             st.success("Despesa lançada!")
@@ -901,7 +902,7 @@ def dialog_anotar_fiado(servicos_dict):
         servico_pendente = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_fiado_serv_modal")
         preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos_dict[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}_modal")
         data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt_modal")
-        if st.button("Anotar Pendência", type="primary", use_container_width=True):
+        if st.button("Anotar Pendência", type="primary", icon=":material/warning:", use_container_width=True):
             if nome_devedor:
                 inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                 st.success("Fiado registrado!")
@@ -915,7 +916,7 @@ def dialog_baixar_fiado(df_fluxo):
     if not df_pendencias.empty:
         opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
         pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel_modal")
-        if st.button("Confirmar Recebimento", type="primary", use_container_width=True):
+        if st.button("Confirmar Recebimento", type="primary", icon=":material/payments:", use_container_width=True):
             id_alterar = opcoes_pendentes[pendencia_selecionada]
             row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
             nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
@@ -926,7 +927,7 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS PRINCIPAIS (CENTRALIZADAS E COM CAIXAS-GAVETA ESTILIZADAS)
+# ABAS ATUALIZADAS E RENOMEADAS
 # ==============================================================================
 tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Serviços", "📅 Agendamentos", "📜 Histórico"])
 
@@ -1058,46 +1059,29 @@ with tab_relatorios:
         else: st.info("Nenhuma despesa registrada neste mês.")
 
 # ==============================================================================
-# TAB 2: SERVIÇOS (CAIXAS-GAVETA / BOTÕES GRANDES E CENTRALIZADOS)
+# TAB 2: SERVIÇOS (Ações rápidas atualizadas e empilhadas)
 # ==============================================================================
 with tab_acoes:
-    st.markdown("### 🚀 Serviços e Ações Rápidas")
-    st.markdown("<p style='color: #94a3b8 !important; margin-bottom: 25px;'>Selecione a operação desejada abaixo:</p>", unsafe_allow_html=True)
-
-    col_gaveta_1, col_gaveta_2 = st.columns(2, gap="large")
+    st.markdown('### :material/bolt: Serviços')
     
-    with col_gaveta_1:
-        st.markdown('<div class="ui-card" style="text-align: center; padding: 30px;">', unsafe_allow_html=True)
-        st.markdown("#### ✂️ Novo Atendimento", unsafe_allow_html=True)
-        st.markdown("<p style='color: #94a3b8; font-size: 0.9rem;'>Registre entradas de serviços realizados.</p>", unsafe_allow_html=True)
-        if st.button("Abrir Atendimento", use_container_width=True, type="primary", key="btn_gaveta_atend"):
-            dialog_novo_atendimento(servicos)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="ui-card" style="text-align: center; padding: 30px;">', unsafe_allow_html=True)
-        st.markdown("#### 🛍️ Nova Despesa", unsafe_allow_html=True)
-        st.markdown("<p style='color: #94a3b8; font-size: 0.9rem;'>Lance saídas e pagamentos do salão.</p>", unsafe_allow_html=True)
-        if st.button("Abrir Despesa", use_container_width=True, key="btn_gaveta_desp"):
-            dialog_nova_despesa()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col_gaveta_2:
-        st.markdown('<div class="ui-card" style="text-align: center; padding: 30px;">', unsafe_allow_html=True)
-        st.markdown("#### 💰 Anotar Fiado", unsafe_allow_html=True)
-        st.markdown("<p style='color: #94a3b8; font-size: 0.9rem;'>Cadastre uma pendência de cliente.</p>", unsafe_allow_html=True)
-        if st.button("Abrir Fiado", use_container_width=True, key="btn_gaveta_fiado"):
-            dialog_anotar_fiado(servicos)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="ui-card" style="text-align: center; padding: 30px;">', unsafe_allow_html=True)
-        st.markdown("#### 💸 Baixar Fiado", unsafe_allow_html=True)
-        st.markdown("<p style='color: #94a3b8; font-size: 0.9rem;'>Dê baixa em pendências quitadas.</p>", unsafe_allow_html=True)
-        if st.button("Abrir Baixa", use_container_width=True, key="btn_gaveta_baixa"):
-            dialog_baixar_fiado(df_fluxo_caixa)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Removido o st.columns(4) - Agora os botões ficam 100% responsivos, um abaixo do outro
+    if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+        dialog_novo_atendimento(servicos)
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+        dialog_nova_despesa()
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+        dialog_anotar_fiado(servicos)
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+        dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
-# TAB 3: AGENDAMENTOS (CAIXAS-GAVETA / BOTÕES GRANDES E CENTRALIZADOS)
+# TAB 3: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
     col_ag_title, col_ag_btn = st.columns([3, 1])
@@ -1109,11 +1093,14 @@ with tab_agend:
         if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:25px; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); font-size: 1.05rem;">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
+        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
+        
+        # Carrega os serviços para saber o preço na hora de faturar
         servicos_salao = carregar_servicos()
 
         for index, row in df_agendamentos.iterrows():
@@ -1124,50 +1111,54 @@ with tab_agend:
             data_bd = row['Data']
             hora = row['Horário']
             
+            # Tenta formatar a data bonitinha
             try:
                 data_formatada = pd.to_datetime(data_bd).strftime('%d/%m/%Y')
             except:
                 data_formatada = data_bd
 
-            # Caixa-gaveta estilizada para cada agendamento
-            st.markdown(f'''
-                <div class="ui-card" style="margin-bottom: 15px; padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                        <div>
-                            <h4 style="margin: 0; color: #ffffff; font-size: 1.2rem;">{cliente}</h4>
-                            <p style="color: #00a8ff; font-weight: 600; margin: 4px 0 0 0; font-size: 0.95rem;">{servico}</p>
-                            <p style="color: #94a3b8; margin: 2px 0 0 0; font-size: 0.9rem;">📅 {data_formatada} às {hora}</p>
-                        </div>
-            ''', unsafe_allow_html=True)
-
-            col_btn_z, col_btn_c, col_btn_x = st.columns(3, gap="medium")
-            with col_btn_z:
+            # Cria 4 colunas (Informação, WhatsApp, Confirmar, Cancelar)
+            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
+            
+            with col_info:
+                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
+            
+            with col_zap:
                 num_clean = re.sub(r'\D', '', str(contato))
                 if num_clean:
                     if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
                     msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
                     wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:flex; align-items:center; justify-content:center; width:100%; background-color:#25d366; color:white; padding:12px; border-radius:12px; text-decoration:none; font-weight:700; box-shadow: 0 4px 10px rgba(37,211,102,0.3);">💬 WhatsApp</a>', unsafe_allow_html=True)
+                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
                 else:
-                    st.markdown('<div style="text-align:center; color:#64748b; padding:12px;">Sem Contato</div>', unsafe_allow_html=True)
+                    st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
 
-            with col_btn_c:
+            with col_conf:
+                # O botão tem um 'key' único baseado no ID do agendamento
                 if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
+                    # Pega o preço do serviço puxado do banco (se não achar, coloca R$0.0)
                     preco_servico = float(servicos_salao.get(servico, 0.0))
+                    
+                    # 1) Lança o valor no fluxo de caixa contabilizando
                     inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
+                    
+                    # 2) Deleta o agendamento pra sumir da fila e liberar a agenda
                     deletar_agendamento(id_ag)
+                    
+                    # 3) Avisa o usuário e recarrega a página
                     st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
                     st.rerun()
             
-            with col_btn_x:
+            with col_canc:
                 if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
                     deletar_agendamento(id_ag)
-                    st.warning(f"Agendamento de {cliente} removido.")
+                    st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
                     st.rerun()
-
-            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Linha de separação entre os clientes
+            st.markdown("<hr style='margin: 15px 0; border-color: #1f2937;'>", unsafe_allow_html=True)
     else:
-        st.markdown('<div class="ui-card" style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 4: HISTÓRICO & RELATÓRIOS
@@ -1178,6 +1169,7 @@ with tab_historico:
         df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
         df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
 
+        # Removido a <div ui-card> vazia que criava um retângulo oco
         modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
         if modo_filtro == "Por Mês Fechado":
             meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
@@ -1217,6 +1209,7 @@ with tab_historico:
 
             st.markdown("<br>", unsafe_allow_html=True)
             
+            # Removido a <div ui-card> vazia na parte de baixo também
             with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
                 opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
                 reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
