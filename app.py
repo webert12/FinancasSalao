@@ -588,7 +588,7 @@ def dar_baixa_divida_mensalista(id_cliente, valor_baixa):
         if res:
             devido_atual = float(res[0])
             novo_valor_devido = max(0.0, devido_atual - float(valor_baixa))
-            novo_status = 'Quitado' if novo_valor_devido == 0 else 'Pendente'
+            novo_status = 'Quitado' if novo_valor_devido <= 0 else 'Pendente'
             conn.execute(text("""
                 UPDATE clientes_mensais 
                 SET valor_devido = :v, status_divida = :st
@@ -609,24 +609,6 @@ def gerar_backup_json_completo():
         return str(obj)
     dados_backup = {"sistema": "Fio&Caixa", "usuario_dono": usuario, "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'), "catalogo_servicos": carregar_servicos(), "historico_financeiro": fluxo_dict}
     return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
-
-def gerar_pdf_contabilidade(df, mes_ref):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
-    story = []
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#38bdf8"), spaceAfter=15)
-    story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
-    table_data = [["Data", "Tipo", "Descrição", "Valor"]]
-    for _, row in df.iterrows():
-        dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
-        table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
-    t = Table(table_data, colWidths=[75, 60, 265, 80])
-    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0d131f")), ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#38bdf8")), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
-    story.append(t)
-    doc.build(story)
-    buffer.seek(0)
-    return buffer.getvalue()
 
 def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao):
     st.download_button(
@@ -1367,156 +1349,108 @@ with tab_mensais:
                 c_val = float(row['Valor Devido'])
                 c_status = row['Status']
 
-                cor_st = "#22c55e" if c_status == "Quitado" or c_val == 0 else "#ef4444"
+                cor_st = "#22c55e" if c_status == 'Quitado' else "#ef4444"
+                st.markdown(f'''
+                <div style="background: #1e293b; border-left: 5px solid {cor_st}; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                    <h4 style="margin:0; color:#fff;">{c_nome}</h4>
+                    <p style="margin:0; color:#94a3b8;">Tel: {c_tel} | Cortes Feitos: {c_serv}</p>
+                    <h5 style="margin:5px 0 0 0; color:{cor_st};">Devendo: R$ {c_val:.2f}</h5>
+                </div>
+                ''', unsafe_allow_html=True)
                 
-                with st.container():
-                    col_info_m, col_val_m, col_action_m = st.columns([3, 2, 2])
-                    with col_info_m:
-                        st.markdown(f"**👤 {c_nome}** (`{c_tel if c_tel else 'Sem Tel'}`)<br><span style='color: #94a3b8; font-size: 0.85rem;'>Serviços realizados: {c_serv}</span>", unsafe_allow_html=True)
-                    with col_val_m:
-                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.1rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
-                    with col_action_m:
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if c_val > 0:
-                            # Popover/Formulário para escolha do tipo de baixa
-                            with st.popover(f"💸 Dar Baixa ({c_nome})", use_container_width=True):
-                                st.markdown(f"**Dívida atual:** R$ {c_val:,.2f}")
-                                tipo_baixa = st.radio("Escolha o tipo de baixa:", ["Baixa total da dívida", "Baixa parcial (escolher valor)"], key=f"tipo_baixa_{c_id}")
-                                
-                                valor_a_baixar = c_val
-                                if tipo_baixa == "Baixa parcial (escolher valor)":
-                                    valor_a_baixar = st.number_input("Valor que o cliente pagou (R$):", min_value=0.01, max_value=c_val, value=c_val, step=5.0, key=f"val_parcial_{c_id}")
-                                
-                                if st.button("Confirmar Baixa", key=f"btn_conf_baixa_{c_id}", type="primary", use_container_width=True):
-                                    inserir_movimentacao_direta("Entrada", f"Mensalidade recebida ({'parcial' if tipo_baixa != 'Baixa total da dívida' else 'total'}): {c_nome}", valor_a_baixar, datetime.now(TZ).date())
-                                    dar_baixa_divida_mensalista(c_id, valor_a_baixar)
-                                    st.success(f"Baixa de R$ {valor_a_baixar:,.2f} registrada com sucesso!")
-                                    st.rerun()
-                        else:
-                            st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                baixa = st.number_input(f"Valor a baixar para {c_nome} (R$):", min_value=0.0, max_value=float(c_val) if c_val > 0 else 1000.0, step=10.0, key=f"baixa_{c_id}")
+                if st.button(f"Confirmar Baixa", key=f"btn_baixa_{c_id}", use_container_width=True):
+                    if baixa > 0:
+                        dar_baixa_divida_mensalista(c_id, baixa)
+                        inserir_movimentacao_direta("Entrada", f"Pagamento Mensalidade - {c_nome}", baixa, datetime.now(TZ).date())
+                        st.success("Baixa realizada com sucesso!")
+                        st.rerun()
+                st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         else:
-            st.info("Nenhum cliente mensal cadastrado no momento.")
+            st.info("Nenhum cliente com dívidas cadastradas.")
 
 # ==============================================================================
 # TAB 4: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
-    col_ag_title, col_ag_btn = st.columns([3, 1])
-    with col_ag_title:
-        st.markdown("### 📅 Central de Agendamentos")
-        st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real.</p>", unsafe_allow_html=True)
-    with col_ag_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
-    
-    df_agendamentos = carregar_agendamentos()
-
-    if not df_agendamentos.empty:
-        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
-        
-        servicos_salao = carregar_servicos()
-
-        for index, row in df_agendamentos.iterrows():
-            id_ag = row['id']
-            cliente = row['Cliente']
-            contato = row['Contato/WhatsApp']
-            servico = row['Serviço']
-            data_bd = row['Data']
-            hora = row['Horário']
-            
-            try:
-                data_formatada = pd.to_datetime(data_bd).strftime('%d/%m/%Y')
-            except:
-                data_formatada = data_bd
-
-            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
-            
-            with col_info:
-                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
-            
-            with col_zap:
-                num_clean = re.sub(r'\D', '', str(contato))
-                if num_clean:
-                    if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
-                    msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
-                    wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
-                else:
-                    st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
-
-            with col_conf:
-                if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
-                    preco_servico = float(servicos_salao.get(servico, 0.0))
-                    inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
-                    deletar_agendamento(id_ag)
-                    st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
-                    st.rerun()
-            
-            with col_canc:
-                if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
-                    deletar_agendamento(id_ag)
-                    st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
-                    st.rerun()
-            
-            st.markdown("<hr style='margin: 15px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+    st.markdown('### 📅 Agendamentos Marcados')
+    df_ag = carregar_agendamentos()
+    if not df_ag.empty:
+        for _, row in df_ag.iterrows():
+            st.markdown(f'''
+            <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid #38bdf8; border-left: 5px solid #38bdf8; padding: 15px; border-radius: 8px; margin-bottom: 5px;">
+                <h4 style="margin:0; color:#fff;">{row["Cliente"]}</h4>
+                <p style="margin:0; color:#94a3b8;">Tel: {row["Contato/WhatsApp"]} | Serviço: {row["Serviço"]}</p>
+                <h5 style="margin:5px 0 0 0; color:#38bdf8;">Data: {row["Data"]} às {row["Horário"]}</h5>
+            </div>
+            ''', unsafe_allow_html=True)
+            if st.button("🗑️ Cancelar Agendamento", key=f"del_ag_{row['id']}", use_container_width=True):
+                deletar_agendamento(row['id'])
+                st.rerun()
+            st.markdown("<br>", unsafe_allow_html=True)
     else:
-        st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
+        st.info("Nenhum agendamento encontrado no momento.")
 
 # ==============================================================================
-# TAB 5: FLUXO DE CAIXA (OCULTO POR PADRÃO)
+# TAB 5: FLUXO DE CAIXA (HISTÓRICO POR DATA)
 # ==============================================================================
 with tab_historico:
-    with st.expander("Movimentação"):
-        if not df_fluxo_caixa.empty:
-            df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-            df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-
-            modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
-            if modo_filtro == "Por Mês Fechado":
-                meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-                mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
-                df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-                texto_pdf = mes_escolhido
-                nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
-            else:
-                col_dt1, col_dt2 = st.columns(2)
-                with col_dt1: dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
-                with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
-                df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
-                texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
-                nome_arq = "contabilidade_periodo"
-
-            if not df_exibicao.empty:
+    st.markdown('### 📜 Fluxo de Caixa (Separado por Data)')
+    st.markdown("<p style='color: #94a3b8 !important;'>Os serviços estão listados abaixo um do outro e separados por dia. Cores: Verde (Concluído/Entrada), Vermelho (Saída), Amarelo (Pendente).</p>", unsafe_allow_html=True)
+    
+    df_fluxo_caixa_hist = carregar_fluxo()
+    
+    if not df_fluxo_caixa_hist.empty:
+        # Extrair apenas a data (sem hora) para agrupamento
+        df_fluxo_caixa_hist['Data_Obj'] = pd.to_datetime(df_fluxo_caixa_hist['Data']).dt.date
+        
+        # Obter lista de datas únicas decrescentes
+        datas_unicas = sorted(df_fluxo_caixa_hist['Data_Obj'].unique(), reverse=True)
+        
+        for dt_atual in datas_unicas:
+            # Cabeçalho da Data
+            data_formatada_br = dt_atual.strftime('%d/%m/%Y')
+            st.markdown(f"<h4 style='background-color: #111827; padding: 10px; border-radius: 8px; color: #38bdf8; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #38bdf8;'>📅 {data_formatada_br}</h4>", unsafe_allow_html=True)
+            
+            # Filtrar dataframe apenas para essa data
+            df_dia = df_fluxo_caixa_hist[df_fluxo_caixa_hist['Data_Obj'] == dt_atual]
+            
+            for _, row in df_dia.iterrows():
+                reg_id = row['id']
+                tipo = row['Tipo']
+                desc = row['Descrição']
+                val = row['Valor']
+                
+                # Definir cores de acordo com o status
+                if tipo == "Entrada":
+                    cor_borda = "#22c55e" # Verde (Servidor / Serviço Concluído)
+                    cor_bg = "rgba(34, 197, 94, 0.08)"
+                elif tipo == "Saída":
+                    cor_borda = "#ef4444" # Vermelho (Saída)
+                    cor_bg = "rgba(239, 68, 68, 0.08)"
+                else: # Pendência / Fiado
+                    cor_borda = "#eab308" # Amarelo (Pendente)
+                    cor_bg = "rgba(234, 179, 8, 0.08)"
+                    
+                # Layout Card Vertical
+                html_card = f"""
+                <div style="background-color: {cor_bg}; border: 1px solid {cor_borda}; border-left: 6px solid {cor_borda}; padding: 15px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0; color: #ffffff; font-size: 1.1rem;">{desc}</h4>
+                        <span style="color: {cor_borda}; font-weight: 700; font-size: 0.85rem; text-transform: uppercase;">{tipo}</span>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; color: #ffffff;">R$ {abs(val):.2f}</h3>
+                    </div>
+                </div>
+                """
+                st.markdown(html_card, unsafe_allow_html=True)
+                
+                # Botão de Excluir apenas abaixo do item
+                if st.button("🗑️ Excluir", key=f"del_fluxo_{reg_id}", use_container_width=True):
+                    deletar_movimentacao_fluxo(reg_id)
+                    st.rerun()
+                
                 st.markdown("<br>", unsafe_allow_html=True)
-                pdf_bytes = gerar_pdf_contabilidade(df_exibicao, texto_pdf)
-                st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
-                st.markdown("<br>", unsafe_allow_html=True)
-
-                for index, row in df_exibicao.iterrows():
-                    id_reg = row['id']
-                    data_f = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
-                    tipo = row['Tipo']
-                    desc = row['Descrição']
-                    val = row['Valor']
-
-                    cor_val = "#22c55e" if tipo == 'Entrada' else ("#ef4444" if tipo == 'Saída' else "#f59e0b")
-                    sinal = "+" if tipo == 'Entrada' else ("-" if tipo == 'Saída' else "⏳")
-                    val_formatado = f"{sinal} R$ {abs(val):,.2f}"
-
-                    col_reg_info, col_reg_btn = st.columns([5, 1])
-                    with col_reg_info:
-                        st.markdown(f"**{data_f}** | *{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
-                    with col_reg_btn:
-                        if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
-                            deletar_movimentacao_fluxo(id_reg)
-                            st.warning("Movimentação excluída!")
-                            st.rerun()
-                    st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-            else:
-                st.info("Nenhum registro encontrado para este filtro.")
-        else:
-            st.info("O fluxo de caixa está vazio.")
+    else:
+        st.info("Nenhuma movimentação registrada no histórico.")
