@@ -81,19 +81,15 @@ def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
     if st.session_state.tema_escuro:
-        bg_style = f'background-image: linear-gradient(180deg, rgba(10, 10, 12, 0.96) 0%, rgba(3, 3, 5, 0.99) 100%), url("data:image/png;base64,{encoded_string}") !important;'
-        app_bg = "#030305"
-        card_bg = "#0e131f"
-        input_bg = "#070a10"
-        text_color = "#f0f6fc"
-        heading_color = "#ffffff"
+        bg_style = f'background-image: linear-gradient(135deg, rgba(8, 12, 20, 0.96) 0%, rgba(3, 5, 8, 0.99) 100%), url("data:image/png;base64,{encoded_string}") !important;'
+        app_bg = "#030508"
+        card_bg = "#0d131f"
+        input_bg = "#080c14"
     else:
-        bg_style = 'background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;'
-        app_bg = "#ffffff"
-        card_bg = "#ffffff"
-        input_bg = "#f8fafc"
-        text_color = "#1e293b"
-        heading_color = "#0f172a"
+        bg_style = 'background: radial-gradient(circle at top, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
+        app_bg = "#0f172a"
+        card_bg = "#1e293b"
+        input_bg = "#0f172a"
 
     st.markdown(
         f"""
@@ -104,16 +100,16 @@ def set_background_com_logo(image_path):
             background-size: cover !important;
             background-position: center !important;
             background-attachment: fixed !important;
-            color: {text_color} !important;
+            color: #f8fafc !important;
         }}
 
         html, body, p, span, label, div, [class*="css"] {{
-            color: {text_color} !important;
+            color: #f8fafc !important;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }}
 
         h1, h2, h3, h4, h5, h6 {{
-            color: {heading_color} !important;
+            color: #ffffff !important;
             font-weight: 700 !important;
             letter-spacing: -0.5px;
         }}
@@ -125,9 +121,9 @@ def set_background_com_logo(image_path):
         [data-testid="stNumberInput"] input,
         [data-testid="stDateInput"] input {{
             background-color: {input_bg} !important;
-            color: {text_color} !important;
-            -webkit-text-fill-color: {text_color} !important;
-            border: 1.5px solid {"#222e3e" if st.session_state.tema_escuro else "#cbd5e1"} !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            border: 1.5px solid #1e293b !important;
             border-radius: 12px !important;
             padding: 12px 14px !important;
             font-size: 1rem !important;
@@ -135,122 +131,125 @@ def set_background_com_logo(image_path):
         }}
 
         input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
-            border-color: #00a8ff !important;
-            box-shadow: 0 0 10px rgba(0, 168, 255, 0.25) !important;
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25) !important;
             background-color: {input_bg} !important;
         }}
 
         div[data-testid="stPopoverBody"] {{
             background-color: {card_bg} !important;
-            border: 2px solid #00a8ff !important;
+            border: 2px solid #38bdf8 !important;
             border-radius: 16px !important;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3) !important;
+            box-shadow: 0 20px 45px rgba(0,0,0,0.85) !important;
             z-index: 999999 !important;
         }}
         div[data-testid="stPopoverBody"] * {{
-            color: {text_color} !important;
+            color: #ffffff !important;
         }}
 
         div[data-testid="stPopover"] button,
         [data-testid="stPopoverButton"] {{
-            background-color: {card_bg} !important;
-            border: 1.5px solid #00a8ff !important;
+            background-color: #111827 !important;
+            border: 1.5px solid #38bdf8 !important;
             border-radius: 12px !important;
             padding: 8px 18px !important;
-            color: {heading_color} !important;
+            color: #ffffff !important;
             font-weight: 800 !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
         }}
 
         div[data-testid="stPopover"] button:hover {{
-            background-color: #00a8ff !important;
-            color: #ffffff !important;
-            box-shadow: 0 0 15px rgba(0, 168, 255, 0.5) !important;
+            background-color: #1f2937 !important;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5) !important;
         }}
 
         ul[data-baseweb="menu"],
         li[role="option"],
         div[data-testid="stSelectboxVirtualDropdown"] {{
             background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {"#222e3e" if st.session_state.tema_escuro else "#cbd5e1"} !important;
+            color: #ffffff !important;
+            border: 1px solid #1e293b !important;
         }}
         li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
-            background-color: {"#1a2332" if st.session_state.tema_escuro else "#e2e8f0"} !important;
-            color: #00a8ff !important;
+            background-color: #111827 !important;
+            color: #38bdf8 !important;
         }}
 
         div[data-baseweb="calendar"],
         div[data-baseweb="calendar"] > div,
         div[role="application"] {{
             background-color: {input_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {"#222e3e" if st.session_state.tema_escuro else "#cbd5e1"} !important;
+            color: #ffffff !important;
+            border: 1px solid #1e293b !important;
         }}
-        div[data-baseweb="calendar"] * {{ color: {text_color} !important; background-color: transparent !important; }}
-        div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #00a8ff !important; color: #ffffff !important; border-radius: 50% !important; }}
+        div[data-baseweb="calendar"] * {{ color: #ffffff !important; background-color: transparent !important; }}
+        div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #38bdf8 !important; color: #ffffff !important; border-radius: 50% !important; }}
 
-        .kpi-card-v2 {{ background-color: {card_bg}; border: 1px solid {"#1f2937" if st.session_state.tema_escuro else "#e2e8f0"}; border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.1); height: 100%; display: flex; flex-direction: column; justify-content: space-between; }}
+        .kpi-card-v2 {{ background-color: {card_bg}; border: 1px solid #1e293b; border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.4); height: 100%; display: flex; flex-direction: column; justify-content: space-between; }}
         .kpi-title-v2 {{ font-size: 0.95rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 5px; }}
         .kpi-value-v2 {{ font-size: 1.9rem; font-weight: 800; margin-bottom: 10px; }}
-        .kpi-val-green {{ color: #00E676 !important; }}
-        .kpi-val-red {{ color: #FF5252 !important; }}
-        .kpi-val-blue {{ color: #00a8ff !important; }}
+        .kpi-val-green {{ color: #22c55e !important; }}
+        .kpi-val-red {{ color: #ef4444 !important; }}
+        .kpi-val-blue {{ color: #38bdf8 !important; }}
         .kpi-perc {{ font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 5px; }}
-        .perc-up {{ color: #00E676 !important; }}
-        .perc-down {{ color: #FF5252 !important; }}
+        .perc-up {{ color: #22c55e !important; }}
+        .perc-down {{ color: #ef4444 !important; }}
         .perc-neutral {{ color: #94a3b8 !important; }}
 
-        .ui-card {{ background: {card_bg}; border: 1px solid {"#1f2937" if st.session_state.tema_escuro else "#e2e8f0"}; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }}
-        .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, {"#172233" if st.session_state.tema_escuro else "#f8fafc"} 100%); border: 1px solid #00a8ff; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.15); }}
+        .ui-card {{ background: {card_bg}; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
+        .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #111827 100%); border: 1px solid #38bdf8; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.15); }}
 
         /* --- NOVO DESIGN DA TELA DE LOGIN PREMIUM --- */
-        .login-card {{
-            background: {card_bg};
-            border: 1px solid {"rgba(255, 255, 255, 0.08)" if st.session_state.tema_escuro else "rgba(0, 0, 0, 0.08)"};
-            border-radius: 24px;
-            padding: 45px 38px;
-            box-shadow: {"0 25px 60px -15px rgba(0, 0, 0, 0.8)" if st.session_state.tema_escuro else "0 20px 40px -10px rgba(0, 0, 0, 0.08)"};
-            max-width: 480px;
-            margin: 0 auto;
-            backdrop-filter: blur(10px);
+        .login-card {{ 
+            background: linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 17, 32, 0.98) 100%); 
+            border: 1px solid rgba(56, 189, 248, 0.25); 
+            border-radius: 24px; 
+            padding: 45px 36px; 
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.1); 
+            max-width: 480px; 
+            margin: 0 auto; 
+            backdrop-filter: blur(12px);
         }}
-        .login-brand-container {{
+        .login-brand-wrapper {{
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }}
-        .login-logo-icon {{
-            font-size: 3rem;
-            margin-bottom: 5px;
-            display: inline-block;
-            animation: pulse-soft 2s infinite ease-in-out;
+        .login-badge-icon {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+            border-radius: 18px;
+            font-size: 30px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4);
         }}
-        @keyframes pulse-soft {{
-            0% {{ transform: scale(1); }}
-            50% {{ transform: scale(1.08); }}
-            100% {{ transform: scale(1); }}
-        }}
-        .login-title-main {{
-            font-size: 2.5rem;
-            font-weight: 900;
+        .login-title {{ 
+            color: #ffffff !important; 
+            font-size: 2.3rem !important; 
+            font-weight: 800 !important; 
             letter-spacing: -1px;
-            background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%);
+            margin-bottom: 8px !important; 
+            line-height: 1.1; 
+            text-align: center; 
+            background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin: 0;
-            line-height: 1.1;
         }}
         .login-subtitle {{
             color: #94a3b8 !important;
-            font-size: 0.95rem;
+            font-size: 0.95rem !important;
+            text-align: center;
+            margin-bottom: 30px;
             font-weight: 500;
-            margin-top: 8px;
         }}
 
         .stButton > button, [data-testid="stDownloadButton"] > button {{
-            background-color: {"#111823" if st.session_state.tema_escuro else "#f1f5f9"} !important;
-            color: {heading_color} !important;
-            border: 1px solid {"#222e3e" if st.session_state.tema_escuro else "#cbd5e1"} !important;
+            background-color: #111827 !important;
+            color: #ffffff !important;
+            border: 1px solid #1f2937 !important;
             border-radius: 12px !important;
             font-weight: 700 !important;
             padding: 12px 20px !important;
@@ -258,16 +257,16 @@ def set_background_com_logo(image_path):
             width: 100% !important;
         }}
         .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{
-            background-color: {"#1a2332" if st.session_state.tema_escuro else "#e2e8f0"} !important;
-            border-color: #00a8ff !important;
-            color: #00a8ff !important;
+            background-color: #1f2937 !important;
+            border-color: #38bdf8 !important;
+            color: #38bdf8 !important;
         }}
-        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #00a8ff 0%, #0077ff 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 4px 15px rgba(0,168,255,0.4) !important; }}
-        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #1ab0ff 0%, #1a85ff 100%) !important; color: #ffffff !important; box-shadow: 0 6px 20px rgba(0,168,255,0.6) !important; }}
+        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 6px 20px rgba(56,189,248,0.4) !important; }}
+        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #0369a1 100%, #0284c7 0%) !important; color: #ffffff !important; box-shadow: 0 8px 25px rgba(56,189,248,0.6) !important; }}
 
         .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
-        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid {"#1f2937" if st.session_state.tema_escuro else "#e2e8f0"}; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
-        .stTabs [aria-selected="true"] {{ background-color: {"#1a2332" if st.session_state.tema_escuro else "#ffffff"} !important; color: #00a8ff !important; font-weight: bold; border-top: 3px solid #00a8ff !important; }}
+        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1e293b; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
+        .stTabs [aria-selected="true"] {{ background-color: #111827 !important; color: #38bdf8 !important; font-weight: bold; border-top: 3px solid #38bdf8 !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -514,14 +513,14 @@ def gerar_pdf_contabilidade(df, mes_ref):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#00a8ff"), spaceAfter=15)
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#38bdf8"), spaceAfter=15)
     story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
     for _, row in df.iterrows():
         dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
         table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
     t = Table(table_data, colWidths=[75, 60, 265, 80])
-    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor("#111823")), ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#00a8ff")), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0d131f")), ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#38bdf8")), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
     story.append(t)
     doc.build(story)
     buffer.seek(0)
@@ -541,7 +540,7 @@ def renderizar_whatsapp_flutuante():
     support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
     st.markdown(f"""
         <style>
-        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background-color: #25d366; border-radius: 50px; text-align: center; box-shadow: 0px 4px 10px rgba(0,0,0,0.3); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.3s ease; }}
+        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background-color: #22c55e; border-radius: 50px; text-align: center; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.3s ease; }}
         .floating-wa:hover {{ transform: scale(1.1); }}
         .floating-wa svg {{ width: 32px; height: 32px; fill: white; }}
         </style>
@@ -567,7 +566,7 @@ if salao_url:
     dados_dono = todos_usuarios.get(salao_id_clean, {})
     wa_dono = dados_dono.get("whatsapp", "")
 
-    st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0;">✂️ {nome_salao_formatado}</h1><p style="color: #00a8ff !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
     # Exibe confirmação com o botão do WhatsApp
     if st.session_state.get("agendamento_sucesso"):
@@ -591,7 +590,7 @@ if salao_url:
             link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
             
             st.markdown(f'''
-                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:800; font-size:1.1rem; margin-top:15px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);">
+                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:800; font-size:1.1rem; margin-top:15px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);">
                     <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
                     Confirmar e Enviar no WhatsApp do Salão
                 </a>
@@ -643,7 +642,7 @@ if salao_url:
     st.stop()
 
 # ==============================================================================
-# TELA DE AUTENTICAÇÃO E LOGIN (RENOVADA E MODERNA)
+# TELA DE AUTENTICAÇÃO E LOGIN (ATUALIZADA COM LAYOUT PROFISSIONAL)
 # ==============================================================================
 if not st.session_state.autenticado:
     admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
@@ -666,13 +665,12 @@ if not st.session_state.autenticado:
         st.markdown('<br><br>', unsafe_allow_html=True)
         _, col_rec_centro, _ = st.columns([1, 2, 1])
         with col_rec_centro:
-            st.markdown('<div class="login-card"><div class="login-brand-container"><div class="login-logo-icon">🔒</div><h1 class="login-title-main">Recuperar</h1><p class="login-subtitle">Redefinição de senha de acesso</p></div>', unsafe_allow_html=True)
+            st.markdown('<div class="login-card"><div class="login-brand-wrapper"><div class="login-badge-icon">🔐</div><h1 class="login-title">Recuperação</h1><p class="login-subtitle">Redefina a senha da sua conta</p></div>', unsafe_allow_html=True)
             with st.form("form_recuperacao"):
                 user_recup = st.text_input("Usuário:").strip().lower()
                 email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
                 nova_senha_recup = st.text_input("Nova Senha:", type="password")
                 conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
-                st.markdown("<br>", unsafe_allow_html=True)
                 if st.form_submit_button("Atualizar Senha", type="primary", use_container_width=True):
                     if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
                         if nova_senha_recup == conf_senha_recup and nova_senha_recup:
@@ -689,8 +687,7 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    # Botão de Tema no Topo com visual elegante
-    col_vazia, col_btn_tema = st.columns([8.5, 1.5])
+    col_vazia, col_btn_tema = st.columns([8, 1])
     with col_btn_tema:
         if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
             st.session_state.tema_escuro = not st.session_state.tema_escuro
@@ -698,30 +695,26 @@ if not st.session_state.autenticado:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    _, col_login_centro, _ = st.columns([1, 2.2, 1])
+    _, col_login_centro, _ = st.columns([1, 2, 1])
 
     with col_login_centro:
         st.markdown('''
             <div class="login-card">
-                <div class="login-brand-container">
-                    <div class="login-logo-icon">✂️</div>
-                    <h1 class="login-title-main">Fio & Caixa</h1>
-                    <p class="login-subtitle">Gestão Inteligente & Agendamentos</p>
+                <div class="login-brand-wrapper">
+                    <div class="login-badge-icon">✂️</div>
+                    <h1 class="login-title">Fio & Caixa</h1>
+                    <p class="login-subtitle">Plataforma Profissional de Gestão & Agendamentos</p>
                 </div>
         ''', unsafe_allow_html=True)
         
         tipo_acesso = st.radio("Acesso como:", ["Salão", "Admin"], horizontal=True, label_visibility="collapsed")
-        
-        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
 
         with st.form("form_login_moderno"):
-            usuario_input = st.text_input("Usuário / Login", placeholder="Digite seu usuário").strip().lower()
-            senha_input = st.text_input("Senha", type="password", placeholder="••••••••")
-            senha2_input = st.text_input("Senha Secundária Admin", type="password", placeholder="••••••••") if tipo_acesso == "Admin" else ""
-            
-            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-            submit_login = st.form_submit_button("Entrar no Sistema 🚀", type="primary", use_container_width=True)
-            
+            usuario_input = st.text_input("Usuário / Login").strip().lower()
+            senha_input = st.text_input("Senha", type="password")
+            senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin" else ""
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_login = st.form_submit_button("Acessar Sistema", type="primary", use_container_width=True)
             if submit_login:
                 if tipo_acesso == "Admin":
                     if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
@@ -730,7 +723,7 @@ if not st.session_state.autenticado:
                         st.session_state.eh_admin = True
                         st.query_params["token_sessao"] = "admin_master_session"
                         st.rerun()
-                    else: st.error("Credenciais de Administrador inválidas.")
+                    else: st.error("Credenciais inválidas.")
                 else:
                     if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
                         dados_user = usuarios_cadastrados[usuario_input]
@@ -749,17 +742,17 @@ if not st.session_state.autenticado:
                         st.rerun()
                     else: st.error("Usuário ou senha incorretos.")
 
-        st.markdown(f"<hr style='border-color: {'#1f2937' if st.session_state.tema_escuro else '#e2e8f0'}; margin: 20px 0;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='border-color: rgba(255,255,255,0.08); margin: 20px 0;'>", unsafe_allow_html=True)
 
         support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
         col_esqueci, col_whats = st.columns(2)
         with col_esqueci:
-            if st.button("Esqueci a senha", use_container_width=True):
+            if st.button("Esqueci minha senha", use_container_width=True):
                 st.session_state.recuperando_senha = True
                 st.rerun()
         with col_whats:
             wa_login_msg = urllib.parse.quote("Olá! Gostaria de falar sobre o sistema Fio&Caixa.")
-            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px; font-size: 0.9rem;"><svg viewBox="0 0 32 32" width="18" height="18" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #22c55e; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -895,7 +888,7 @@ if st.session_state.eh_admin:
                 status_atual = u_info.get("status", "Ativo")
                 esta_vencido = dt_venc < data_hoje
 
-                cor_status = "#00E676" if (status_atual == "Ativo" and not esta_vencido) else "#FF5252"
+                cor_status = "#22c55e" if (status_atual == "Ativo" and not esta_vencido) else "#ef4444"
                 texto_status = "Em Dia (Ativo)" if (status_atual == "Ativo" and not esta_vencido) else "Vencido / Bloqueado"
 
                 with st.container():
@@ -923,7 +916,7 @@ if st.session_state.eh_admin:
                                 salvar_usuarios(usuarios_cadastrados)
                                 st.success(f"Acesso de {u_id} desbloqueado e renovado!")
                                 st.rerun()
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1f2937;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
         else:
             st.info("Nenhum assinante cadastrado no momento.")
 
@@ -1005,7 +998,7 @@ with col_top_left:
                 del st.query_params["token_sessao"]
             st.rerun()
 
-st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #00a8ff !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #38bdf8 !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -1129,15 +1122,15 @@ with tab_relatorios:
         df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
 
         fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#00E676', width=2), fill='tozeroy', fillcolor='rgba(0, 230, 118, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#00a8ff', width=2), fill='tozeroy', fillcolor='rgba(0, 168, 255, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#FF5252', width=2), fill='tozeroy', fillcolor='rgba(255, 82, 82, 0.1)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#22c55e', width=2), fill='tozeroy', fillcolor='rgba(34, 197, 94, 0.1)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.1)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#ef4444', width=2), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)', marker=dict(size=6)))
 
         fig_area.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
             xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
             yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
             margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
         )
         st.plotly_chart(fig_area, use_container_width=True)
@@ -1153,7 +1146,7 @@ with tab_relatorios:
 
             col_donut_img, col_donut_leg = st.columns([1, 1.2])
             with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#00a8ff', '#FF5252']), textinfo='none', hoverinfo='label+percent')])
+                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#38bdf8', '#ef4444']), textinfo='none', hoverinfo='label+percent')])
                 fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
                 st.plotly_chart(fig_donut, use_container_width=True)
             with col_donut_leg:
@@ -1161,14 +1154,14 @@ with tab_relatorios:
                 st.markdown(f"""
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #00a8ff; border-radius: 50%;"></div><span style="font-weight: bold;">Entradas</span>
-                    </div><span style="font-weight: bold;">{perc_ent_donut:.0f}%</span>
+                        <div style="width: 12px; height: 12px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
+                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
                 </div>
                 <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #FF5252; border-radius: 50%;"></div><span style="font-weight: bold;">Saídas</span>
-                    </div><span style="font-weight: bold;">{perc_sai_donut:.0f}%</span>
+                        <div style="width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
+                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
                 </div>
                 <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
                 """, unsafe_allow_html=True)
@@ -1180,7 +1173,7 @@ with tab_relatorios:
             df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
             df_desp['Valor'] = df_desp['Valor'].abs()
             top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#00a8ff', '#00E676', '#FF5252', '#94a3b8']
+            cores_barras = ['#38bdf8', '#22c55e', '#ef4444', '#94a3b8']
             html_barras = ""
             for i, (desc, valor) in enumerate(top_desp.items()):
                 perc_cat = (valor / sai_atual) * 100
@@ -1188,12 +1181,12 @@ with tab_relatorios:
                 nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
                 html_barras += f"""
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
+                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
                     <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: rgba(100,100,100,0.15); border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
+                    <div style="width: 25%; background: #111827; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
                         <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
                     </div>
-                    <span style="width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
+                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
                 </div>
                 """
             st.markdown(html_barras, unsafe_allow_html=True)
@@ -1233,7 +1226,7 @@ with tab_agend:
         if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#25D366; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     
     df_agendamentos = carregar_agendamentos()
 
@@ -1266,7 +1259,7 @@ with tab_agend:
                     if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
                     msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
                     wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#00a8ff;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
+                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
                 else:
                     st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
 
@@ -1284,7 +1277,7 @@ with tab_agend:
                     st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
                     st.rerun()
             
-            st.markdown(f"<hr style='margin: 15px 0; border-color: {'#1f2937' if st.session_state.tema_escuro else '#e2e8f0'};'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 15px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
     else:
         st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
@@ -1319,9 +1312,9 @@ with tab_historico:
 
             def colorir_linha(row):
                 cols = len(row)
-                if row['Tipo'] == 'Entrada': return ['background-color: #0d3320; color: #00E676; font-weight: 700;'] * cols
-                elif row['Tipo'] == 'Saída': return ['background-color: #3d1418; color: #FF5252; font-weight: 700;'] * cols
-                return ['background-color: #3d310d; color: #FFD700; font-weight: 700;'] * cols
+                if row['Tipo'] == 'Entrada': return ['background-color: #052e16; color: #22c55e; font-weight: 700;'] * cols
+                elif row['Tipo'] == 'Saída': return ['background-color: #450a0a; color: #ef4444; font-weight: 700;'] * cols
+                return ['background-color: #422006; color: #fbbf24; font-weight: 700;'] * cols
 
             st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
 
