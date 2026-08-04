@@ -264,9 +264,37 @@ def set_background_com_logo(image_path):
         .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 6px 20px rgba(56,189,248,0.4) !important; }}
         .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #0369a1 100%, #0284c7 0%) !important; color: #ffffff !important; box-shadow: 0 8px 25px rgba(56,189,248,0.6) !important; }}
 
-        .stTabs [data-baseweb="tab-list"] {{ gap: 10px; background-color: transparent; }}
-        .stTabs [data-baseweb="tab"] {{ background-color: {card_bg}; border-radius: 10px 10px 0 0; border: 1px solid #1e293b; border-bottom: none; padding: 12px 24px; color: #94a3b8 !important; }}
-        .stTabs [aria-selected="true"] {{ background-color: #111827 !important; color: #38bdf8 !important; font-weight: bold; border-top: 3px solid #38bdf8 !important; }}
+        .stTabs [data-baseweb="tab-list"] {{ 
+            gap: 15px; 
+            background-color: transparent; 
+            display: flex; 
+            justify-content: center; 
+        }}
+        .stTabs [data-baseweb="tab"] {{ 
+            background-color: {card_bg}; 
+            border-radius: 12px 12px 0 0; 
+            border: 1px solid #1e293b; 
+            padding: 14px 28px; 
+            color: #94a3b8 !important; 
+            font-size: 1.05rem;
+            font-weight: 600;
+        }}
+        .stTabs [aria-selected="true"] {{ 
+            background-color: #111827 !important; 
+            color: #38bdf8 !important; 
+            font-weight: bold; 
+            border-top: 3px solid #38bdf8 !important; 
+            box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
+        }}
+        
+        /* Ajuste do layout horizontal para ocupar cerca de 80-90% em computadores */
+        @media(min-width: 1024px) {{
+            .main .block-container {{
+                max-width: 82% !important;
+                padding-left: 3rem !important;
+                padding-right: 3rem !important;
+            }}
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -279,7 +307,7 @@ st.markdown("""
         footer, [data-testid="stFooter"], .stFooter,
         #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton { display: none !important; }
         [data-testid="collapsedControl"] { display: none !important; }
-        .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 96% !important; }
+        .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -642,7 +670,7 @@ if salao_url:
     st.stop()
 
 # ==============================================================================
-# TELA DE AUTENTICAÇÃO E LOGIN (ATUALIZADA COM LAYOUT PROFISSIONAL)
+# TELA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
 if not st.session_state.autenticado:
     admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
@@ -762,7 +790,6 @@ renderizar_whatsapp_flutuante()
 # MODO ADMINISTRADOR MESTRE
 # ==============================================================================
 if st.session_state.eh_admin:
-    # --- CABEÇALHO DO ADMIN COM BOTÃO DE SAIR VISÍVEL ---
     col_adm_title, col_adm_logout = st.columns([3, 1])
     with col_adm_title:
         st.title("👑 Gestão Geral de Salões (Admin)")
@@ -846,7 +873,6 @@ if st.session_state.eh_admin:
         if usuarios_cadastrados:
             data_hoje = datetime.now(TZ).date()
             
-            # Automação/Verificação de Bloqueio Automático por Vencimento
             houve_alteracao_auto = False
             for u_id, u_info in usuarios_cadastrados.items():
                 try:
@@ -854,7 +880,6 @@ if st.session_state.eh_admin:
                 except Exception:
                     dt_venc = data_hoje
                 
-                # Se passou da data de vencimento e ainda está marcado como "Ativo", muda para "Suspenso"
                 if dt_venc < data_hoje and u_info.get("status") == "Ativo":
                     usuarios_cadastrados[u_id]["status"] = "Suspenso"
                     houve_alteracao_auto = True
@@ -863,7 +888,6 @@ if st.session_state.eh_admin:
                 salvar_usuarios(usuarios_cadastrados)
                 usuarios_cadastrados = carregar_usuarios()
 
-            # Métricas / KPIs
             total_clientes = len(usuarios_cadastrados)
             ativos_count = sum(1 for u in usuarios_cadastrados.values() if u.get("status") == "Ativo" and datetime.strptime(str(u.get("vencimento")), "%Y-%m-%d").date() >= data_hoje)
             vencidos_count = sum(1 for u in usuarios_cadastrados.values() if datetime.strptime(str(u.get("vencimento")), "%Y-%m-%d").date() < data_hoje or u.get("status") == "Suspenso")
@@ -909,7 +933,6 @@ if st.session_state.eh_admin:
                                 st.rerun()
                         else:
                             if st.button("🔓 Desbloquear / Renovar", key=f"desbloquear_{u_id}", type="primary", use_container_width=True):
-                                # Ao desbloquear, estende por mais 30 dias a partir de hoje por padrão
                                 novo_venc_renovado = (data_hoje + timedelta(days=30)).strftime("%Y-%m-%d")
                                 usuarios_cadastrados[u_id]["status"] = "Ativo"
                                 usuarios_cadastrados[u_id]["vencimento"] = novo_venc_renovado
@@ -1000,7 +1023,6 @@ with col_top_left:
 
 st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #38bdf8 !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
 
-
 # ==============================================================================
 # FUNÇÕES DE DIÁLOGO (MODAIS PARA AÇÕES RÁPIDAS)
 # ==============================================================================
@@ -1061,14 +1083,14 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS E RENOMEADAS
+# ABAS ATUALIZADAS NA ORDEM REQUISITADA: Dashboard, Serviços, Agendamentos, Histórico
 # ==============================================================================
-tab_relatorios, tab_acoes, tab_agend, tab_historico = st.tabs(["📊 Relatórios", "🚀 Serviços", "📅 Agendamentos", "📜 Histórico"])
+tab_dashboard, tab_servicos, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
-# TAB 1: RELATÓRIOS
+# TAB 1: DASHBOARD (Antigo Relatórios)
 # ==============================================================================
-with tab_relatorios:
+with tab_dashboard:
     def agg_valores(df_m):
         entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
         pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
@@ -1193,25 +1215,31 @@ with tab_relatorios:
         else: st.info("Nenhuma despesa registrada neste mês.")
 
 # ==============================================================================
-# TAB 2: SERVIÇOS (Ações rápidas atualizadas e empilhadas)
+# TAB 2: SERVIÇOS (Dispostos de forma horizontal em telas de computador)
 # ==============================================================================
-with tab_acoes:
-    st.markdown('### :material/bolt: Serviços')
+with tab_servicos:
+    st.markdown('### :material/bolt: Ações & Serviços')
+    st.markdown("<p style='color: #94a3b8 !important;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
-        dialog_novo_atendimento(servicos)
-        
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
-        dialog_nova_despesa()
-        
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
-        dialog_anotar_fiado(servicos)
-        
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
-        dialog_baixar_fiado(df_fluxo_caixa)
+    # Organiza em 4 colunas horizontais para computador (ocupando bem a tela) e empilhando no mobile
+    col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
+    
+    with col_srv1:
+        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+            dialog_novo_atendimento(servicos)
+            
+    with col_srv2:
+        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+            dialog_nova_despesa()
+            
+    with col_srv3:
+        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+            dialog_anotar_fiado(servicos)
+            
+    with col_srv4:
+        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+            dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
 # TAB 3: AGENDAMENTOS
