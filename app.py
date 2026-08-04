@@ -1155,9 +1155,9 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS (Com a alteração para "Fluxo de Caixa")
+# ABAS ATUALIZADAS (A aba Histórico virou Fluxo de caixa)
 # ==============================================================================
-tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "📜 Fluxo de Caixa"])
+tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "📜 Fluxo de caixa"])
 
 # ==============================================================================
 # TAB 1: DASHBOARD
@@ -1280,79 +1280,51 @@ with tab_dashboard:
                     <div style="width: 25%; background: #111827; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
                         <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
                     </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
+                    <span style="font-weight: 600; color: #ffffff;">R$ {valor:.2f}</span>
                 </div>
                 """
             st.markdown(html_barras, unsafe_allow_html=True)
-        else: 
-            st.info("Sem saídas registradas neste mês.")
+        else: st.info("Sem despesas neste mês.")
 
 # ==============================================================================
-# OUTRAS ABAS DO PAINEL (Preenchimento Básico / Placeholder)
-# ==============================================================================
-with tab_servicos:
-    st.info("🛠️ Aba de Serviços: Construa a visualização e gestão de serviços da sua barbearia aqui.")
-
-with tab_mensais:
-    st.info("👥 Aba de Clientes Mensais: Gestão e acompanhamento das mensalidades dos seus clientes.")
-
-with tab_agend:
-    st.info("📅 Aba de Agendamentos: Controle da agenda e horários reservados.")
-
-# ==============================================================================
-# TAB 5: FLUXO DE CAIXA (Atualizada com Botão de Movimentação e Cores por Data)
+# NOVA ABA: FLUXO DE CAIXA (Exatamente como você solicitou)
 # ==============================================================================
 with tab_historico:
-    # 1. Cria a variável de estado para funcionar como um botão de Ocultar/Mostrar
-    if 'mostrar_movimentacao' not in st.session_state:
-        st.session_state.mostrar_movimentacao = False
+    st.markdown("### 📜 Fluxo de Caixa")
     
-    # 2. O botão com a palavra-chave que você solicitou "Movimentação"
-    if st.button("Movimentação", type="primary", use_container_width=True):
-        st.session_state.mostrar_movimentacao = not st.session_state.mostrar_movimentacao
-    
-    # 3. O painel só é construído SE o estado do botão for ativado
-    if st.session_state.mostrar_movimentacao:
-        if not df_fluxo_caixa.empty:
-            df_hist = df_fluxo_caixa.copy()
-            
-            # Ordenando pelas datas mais recentes
-            df_hist = df_hist.sort_values(by='Data', ascending=False)
-            df_hist['Data_str'] = df_hist['Data'].dt.strftime('%d/%m/%Y')
-            
-            datas_unicas = df_hist['Data_str'].unique()
-            
-            # Percorre cada data de forma separada
-            for data_atual in datas_unicas:
-                # Título separador de dia
-                st.markdown(f"<h4 style='color: #38bdf8; margin-top: 25px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;'>📅 Dia: {data_atual}</h4>", unsafe_allow_html=True)
-                
-                # Pega apenas os serviços daquele dia
-                df_dia = df_hist[df_hist['Data_str'] == data_atual]
+    # O botão 'Movimentação' serve como expansor, mantendo tudo oculto para limpar a tela
+    with st.expander("Movimentação", expanded=False):
+        if not df_limpo.empty:
+            df_sorted = df_limpo.sort_values(by="Data", ascending=False)
+            datas_unicas = df_sorted['Data'].dt.date.unique()
+
+            # Separando os serviços dia a dia
+            for dt in datas_unicas:
+                st.markdown(f"<h4 style='color: #38bdf8; margin-top: 15px;'>📅 {dt.strftime('%d/%m/%Y')}</h4>", unsafe_allow_html=True)
+                df_dia = df_sorted[df_sorted['Data'].dt.date == dt]
                 
                 for _, row in df_dia.iterrows():
-                    tipo_mov = row['Tipo'].strip()
+                    tipo = row['Tipo']
                     
-                    # Definição das cores solicitadas
-                    if tipo_mov.lower() == 'entrada':
-                        cor_borda = "#22c55e" # Verde
-                    elif tipo_mov.lower() in ['saída', 'saida']:
-                        cor_borda = "#ef4444" # Vermelho
-                    elif tipo_mov.lower() in ['pendência', 'pendente']:
-                        cor_borda = "#eab308" # Amarelo
+                    # Definição das cores baseadas na sua regra:
+                    if tipo == 'Entrada':
+                        cor = "#22c55e" # Verde
+                    elif tipo == 'Saída':
+                        cor = "#ef4444" # Vermelho
+                    elif tipo == 'Pendência':
+                        cor = "#eab308" # Amarelo
                     else:
-                        cor_borda = "#94a3b8" # Cinza (neutro caso exista outro)
-
-                    st.markdown(f"""
-                    <div style="border-left: 6px solid {cor_borda}; background-color: #0d131f; padding: 15px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                        <div>
-                            <strong style="color: {cor_borda}; font-size: 1.05rem; text-transform: uppercase;">{tipo_mov}</strong><br>
-                            <span style="color: #cbd5e1; font-size: 0.95rem;">{row['Descrição']}</span>
+                        cor = "#ffffff"
+                        
+                    st.markdown(f'''
+                    <div style="border-left: 5px solid {cor}; padding: 12px; margin-bottom: 10px; background-color: #1e293b; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: bold; color: {cor}; text-transform: uppercase; font-size: 0.85rem;">{tipo}</span>
+                            <span style="font-weight: 800; font-size: 1.1rem; color: #ffffff;">R$ {abs(row['Valor']):.2f}</span>
                         </div>
-                        <div style="text-align: right;">
-                            <span style="color: #ffffff; font-weight: bold; font-size: 1.15rem;">R$ {abs(row['Valor']):.2f}</span>
-                        </div>
+                        <div style="color: #cbd5e1; font-size: 0.95rem; margin-top: 5px;">{row['Descrição']}</div>
                     </div>
-                    """, unsafe_allow_html=True)
+                    ''', unsafe_allow_html=True)
+                st.markdown("<hr style='border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
         else:
-            st.warning("Nenhuma movimentação foi registrada na barbearia até o momento.")
+            st.info("Nenhuma movimentação registrada no sistema.")
