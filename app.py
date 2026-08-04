@@ -199,7 +199,6 @@ def set_background_com_logo(image_path):
         .ui-card {{ background: {card_bg}; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
         .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #111827 100%); border: 1px solid #38bdf8; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.15); }}
 
-        /* --- NOVO DESIGN DA TELA DE LOGIN PREMIUM --- */
         .login-card {{ 
             background: linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 17, 32, 0.98) 100%); 
             border: 1px solid rgba(56, 189, 248, 0.25); 
@@ -287,7 +286,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
         }}
         
-        /* Ajuste do layout horizontal para ocupar cerca de 80-90% em computadores */
         @media(min-width: 1024px) {{
             .main .block-container {{
                 max-width: 82% !important;
@@ -340,6 +338,18 @@ def inicializar_banco():
         conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
+        # NOVA TABELA PARA CLIENTES MENSAIS / MENSALIDADE
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS clientes_mensais (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                nome_cliente TEXT NOT NULL,
+                telefone TEXT,
+                servicos_feitos INT DEFAULT 0,
+                valor_devido NUMERIC DEFAULT 0.0,
+                status_divida TEXT DEFAULT 'Pendente'
+            );
+        """))
     return True
 
 try:
@@ -439,7 +449,7 @@ def carregar_servicos_por_salao(salao_id):
             rows = result.fetchall()
             if rows: return {row[0]: float(row[1]) for row in rows}
     except Exception: pass
-    return {"Corte de Cabelo": 30.00, "Barba": 30.00, "Combo Cabelo e Barba": 50.00}
+    return {"Corte de Cabelo": 30.00, "Barba": 30.00, "Combo Cabelo e Barba": 50.00, "Mensalidade": 100.00}
 
 def carregar_servicos():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
@@ -521,6 +531,50 @@ def deletar_agendamento(id_agendamento):
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
+# --- FUNÇÕES PARA CLIENTES MENSAIS / MENSALIDADE ---
+def carregar_clientes_mensais_banco():
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT id, nome_cliente, telefone, servicos_feitos, valor_devido, status_divida FROM clientes_mensais WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
+            rows = result.fetchall()
+            if rows:
+                return pd.DataFrame(rows, columns=["id", "Cliente", "Telefone", "Serviços Feitos", "Valor Devido", "Status"])
+    except Exception: pass
+    return pd.DataFrame(columns=["id", "Cliente", "Telefone", "Serviços Feitos", "Valor Devido", "Status"])
+
+def cadastrar_cliente_mensal_banco(nome, telefone, valor_inicial):
+    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+        conn.execute(text("""
+            INSERT INTO clientes_mensais (usuario_id, nome_cliente, telefone, servicos_feitos, valor_devido, status_divida)
+            VALUES (:user, :nome, :tel, 0, :val, 'Pendente')
+        """), {"user": usuario, "nome": nome.strip(), "tel": telefone.strip(), "val": float(valor_inicial)})
+
+def atualizar_cortes_cliente_mensal(id_cliente, qtd_adicionar, valor_por_servico):
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+        # Busca dados atuais
+        res = conn.execute(text("SELECT servicos_feitos, valor_devido FROM clientes_mensais WHERE id = :id"), {"id": int(id_cliente)}).fetchone()
+        if res:
+            novos_servicos = int(res[0]) + int(qtd_adicionar)
+            novo_valor = float(res[1]) + (float(qtd_adicionar) * float(valor_por_servico))
+            conn.execute(text("""
+                UPDATE clientes_mensais 
+                SET servicos_feitos = :s, valor_devido = :v, status_divida = 'Pendente'
+                WHERE id = :id
+            """), {"s": novos_servicos, "v": novo_valor, "id": int(id_cliente)})
+
+def dar_baixa_divida_mensalista(id_cliente):
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
+        conn.execute(text("""
+            UPDATE clientes_mensais 
+            SET valor_devido = 0, status_divida = 'Quitado'
+            WHERE id = :id
+        """), {"id": int(id_cliente)})
+
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
@@ -589,14 +643,12 @@ if salao_url:
     HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
     servicos_salao = carregar_servicos_por_salao(salao_id_clean)
 
-    # Busca WhatsApp do dono do salão
     todos_usuarios = carregar_usuarios()
     dados_dono = todos_usuarios.get(salao_id_clean, {})
     wa_dono = dados_dono.get("whatsapp", "")
 
     st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
-    # Exibe confirmação com o botão do WhatsApp
     if st.session_state.get("agendamento_sucesso"):
         dados_ag = st.session_state.agendamento_sucesso
         st.success(f"🎉 Agendado com sucesso para {dados_ag['nome']} às {dados_ag['hora']} dia {dados_ag['data_formatada']}!")
@@ -1083,12 +1135,12 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS NA ORDEM REQUISITADA: Dashboard, Serviços, Agendamentos, Histórico
+# ABAS ATUALIZADAS (Com a nova aba de Clientes Mensais inclusa)
 # ==============================================================================
-tab_dashboard, tab_servicos, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "📅 Agendamentos", "📜 Histórico"])
+tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "📜 Histórico"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD (Antigo Relatórios)
+# TAB 1: DASHBOARD
 # ==============================================================================
 with tab_dashboard:
     def agg_valores(df_m):
@@ -1215,14 +1267,13 @@ with tab_dashboard:
         else: st.info("Nenhuma despesa registrada neste mês.")
 
 # ==============================================================================
-# TAB 2: SERVIÇOS (Dispostos de forma horizontal em telas de computador)
+# TAB 2: SERVIÇOS
 # ==============================================================================
 with tab_servicos:
     st.markdown('### :material/bolt: Ações & Serviços')
     st.markdown("<p style='color: #94a3b8 !important;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Organiza em 4 colunas horizontais para computador (ocupando bem a tela) e empilhando no mobile
     col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
     
     with col_srv1:
@@ -1242,7 +1293,86 @@ with tab_servicos:
             dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
-# TAB 3: AGENDAMENTOS
+# TAB 3: CLIENTES MENSAIS / MENSALIDADE (NOVA FUNÇÃO REQUISITADA)
+# ==============================================================================
+with tab_mensais:
+    st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
+    st.markdown("<p style='color: #94a3b8 !important;'>Cadastre seus clientes mensais, registre os cortes realizados por mensalidade para automatizar a dívida, e dê baixa quando o pagamento for efetuado.</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    tab_m_cad, tab_m_lanc, tab_m_lista = st.tabs(["➕ Cadastrar Novo Cliente", "✂️ Registrar Corte / Serviço", "📋 Acompanhar Dívidas e Baixas"])
+
+    with tab_m_cad:
+        with st.form("form_cad_cliente_mensal", clear_on_submit=True):
+            st.markdown("#### Informações do Cliente Mensalista")
+            nome_cli_m = st.text_input("Nome Completo do Cliente:")
+            tel_cli_m = st.text_input("Telefone / WhatsApp:")
+            valor_mensalidade_base = st.number_input("Valor da Mensalidade / Preço por Serviço (R$):", min_value=0.0, value=100.0, step=10.0)
+            
+            btn_salvar_cli_m = st.form_submit_button("Cadastrar Cliente Mensalista", type="primary", use_container_width=True)
+            if btn_salvar_cli_m:
+                if nome_cli_m.strip():
+                    cadastrar_cliente_mensal_banco(nome_cli_m, tel_cli_m, 0.0)
+                    st.success(f"Cliente mensal `{nome_cli_m}` cadastrado com sucesso!")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Informe o nome do cliente.")
+
+    with tab_m_lanc:
+        st.markdown("#### Registrar Corte para Cliente Mensal")
+        df_mensalistas = carregar_clientes_mensais_banco()
+        if not df_mensalistas.empty:
+            mapa_clientes = {row['Cliente']: row['id'] for _, row in df_mensalistas.iterrows()}
+            cliente_escolhido_l = st.selectbox("Selecione o Cliente Mensal:", list(mapa_clientes.keys()))
+            id_cli_sel = mapa_clientes[cliente_escolhido_l]
+            
+            qtd_cortes = st.number_input("Quantos serviços/cortes foram feitos?", min_value=1, value=1, step=1)
+            preco_serv_mensal = st.number_input("Valor unitário cobrado por este serviço (R$):", min_value=0.0, value=30.0, step=5.0)
+
+            if st.button("Adicionar Serviço à Dívida do Cliente", type="primary", use_container_width=True):
+                atualizar_cortes_cliente_mensal(id_cli_sel, qtd_cortes, preco_serv_mensal)
+                st.success(f"Adicionado {qtd_cortes} serviço(s) para `{cliente_escolhido_l}`. O sistema atualizou a dívida automaticamente!")
+                st.rerun()
+        else:
+            st.info("Nenhum cliente mensal cadastrado ainda. Cadastre na aba anterior.")
+
+    with tab_m_lista:
+        st.markdown("#### Status de Dívidas e Baixas")
+        df_mensalistas = carregar_clientes_mensais_banco()
+        if not df_mensalistas.empty:
+            for _, row in df_mensalistas.iterrows():
+                c_id = row['id']
+                c_nome = row['Cliente']
+                c_tel = row['Telefone']
+                c_serv = row['Serviços Feitos']
+                c_val = row['Valor Devido']
+                c_status = row['Status']
+
+                cor_st = "#22c55e" if c_status == "Quitado" or c_val == 0 else "#ef4444"
+                
+                with st.container():
+                    col_info_m, col_val_m, col_action_m = st.columns([3, 2, 2])
+                    with col_info_m:
+                        st.markdown(f"**👤 {c_nome}** (`{c_tel if c_tel else 'Sem Tel'}`)<br><span style='color: #94a3b8; font-size: 0.85rem;'>Serviços realizados: {c_serv}</span>", unsafe_allow_html=True)
+                    with col_val_m:
+                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.1rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
+                    with col_action_m:
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if c_val > 0:
+                            if st.button("💸 Dar Baixa na Dívida", key=f"baixa_mensal_{c_id}", type="primary", use_container_width=True):
+                                # Registra no fluxo de caixa também como entrada
+                                inserir_movimentacao_direta("Entrada", f"Mensalidade recebida: {c_nome}", c_val, datetime.now(TZ).date())
+                                dar_baixa_divida_mensalista(c_id)
+                                st.success(f"Dívida de {c_nome} quitada e valor lançado no caixa!")
+                                st.rerun()
+                        else:
+                            st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+        else:
+            st.info("Nenhum cliente mensal cadastrado no momento.")
+
+# ==============================================================================
+# TAB 4: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
     col_ag_title, col_ag_btn = st.columns([3, 1])
@@ -1310,7 +1440,7 @@ with tab_agend:
         st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 4: HISTÓRICO & RELATÓRIOS
+# TAB 5: HISTÓRICO & RELATÓRIOS
 # ==============================================================================
 with tab_historico:
     st.subheader("📜 Histórico Financeiro Completo")
@@ -1331,39 +1461,35 @@ with tab_historico:
             with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
             df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
             texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
-            nome_arq = f"contabilidade_{dt_inicio.strftime('%d_%m_%Y')}_a_{dt_fim.strftime('%d_%m_%Y')}"
+            nome_arq = "contabilidade_periodo"
 
         if not df_exibicao.empty:
-            df_vis = df_exibicao.sort_index(ascending=False).copy()
-            df_vis['Data'] = df_vis['Data'].dt.strftime('%d/%m/%Y')
-            df_vis = df_vis.drop(columns=['Mês/Ano', 'id'], errors='ignore')
-
-            def colorir_linha(row):
-                cols = len(row)
-                if row['Tipo'] == 'Entrada': return ['background-color: #052e16; color: #22c55e; font-weight: 700;'] * cols
-                elif row['Tipo'] == 'Saída': return ['background-color: #450a0a; color: #ef4444; font-weight: 700;'] * cols
-                return ['background-color: #422006; color: #fbbf24; font-weight: 700;'] * cols
-
-            st.dataframe(df_vis.style.apply(colorir_linha, axis=1).format({"Valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
-
             st.markdown("<br>", unsafe_allow_html=True)
-            col_down1, col_down2 = st.columns(2)
-            with col_down1:
-                csv_bytes = df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
-                renderizar_botao_download_apk(csv_bytes, f"{nome_arq}.csv", "text/csv", "📄 Baixar CSV Contábil")
-            with col_down2:
-                pdf_bytes = gerar_pdf_contabilidade(df_exibicao.drop(columns=['id', 'Mês/Ano'], errors='ignore'), texto_pdf)
-                renderizar_botao_download_apk(pdf_bytes, f"{nome_arq}.pdf", "application/pdf", "📕 Baixar Relatório PDF")
-
+            pdf_bytes = gerar_pdf_contabilidade(df_exibicao, texto_pdf)
+            st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            
-            with st.expander("🗑️ Excluir Registro Incorreto do Caixa"):
-                opcoes_del_fluxo = {f"#{row['id']} - {row['Data'].strftime('%d/%m')} - {row['Tipo']}: {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_exibicao.iterrows()}
-                reg_selecionado = st.selectbox("Selecione o Lançamento para Excluir:", list(opcoes_del_fluxo.keys()))
-                if st.button("❌ APAGAR REGISTRO", type="primary", use_container_width=True):
-                    id_apagar = opcoes_del_fluxo[reg_selecionado]
-                    deletar_movimentacao_fluxo(id_apagar)
-                    st.warning("Registro excluído!")
-                    st.rerun()
-        else: st.info("Nenhum registro no período selecionado.")
-    else: st.info("Histórico de caixa vazio.")
+
+            for index, row in df_exibicao.iterrows():
+                id_reg = row['id']
+                data_f = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
+                tipo = row['Tipo']
+                desc = row['Descrição']
+                val = row['Valor']
+
+                cor_val = "#22c55e" if tipo == 'Entrada' else ("#ef4444" if tipo == 'Saída' else "#f59e0b")
+                sinal = "+" if tipo == 'Entrada' else ("-" if tipo == 'Saída' else "⏳")
+                val_formatado = f"{sinal} R$ {abs(val):,.2f}"
+
+                col_reg_info, col_reg_btn = st.columns([5, 1])
+                with col_reg_info:
+                    st.markdown(f"**{data_f}** | *{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
+                with col_reg_btn:
+                    if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
+                        deletar_movimentacao_fluxo(id_reg)
+                        st.warning("Movimentação excluída!")
+                        st.rerun()
+                st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+        else:
+            st.info("Nenhum registro encontrado para este filtro.")
+    else:
+        st.info("O histórico está vazio.")
