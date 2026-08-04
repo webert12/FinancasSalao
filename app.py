@@ -286,7 +286,6 @@ def set_background_com_logo(image_path):
             box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
         }}
         
-        /* CORREÇÃO DO TAMANHO DAS ABAS E ESPAÇAMENTO PARA DISPOSITIVOS MÓVEIS (MODO COMPUTADOR) */
         @media screen and (max-width: 1024px) {{
             .stTabs [data-baseweb="tab-list"] {{
                 gap: 10px !important;
@@ -354,7 +353,6 @@ def inicializar_banco():
         conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
-        # NOVA TABELA PARA CLIENTES MENSAIS / MENSALIDADE
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS clientes_mensais (
                 id SERIAL PRIMARY KEY,
@@ -622,901 +620,608 @@ def gerar_pdf_contabilidade(df, mes_ref):
         dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
         table_data.append([dt_str, str(row['Tipo']), str(row['Descrição']), f"R$ {row['Valor']:.2f}"])
     t = Table(table_data, colWidths=[75, 60, 265, 80])
-    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0d131f")), ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#38bdf8")), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0d131f")), ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#38bdf8")), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#1e293b"))]))
     story.append(t)
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
 
-def renderizar_botao_download_apk(dados_bytes, nome_arquivo, mime_type, label_botao):
-    st.download_button(
-        label=label_botao,
-        data=dados_bytes,
-        file_name=nome_arquivo,
-        mime=mime_type,
-        use_container_width=True
-    )
-
-def renderizar_whatsapp_flutuante():
-    wa_msg = urllib.parse.quote("Olá, preciso de suporte ou tenho dúvidas sobre o sistema Fio&Caixa.")
-    support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
-    st.markdown(f"""
-        <style>
-        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background-color: #22c55e; border-radius: 50px; text-align: center; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.3s ease; }}
-        .floating-wa:hover {{ transform: scale(1.1); }}
-        .floating-wa svg {{ width: 32px; height: 32px; fill: white; }}
-        </style>
-        <a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_msg}" class="floating-wa" target="_blank" title="Falar com Suporte">
-            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
-        </a>
-    """, unsafe_allow_html=True)
-
-# ==============================================================================
-# ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
-# ==============================================================================
-salao_url = query_params.get("salao", None)
-
-if salao_url:
-    st.markdown('<style>[data-testid="stSidebar"] {display: none !important;} [data-testid="collapsedControl"] {display: none !important;}</style>', unsafe_allow_html=True)
-    salao_id_clean = urllib.parse.unquote(str(salao_url)).strip().lower()
-    nome_salao_formatado = salao_id_clean.replace('_', ' ').replace('-', ' ').title()
-    HORARIOS_DISPONIVEIS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
-    servicos_salao = carregar_servicos_por_salao(salao_id_clean)
-
-    todos_usuarios = carregar_usuarios()
-    dados_dono = todos_usuarios.get(salao_id_clean, {})
-    wa_dono = dados_dono.get("whatsapp", "")
-
-    st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
-
-    if st.session_state.get("agendamento_sucesso"):
-        dados_ag = st.session_state.agendamento_sucesso
-        st.success(f"🎉 Agendado com sucesso para {dados_ag['nome']} às {dados_ag['hora']} dia {dados_ag['data_formatada']}!")
-        st.balloons()
-
-        wa_dono_clean = re.sub(r'\D', '', str(dados_ag.get("wa_dono", "")))
-        if wa_dono_clean:
-            if not wa_dono_clean.startswith('55') and len(wa_dono_clean) <= 11:
-                wa_dono_clean = '55' + wa_dono_clean
-            
-            msg_wa = urllib.parse.quote(
-                f"Olá! Acabei de realizar um agendamento pelo site:\n\n"
-                f"👤 *Cliente:* {dados_ag['nome']}\n"
-                f"📱 *Contato:* {dados_ag['contato']}\n"
-                f"✂️ *Serviço:* {dados_ag['servico']}\n"
-                f"📅 *Data:* {dados_ag['data_formatada']}\n"
-                f"⏰ *Horário:* {dados_ag['hora']}"
-            )
-            link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
-            
-            st.markdown(f'''
-                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:800; font-size:1.1rem; margin-top:15px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);">
-                    <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
-                    Confirmar e Enviar no WhatsApp do Salão
-                </a>
-            ''', unsafe_allow_html=True)
-
-        if st.button("Fazer Outro Agendamento", use_container_width=True):
-            del st.session_state.agendamento_sucesso
-            st.rerun()
-        st.stop()
-
-    with st.form("form_agendamento_cliente", clear_on_submit=True):
-        nome_cliente = st.text_input("Seu Nome Completo:")
-        telefone_cliente = st.text_input("Seu WhatsApp (com DDD):")
-        servico_escolhido = st.selectbox("Escolha o Serviço:", list(servicos_salao.keys())) if servicos_salao else None
-        data_escolhida = st.date_input("Escolha a Data:", min_value=datetime.now(TZ).date())
-        data_str = data_escolhida.strftime("%Y-%m-%d")
-        data_formatada = data_escolhida.strftime("%d/%m/%Y")
-        try:
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT hora FROM agendamentos WHERE usuario_id = :user AND data = :dt"), {"user": salao_id_clean, "dt": data_str})
-                ocupados = [r[0] for r in result.fetchall()]
-        except Exception: ocupados = []
-        horarios_livres = [h for h in HORARIOS_DISPONIVEIS if h not in ocupados]
-        horario_escolhido = st.selectbox("Horário Disponível:", horarios_livres) if horarios_livres else None
-        if not horarios_livres: st.warning("⚠️ Todos os horários estão preenchidos nesta data.")
-        enviar_agendamento = st.form_submit_button("Confirmar Agendamento 🚀", type="primary", use_container_width=True)
-
-    if enviar_agendamento:
-        try:
-            if not nome_cliente or not telefone_cliente:
-                st.warning("⚠️ Por favor, informe seu nome e telefone.")
-            elif not horario_escolhido or not servico_escolhido:
-                st.error("⚠️ Selecione um horário válido.")
-            else:
-                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                    conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-                    conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
-                
-                st.session_state.agendamento_sucesso = {
-                    "nome": nome_cliente.strip(),
-                    "contato": telefone_cliente.strip(),
-                    "servico": servico_escolhido,
-                    "hora": horario_escolhido,
-                    "data_formatada": data_formatada,
-                    "wa_dono": wa_dono
-                }
-                st.rerun()
-        except Exception as e: st.error(f"Erro ao registrar agendamento: {e}")
-    st.stop()
-
-# ==============================================================================
-# TELA DE AUTENTICAÇÃO E LOGIN
-# ==============================================================================
+# --- TELA DE LOGIN ---
 if not st.session_state.autenticado:
-    admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
-    usuarios_cadastrados = carregar_usuarios()
-
-    if not admin_hash1 or not admin_hash2:
-        st.title("⚠️ Configuração Inicial de Segurança")
-        with st.form("primeiro_acesso"):
-            nova_adm_pass1 = st.text_input("Senha Principal Admin:", type="password")
-            nova_adm_pass2 = st.text_input("Senha Secundária Admin:", type="password")
-            url_padrao_app = st.text_input("URL Base do App:", value=RENDER_BASE_URL)
-            if st.form_submit_button("Salvar Inicialização"):
-                if nova_adm_pass1 and nova_adm_pass2:
-                    salvar_admin_hashes(nova_adm_pass1, nova_adm_pass2, url_padrao_app.strip())
-                    st.success("Administração inicializada!")
-                    st.rerun()
-        st.stop()
-
-    if st.session_state.recuperando_senha:
-        st.markdown('<br><br>', unsafe_allow_html=True)
-        _, col_rec_centro, _ = st.columns([1, 2, 1])
-        with col_rec_centro:
-            st.markdown('<div class="login-card"><div class="login-brand-wrapper"><div class="login-badge-icon">🔐</div><h1 class="login-title">Recuperação</h1><p class="login-subtitle">Redefina a senha da sua conta</p></div>', unsafe_allow_html=True)
-            with st.form("form_recuperacao"):
-                user_recup = st.text_input("Usuário:").strip().lower()
-                email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
-                nova_senha_recup = st.text_input("Nova Senha:", type="password")
-                conf_senha_recup = st.text_input("Confirme a Nova Senha:", type="password")
-                if st.form_submit_button("Atualizar Senha", type="primary", use_container_width=True):
-                    if user_recup in usuarios_cadastrados and usuarios_cadastrados[user_recup].get("email") == email_recup:
-                        if nova_senha_recup == conf_senha_recup and nova_senha_recup:
-                            usuarios_cadastrados[user_recup]["senha"] = hash_password(nova_senha_recup)
-                            salvar_usuarios(usuarios_cadastrados)
-                            st.success("✅ Senha alterada com sucesso!")
-                            st.session_state.recuperando_senha = False
-                            st.rerun()
-                        else: st.error("As senhas não conferem.")
-                    else: st.error("Usuário ou e-mail incorretos.")
-            if st.button("Voltar ao Login", use_container_width=True):
-                st.session_state.recuperando_senha = False
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        st.stop()
-
-    col_vazia, col_btn_tema = st.columns([8, 1])
-    with col_btn_tema:
-        if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
-            st.session_state.tema_escuro = not st.session_state.tema_escuro
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    _, col_login_centro, _ = st.columns([1, 2, 1])
-
-    with col_login_centro:
-        st.markdown('''
+    st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
+    with st.container():
+        st.markdown("""
             <div class="login-card">
                 <div class="login-brand-wrapper">
                     <div class="login-badge-icon">✂️</div>
-                    <h1 class="login-title">Fio & Caixa</h1>
-                    <p class="login-subtitle">Plataforma Profissional de Gestão & Agendamentos</p>
+                    <div class="login-title">Fio&Caixa</div>
+                    <div class="login-subtitle">Plataforma Profissional de Gestão & Agendamento</div>
                 </div>
-        ''', unsafe_allow_html=True)
-        
-        tipo_acesso = st.radio("Acesso como:", ["Salão", "Admin"], horizontal=True, label_visibility="collapsed")
+        """, unsafe_allow_html=True)
 
-        with st.form("form_login_moderno"):
-            usuario_input = st.text_input("Usuário / Login").strip().lower()
-            senha_input = st.text_input("Senha", type="password")
-            senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin" else ""
-            st.markdown("<br>", unsafe_allow_html=True)
-            submit_login = st.form_submit_button("Acessar Sistema", type="primary", use_container_width=True)
-            if submit_login:
-                if tipo_acesso == "Admin":
-                    if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
+        tab_login_user, tab_login_admin, tab_rec = st.tabs(["👤 Profissional", "⚙️ Administrador", "🔑 Recuperar"])
+
+        with tab_login_user:
+            with st.form("form_login_user"):
+                usuario_input = st.text_input("Usuário / Salão", placeholder="Ex: barbearia_central").strip().lower()
+                senha_input = st.text_input("Senha", type="password", placeholder="Sua senha de acesso")
+                btn_entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary")
+
+                if btn_entrar:
+                    usuarios_db = carregar_usuarios()
+                    if usuario_input in usuarios_db:
+                        dados_user = usuarios_db[usuario_input]
+                        if verificar_senha(senha_input, dados_user["senha"]):
+                            if dados_user.get("status") == "Inativo":
+                                st.error("❌ Sua conta está desativada. Entre em contato com o suporte do sistema.")
+                            else:
+                                st.session_state.autenticado = True
+                                st.session_state.usuario_logado = usuario_input
+                                st.session_state.eh_admin = False
+                                st.query_params["token_sessao"] = usuario_input
+                                st.rerun()
+                        else:
+                            st.error("❌ Senha incorreta.")
+                    else:
+                        st.error("❌ Usuário não encontrado.")
+
+        with tab_login_admin:
+            with st.form("form_login_admin"):
+                senha_admin_input = st.text_input("Senha Master / Administrador", type="password", placeholder="Digite a senha master")
+                btn_entrar_admin = st.form_submit_button("Acessar Painel Master", use_container_width=True, type="primary")
+
+                if btn_entrar_admin:
+                    h1, h2, url_sis = carregar_admin_hashes()
+                    if h1 and h2 and (verificar_senha(senha_admin_input, h1) or verificar_senha(senha_admin_input, h2)):
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
                         st.query_params["token_sessao"] = "admin_master_session"
                         st.rerun()
-                    else: st.error("Credenciais inválidas.")
+                    else:
+                        st.error("❌ Senha Master incorreta.")
+
+        with tab_rec:
+            st.markdown("<p style='font-size:0.9rem; color:#94a3b8; margin-bottom:15px;'>Digite seu usuário para receber orientações de recuperação de acesso:</p>", unsafe_allow_html=True)
+            usuario_rec = st.text_input("Usuário Cadastrado", placeholder="Ex: barbearia_central", key="rec_user_input").strip().lower()
+            if st.button("Enviar Solicitação", use_container_width=True):
+                usuarios_db = carregar_usuarios()
+                if usuario_rec in usuarios_db:
+                    st.success("✅ Solicitação enviada! O administrador entrará em contato com as instruções.")
                 else:
-                    if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
-                        dados_user = usuarios_cadastrados[usuario_input]
-                        try:
-                            data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
-                        except Exception:
-                            data_venc = datetime.now(TZ).date() + timedelta(days=30)
+                    st.error("❌ Usuário não encontrado no sistema.")
 
-                        if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
-                            st.error("❌ Acesso bloqueado. Licença expirada.")
-                            st.stop()
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_logado = usuario_input
-                        st.session_state.eh_admin = False
-                        st.query_params["token_sessao"] = usuario_input
-                        st.rerun()
-                    else: st.error("Usuário ou senha incorretos.")
-
-        st.markdown("<hr style='border-color: rgba(255,255,255,0.08); margin: 20px 0;'>", unsafe_allow_html=True)
-
-        support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
-        col_esqueci, col_whats = st.columns(2)
-        with col_esqueci:
-            if st.button("Esqueci minha senha", use_container_width=True):
-                st.session_state.recuperando_senha = True
-                st.rerun()
-        with col_whats:
-            wa_login_msg = urllib.parse.quote("Olá! Gostaria de falar sobre o sistema Fio&Caixa.")
-            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #22c55e; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-renderizar_whatsapp_flutuante()
-
-# ==============================================================================
-# MODO ADMINISTRADOR MESTRE
-# ==============================================================================
+# --- PAINEL DO ADMINISTRADOR MASTER ---
 if st.session_state.eh_admin:
-    col_adm_title, col_adm_logout = st.columns([3, 1])
-    with col_adm_title:
-        st.title("👑 Gestão Geral de Salões (Admin)")
-    with col_adm_logout:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🚪 Sair do Sistema", type="secondary", use_container_width=True, key="admin_top_logout_btn"):
-            st.session_state.clear()
-            if "token_sessao" in st.query_params:
-                del st.query_params["token_sessao"]
+    st.markdown("""
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #0d131f; padding: 20px 25px; border-radius: 16px; border: 1px solid #1e293b; margin-bottom: 25px;">
+            <div>
+                <h1 style="margin: 0; font-size: 1.8rem; background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Painel de Controle - Master</h1>
+                <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.95rem;">Gerenciamento completo de salões, assinaturas e licenças do Fio&Caixa</p>
+            </div>
+    """, unsafe_allow_html=True)
+    if st.button("🚪 Sair", type="primary"):
+        st.session_state.autenticado = False
+        st.session_state.usuario_logado = None
+        st.session_state.eh_admin = False
+        st.query_params.clear()
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    tab_admin_geral, tab_admin_clientes, tab_admin_seguranca = st.tabs(["📊 Visão Geral", "👥 Gerenciar Salões/Usuários", "🔒 Configurações & Segurança"])
+
+    with tab_admin_geral:
+        usuarios_db = carregar_usuarios()
+        total_saloes = len(usuarios_db)
+        ativos = sum(1 for u in usuarios_db.values() if u.get("status") == "Ativo")
+        inativos = total_saloes - ativos
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"""
+                <div class="kpi-card-v2">
+                    <div class="kpi-title-v2">Total de Salões / Contas</div>
+                    <div class="kpi-value-v2 kpi-val-blue">{total_saloes}</div>
+                    <div class="kpi-perc perc-neutral">Base cadastrada ativa</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+                <div class="kpi-card-v2">
+                    <div class="kpi-title-v2">Assinaturas Ativas</div>
+                    <div class="kpi-value-v2 kpi-val-green">{ativos}</div>
+                    <div class="kpi-perc perc-up"><span>▲</span> Em dia com o sistema</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""
+                <div class="kpi-card-v2">
+                    <div class="kpi-title-v2">Contas Inativas / Vencidas</div>
+                    <div class="kpi-value-v2 kpi-val-red">{inativos}</div>
+                    <div class="kpi-perc perc-down"><span>▼</span> Requer renovação</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+        st.markdown("### 🔗 Links Rápidos para Salões Cadastrados")
+        if usuarios_db:
+            dados_links = []
+            for uid in usuarios_db.keys():
+                link_salao = f"{RENDER_BASE_URL}?salao={uid}"
+                dados_links.append({"Usuário": uid, "Link Personalizado": link_salao})
+            df_links = pd.DataFrame(dados_links)
+            st.dataframe(df_links, use_container_width=True, hide_index=True)
+        else:
+            st.info("Nenhum salão cadastrado no momento.")
+
+    with tab_admin_clientes:
+        st.markdown("### 👥 Gerenciamento de Salões & Usuários")
+        usuarios_db = carregar_usuarios()
+
+        with st.expander("➕ Cadastrar Novo Salão / Usuário", expanded=False):
+            with st.form("form_novo_salao"):
+                novo_id = st.text_input("Identificador do Salão (Sem espaços, ex: barbearia_leste)").strip().lower()
+                nova_senha = st.text_input("Senha de Acesso", type="password")
+                novo_email = st.text_input("E-mail de Contato")
+                novo_whatsapp = st.text_input("WhatsApp (Ex: 37991598179)")
+                novo_venc = st.date_input("Data de Vencimento da Assinatura", value=datetime.now(TZ).date() + timedelta(days=30))
+                novo_status = st.selectbox("Status da Conta", ["Ativo", "Inativo"])
+                
+                btn_salvar_novo = st.form_submit_button("Cadastrar Salão", type="primary")
+                if btn_salvar_novo:
+                    if novo_id and nova_senha:
+                        if novo_id in usuarios_db:
+                            st.error("❌ Este identificador de usuário já existe.")
+                        else:
+                            usuarios_db[novo_id] = {
+                                "id": novo_id,
+                                "senha": hash_password(nova_senha),
+                                "email": novo_email,
+                                "tipo": "Salão",
+                                "vencimento": novo_venc.strftime('%Y-%m-%d'),
+                                "status": novo_status,
+                                "whatsapp": novo_whatsapp
+                            }
+                            salvar_usuarios(usuarios_db)
+                            st.success(f"✅ Salão '{novo_id}' cadastrado com sucesso!")
+                            st.rerun()
+                    else:
+                        st.error("❌ Preencha o identificador e a senha.")
+
+        st.markdown("---")
+        st.markdown("### 📋 Salões Cadastrados Atualmente")
+        if usuarios_db:
+            for uid, info in list(usuarios_db.items()):
+                with st.container():
+                    st.markdown(f"""
+                        <div class="ui-card" style="padding: 18px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h4 style="margin: 0; color: #38bdf8;">🏪 {uid}</h4>
+                                    <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #94a3b8;">
+                                        E-mail: {info.get('email', 'Não informado')} | WhatsApp: {info.get('whatsapp', 'Não informado')} | Vencimento: {info.get('vencimento')} | Status: <b>{info.get('status')}</b>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col_e1, col_e2, col_e3 = st.columns([2, 2, 1])
+                    with col_e1:
+                        novo_status_alt = st.selectbox("Alterar Status", ["Ativo", "Inativo"], index=0 if info.get('status') == "Ativo" else 1, key=f"status_{uid}")
+                    with col_e2:
+                        nova_venc_alt = st.date_input("Novo Vencimento", value=datetime.strptime(info.get('vencimento', datetime.now(TZ).strftime('%Y-%m-%d')), '%Y-%m-%d').date(), key=f"venc_{uid}")
+                    with col_e3:
+                        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                        if st.button("Salvar Alterações", key=f"btn_salv_{uid}", use_container_width=True):
+                            usuarios_db[uid]["status"] = novo_status_alt
+                            usuarios_db[uid]["vencimento"] = nova_venc_alt.strftime('%Y-%m-%d')
+                            salvar_usuarios(usuarios_db)
+                            st.success("Atualizado!")
+                            st.rerun()
+        else:
+            st.info("Nenhum usuário cadastrado.")
+
+    with tab_admin_seguranca:
+        st.markdown("### 🔒 Configurações de Senhas e Segurança Master")
+        h1, h2, url_sis = carregar_admin_hashes()
+
+        with st.form("form_alt_admin_senha"):
+            st.markdown("#### Alterar Senhas Master")
+            senha_atual_master = st.text_input("Senha Master Atual", type="password")
+            nova_senha_master_1 = st.text_input("Nova Senha Master Principal", type="password")
+            nova_senha_master_2 = st.text_input("Nova Senha Master de Backup (Opcional)", type="password")
+            
+            btn_alt_master = st.form_submit_button("Atualizar Senhas Master", type="primary")
+            if btn_alt_master:
+                if h1 and verificar_senha(senha_atual_master, h1):
+                    novo_h1 = hash_password(nova_senha_master_1) if nova_senha_master_1 else h1
+                    novo_h2 = hash_password(nova_senha_master_2) if nova_senha_master_2 else h2
+                    salvar_admin_hashes(novo_h1, novo_h2, RENDER_BASE_URL)
+                    st.success("✅ Senhas Master atualizadas com sucesso!")
+                else:
+                    st.error("❌ Senha master atual incorreta.")
+
+    st.stop()
+
+# --- PAINEL DO SALÃO / USUÁRIO LOGADO ---
+usuario_atual = st.session_state.usuario_logado
+
+st.markdown(f"""
+    <div style="display: flex; justify-content: space-between; align-items: center; background: #0d131f; padding: 20px 25px; border-radius: 16px; border: 1px solid #1e293b; margin-bottom: 25px;">
+        <div>
+            <h1 style="margin: 0; font-size: 1.8rem; background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Fio&Caixa • {usuario_atual.upper()}</h1>
+            <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.95rem;">Painel de Gestão Financeira, Agendamento e Serviços</p>
+        </div>
+""", unsafe_allow_html=True)
+
+col_topo_1, col_topo_2 = st.columns([1, 1])
+with col_topo_2:
+    col_btn_t1, col_btn_t2 = st.columns(2)
+    with col_btn_t1:
+        tema_txt = "☀️ Modo Claro" if st.session_state.tema_escuro else "🌙 Modo Escuro"
+        if st.button(tema_txt, use_container_width=True):
+            st.session_state.tema_escuro = not st.session_state.tema_escuro
+            st.rerun()
+    with col_btn_t2:
+        if st.button("🚪 Sair da Conta", type="primary", use_container_width=True):
+            st.session_state.autenticado = False
+            st.session_state.usuario_logado = None
+            st.session_state.eh_admin = False
+            st.query_params.clear()
             st.rerun()
 
-    tab_cad, tab_ger, tab_assinantes, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "📊 Painel de Assinantes", "🔧 Configurações Mestre"])
-    admin_hash1, admin_hash2, url_sistema_salva = carregar_admin_hashes()
-    usuarios_cadastrados = carregar_usuarios()
+st.markdown("</div>", unsafe_allow_html=True)
 
-    with tab_cad:
-        with st.form("form_cadastro_cliente"):
-            novo_usuario = st.text_input("Usuário do Salão (sem espaços):").strip().lower()
-            novo_email = st.text_input("E-mail de Contato:").strip().lower()
-            novo_whatsapp = st.text_input("WhatsApp do Salão (com DDD, ex: 5537999999999):").strip()
-            nova_senha = st.text_input("Senha de Acesso:", type="password").strip()
-            tipo_conta = st.selectbox("Perfil:", ["Teste", "Cliente"])
-            dias_validade = st.number_input("Dias de Acesso:", min_value=1, value=30)
-            if st.form_submit_button("Cadastrar Salão", type="primary"):
-                if novo_usuario and nova_senha and novo_email:
-                    venc = (datetime.now(TZ) + timedelta(days=dias_validade)).strftime("%Y-%m-%d")
-                    usuarios_cadastrados[novo_usuario] = {
-                        "senha": hash_password(nova_senha), 
-                        "email": novo_email, 
-                        "whatsapp": novo_whatsapp,
-                        "tipo": tipo_conta, 
-                        "vencimento": venc, 
-                        "status": "Ativo"
-                    }
-                    salvar_usuarios(usuarios_cadastrados)
-                    st.success("Salão cadastrado com sucesso!")
+# --- SISTEMA DE ABAS PRINCIPAIS ---
+abas_principais = st.tabs([
+    "📊 Fluxo de Caixa", 
+    "📅 Agendamentos", 
+    "💳 Mensalistas", 
+    "⚙️ Serviços & Preços", 
+    "📈 Relatórios & Contabilidade", 
+    "💾 Backup & Dados"
+])
+
+# ==========================================
+# 1. ABA: FLUXO DE CAIXA
+# ==========================================
+with abas_principais[0]:
+    st.markdown("### 💰 Gestão do Fluxo de Caixa")
+    
+    col_fc1, col_fc2 = st.columns([1, 1])
+    with col_fc1:
+        with st.form("form_novo_lancamento", clear_on_submit=True):
+            st.markdown("#### ➕ Nova Movimentação")
+            tipo_mov = st.selectbox("Tipo de Movimentação", ["Entrada", "Saída", "Fiado / Pendente"])
+            desc_mov = st.text_input("Descrição (Ex: Corte + Barba, Aluguel, Produto)")
+            valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=5.0, format="%.2f")
+            data_mov = st.date_input("Data", value=datetime.now(TZ).date())
+            
+            btn_add_mov = st.form_submit_button("Adicionar Lançamento", type="primary", use_container_width=True)
+            if btn_add_mov:
+                if desc_mov and valor_mov > 0:
+                    inserir_movimentacao_direta(tipo_mov, desc_mov, valor_mov, data_mov)
+                    st.success("✅ Lançamento registrado com sucesso!")
                     st.rerun()
-    with tab_ger:
-        if usuarios_cadastrados:
-            salao_sel = st.selectbox("Selecione um Salão:", list(usuarios_cadastrados.keys()))
-            dados = usuarios_cadastrados[salao_sel]
-            with st.expander("📝 Editar Conta", expanded=True):
-                e_email = st.text_input("E-mail:", value=dados.get("email", ""))
-                e_whatsapp = st.text_input("WhatsApp (com DDD):", value=dados.get("whatsapp", ""))
-                e_senha_nova = st.text_input("Alterar Senha (opcional):", type="password")
-                e_tipo = st.selectbox("Tipo:", ["Teste", "Cliente"], index=0 if dados['tipo'] == "Teste" else 1)
+                else:
+                    st.error("❌ Preencha a descrição e um valor válido.")
 
-                try:
-                    data_venc_atual = datetime.strptime(str(dados['vencimento']), "%Y-%m-%d").date()
-                except Exception:
-                    data_venc_atual = datetime.now(TZ).date()
+    with col_fc2:
+        st.markdown("#### 📊 Resumo Rápido do Caixa")
+        df_fluxo_atual = carregar_fluxo()
+        if not df_fluxo_atual.empty:
+            total_entradas = df_fluxo_atual[df_fluxo_atual['Tipo'] == 'Entrada']['Valor'].sum()
+            total_saidas = df_fluxo_atual[df_fluxo_atual['Tipo'] == 'Saída']['Valor'].sum()
+            total_fiado = df_fluxo_atual[df_fluxo_atual['Tipo'] == 'Fiado / Pendente']['Valor'].sum()
+            saldo_liquido = total_entradas - total_saidas
 
-                e_venc = st.date_input("Vencimento:", data_venc_atual)
-                e_status = st.selectbox("Status:", ["Ativo", "Suspenso"], index=0 if dados['status'] == "Ativo" else 1)
-                if st.button("Salvar Modificações"):
-                    senha_f = hash_password(e_senha_nova) if e_senha_nova else dados['senha']
-                    venc_str_save = e_venc.strftime("%Y-%m-%d") if hasattr(e_venc, 'strftime') else str(e_venc)
-                    usuarios_cadastrados[salao_sel] = {
-                        "senha": senha_f, 
-                        "email": e_email.strip().lower(), 
-                        "whatsapp": e_whatsapp.strip(),
-                        "tipo": e_tipo, 
-                        "vencimento": venc_str_save, 
-                        "status": e_status
-                    }
-                    salvar_usuarios(usuarios_cadastrados)
-                    st.success("Conta atualizada!")
+            st.markdown(f"""
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="kpi-card-v2">
+                        <div class="kpi-title-v2">Total Entradas</div>
+                        <div class="kpi-value-v2 kpi-val-green">R$ {total_entradas:.2f}</div>
+                    </div>
+                    <div class="kpi-card-v2">
+                        <div class="kpi-title-v2">Total Saídas</div>
+                        <div class="kpi-value-v2 kpi-val-red">R$ {total_saidas:.2f}</div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="kpi-card-v2">
+                        <div class="kpi-title-v2">Fiados / Pendentes</div>
+                        <div class="kpi-value-v2" style="color: #facc15 !important;">R$ {total_fiado:.2f}</div>
+                    </div>
+                    <div class="kpi-card-v2">
+                        <div class="kpi-title-v2">Saldo Líquido</div>
+                        <div class="kpi-value-v2 kpi-val-blue">R$ {saldo_liquido:.2f}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhuma movimentação registrada ainda.")
+
+    st.markdown("---")
+    st.markdown("### 📋 Histórico Completo de Lançamentos")
+    
+    if not df_fluxo_atual.empty:
+        # Filtros e formatação em cores para Entradas, Saídas e Pendências
+        def colorir_linhas_fluxo(row):
+            if row['Tipo'] == 'Entrada':
+                return ['background-color: rgba(34, 197, 94, 0.15); color: #22c55e !important'] * len(row)
+            elif row['Tipo'] == 'Saída':
+                return ['background-color: rgba(239, 68, 68, 0.15); color: #ef4444 !important'] * len(row)
+            else:
+                return ['background-color: rgba(250, 204, 21, 0.15); color: #facc15 !important'] * len(row)
+
+        df_exibicao = df_fluxo_atual.copy()
+        df_exibicao['Valor Formatado'] = df_exibicao['Valor'].apply(lambda x: f"R$ {x:.2f}")
+        df_exibicao['Data'] = pd.to_datetime(df_exibicao['Data']).dt.strftime('%d/%m/%Y')
+
+        st.dataframe(
+            df_exibicao.style.apply(colorir_linhas_fluxo, axis=1),
+            use_container_width=True,
+            hide_index=True,
+            column_order=["id", "Data", "Tipo", "Descrição", "Valor Formatado"]
+        )
+
+        st.markdown("#### ⚡ Ações Rápidas (Baixa de Fiado ou Exclusão)")
+        col_act1, col_act2 = st.columns(2)
+        with col_act1:
+            with st.form("form_baixa_fiado"):
+                st.markdown("**Dar Baixa em Fiado / Pendência**")
+                fiados_pendentes = df_fluxo_atual[df_fluxo_atual['Tipo'] == 'Fiado / Pendente']
+                if not fiados_pendentes.empty:
+                    opcoes_fiado = {f"ID {row['id']} - {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in fiados_pendentes.iterrows()}
+                    escolha_fiado = st.selectbox("Selecione o Fiado", options=list(opcoes_fiado.keys()))
+                    nova_desc_baixa = st.text_input("Descrição da Baixa", value="Pagamento de Fiado Recebido")
+                    btn_exec_baixa = st.form_submit_button("Confirmar Recebimento (Converter em Entrada)", type="primary")
+                    if btn_exec_baixa:
+                        id_alvo = opcoes_fiado[escolha_fiado]
+                        dar_baixa_fiado_direta(id_alvo, nova_desc_baixa)
+                        st.success("✅ Fiado baixado e convertido em Entrada com sucesso!")
+                        st.rerun()
+                else:
+                    st.info("Nenhum fiado pendente no momento.")
+
+        with col_act2:
+            with st.form("form_excluir_mov"):
+                st.markdown("**Excluir Lançamento do Caixa**")
+                opcoes_mov = {f"ID {row['id']} - {row['Tipo']} | {row['Descrição']} (R$ {row['Valor']:.2f})": row['id'] for _, row in df_fluxo_atual.iterrows()}
+                escolha_mov = st.selectbox("Selecione o Lançamento", options=list(opcoes_mov.keys()))
+                btn_exec_del = st.form_submit_button("Excluir Movimentação", type="primary")
+                if btn_exec_del:
+                    id_alvo_del = opcoes_mov[escolha_mov]
+                    deletar_movimentacao_fluxo(id_alvo_del)
+                    st.success("✅ Lançamento excluído com sucesso!")
                     st.rerun()
-            if st.checkbox(f"Confirmar exclusão de {salao_sel}"):
-                if st.button("EXCLUIR PERMANENTEMENTE", type="primary"):
+    else:
+        st.info("Nenhum dado financeiro para exibir no histórico.")
+
+# ==========================================
+# 2. ABA: AGENDAMENTOS
+# ==========================================
+with abas_principais[1]:
+    st.markdown("### 📅 Gestão de Agendamentos")
+    
+    col_ag1, col_ag2 = st.columns([1, 1])
+    with col_ag1:
+        with st.form("form_novo_agendamento", clear_on_submit=True):
+            st.markdown("#### ➕ Novo Agendamento")
+            cli_nome = st.text_input("Nome do Cliente")
+            cli_contato = st.text_input("Contato / WhatsApp (Ex: 37991598179)")
+            
+            servicos_disponiveis = carregar_servicos()
+            serv_escolhido = st.selectbox("Serviço", options=list(servicos_disponiveis.keys()))
+            
+            data_ag = st.date_input("Data do Agendamento", value=datetime.now(TZ).date())
+            hora_ag = st.time_input("Horário", value=datetime.now(TZ).time())
+            
+            btn_add_ag = st.form_submit_button("Salvar Agendamento", type="primary", use_container_width=True)
+            if btn_add_ag:
+                if cli_nome and serv_escolhido:
+                    usuario = str(st.session_state.usuario_logado).strip().lower()
+                    data_str = data_ag.strftime('%Y-%m-%d')
+                    hora_str = hora_ag.strftime('%H:%M')
                     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-                        conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": salao_sel})
-                    carregar_usuarios.clear()
+                        conn.execute(text("""
+                            INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora)
+                            VALUES (:user, :nome, :contato, :servico, :data, :hora)
+                        """), {"user": usuario, "nome": cli_nome, "contato": cli_contato, "servico": serv_escolhido, "data": data_str, "hora": hora_str})
+                    st.success("✅ Agendamento salvo com sucesso!")
                     st.rerun()
+                else:
+                    st.error("❌ Preencha o nome do cliente.")
 
-    with tab_assinantes:
-        st.markdown("### 📊 Painel de Monitoramento de Assinantes")
-        st.markdown("Acompanhe o status das assinaturas, verifique quem está em dia ou vencido, e bloqueie ou desbloqueie acessos automaticamente ou manualmente.")
+    with col_ag2:
+        st.markdown("#### 📋 Agendamentos Futuros e Atuais")
+        df_agendamentos = carregar_agendamentos()
+        if not df_agendamentos.empty:
+            st.dataframe(df_agendamentos, use_container_width=True, hide_index=True)
 
-        if usuarios_cadastrados:
-            data_hoje = datetime.now(TZ).date()
-            
-            houve_alteracao_auto = False
-            for u_id, u_info in usuarios_cadastrados.items():
-                try:
-                    dt_venc = datetime.strptime(str(u_info.get("vencimento")), "%Y-%m-%d").date()
-                except Exception:
-                    dt_venc = data_hoje
+            with st.form("form_del_agendamento"):
+                st.markdown("**Remover Agendamento Concluído ou Cancelado**")
+                opcoes_ag = {f"ID {row['id']} - {row['Cliente']} ({row['Data']} às {row['Horário']})": row['id'] for _, row in df_agendamentos.iterrows()}
+                escolha_ag = st.selectbox("Selecione o Agendamento", options=list(opcoes_ag.keys()))
+                btn_del_ag = st.form_submit_button("Excluir Agendamento", type="primary")
+                if btn_del_ag:
+                    deletar_agendamento(opcoes_ag[escolha_ag])
+                    st.success("✅ Agendamento removido!")
+                    st.rerun()
+        else:
+            st.info("Nenhum agendamento cadastrado.")
+
+# ==========================================
+# 3. ABA: MENSALISTAS
+# ==========================================
+with abas_principais[2]:
+    st.markdown("### 💳 Gestão de Clientes Mensais (Mensalistas)")
+    
+    col_m1, col_m2 = st.columns([1, 1])
+    with col_m1:
+        with st.form("form_novo_mensalista", clear_on_submit=True):
+            st.markdown("#### ➕ Cadastrar Novo Mensalista")
+            nome_m = st.text_input("Nome do Cliente Mensal")
+            tel_m = st.text_input("Telefone / WhatsApp")
+            btn_cad_m = st.form_submit_button("Cadastrar Mensalista", type="primary", use_container_width=True)
+            if btn_cad_m:
+                if nome_m:
+                    cadastrar_cliente_mensal_banco(nome_m, tel_m)
+                    st.success("✅ Mensalista cadastrado com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("❌ Digite o nome do cliente.")
+
+    with col_m2:
+        with st.form("form_lancar_corte_mensalista", clear_on_submit=True):
+            st.markdown("#### ✂️ Registrar Serviço Realizado (Mensalista)")
+            df_mensalistas = carregar_clientes_mensais_banco()
+            if not df_mensalistas.empty:
+                opcoes_mensalistas = {f"{row['Cliente']} (Devido: R$ {row['Valor Devido']:.2f})": row['id'] for _, row in df_mensalistas.iterrows()}
+                escolha_mensalista = st.selectbox("Selecione o Mensalista", options=list(opcoes_mensalistas.keys()))
+                qtd_servicos = st.number_input("Quantidade de Serviços Realizados", min_value=1, value=1, step=1)
                 
-                if dt_venc < data_hoje and u_info.get("status") == "Ativo":
-                    usuarios_cadastrados[u_id]["status"] = "Suspenso"
-                    houve_alteracao_auto = True
+                servs = carregar_servicos()
+                preco_padrao_servico = list(servs.values())[0] if servs else 30.0
+                valor_por_servico = st.number_input("Valor Cobrado por Serviço (R$)", value=float(preco_padrao_servico), step=5.0)
 
-            if houve_alteracao_auto:
-                salvar_usuarios(usuarios_cadastrados)
-                usuarios_cadastrados = carregar_usuarios()
-
-            total_clientes = len(usuarios_cadastrados)
-            ativos_count = sum(1 for u in usuarios_cadastrados.values() if u.get("status") == "Ativo" and datetime.strptime(str(u.get("vencimento")), "%Y-%m-%d").date() >= data_hoje)
-            vencidos_count = sum(1 for u in usuarios_cadastrados.values() if datetime.strptime(str(u.get("vencimento")), "%Y-%m-%d").date() < data_hoje or u.get("status") == "Suspenso")
-            
-            kpi1, kpi2, kpi3 = st.columns(3)
-            with kpi1:
-                st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Total de Assinantes</div><div class="kpi-value-v2 kpi-val-blue">{total_clientes}</div></div>', unsafe_allow_html=True)
-            with kpi2:
-                st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Assinantes em Dia (Ativos)</div><div class="kpi-value-v2 kpi-val-green">{ativos_count}</div></div>', unsafe_allow_html=True)
-            with kpi3:
-                st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Assinantes Vencidos / Bloqueados</div><div class="kpi-value-v2 kpi-val-red">{vencidos_count}</div></div>', unsafe_allow_html=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("#### Gerenciamento de Acessos Individuais")
-
-            for u_id, u_info in usuarios_cadastrados.items():
-                try:
-                    dt_venc = datetime.strptime(str(u_info.get("vencimento")), "%Y-%m-%d").date()
-                except Exception:
-                    dt_venc = data_hoje
-
-                status_atual = u_info.get("status", "Ativo")
-                esta_vencido = dt_venc < data_hoje
-
-                cor_status = "#22c55e" if (status_atual == "Ativo" and not esta_vencido) else "#ef4444"
-                texto_status = "Em Dia (Ativo)" if (status_atual == "Ativo" and not esta_vencido) else "Vencido / Bloqueado"
-
-                with st.container():
-                    c_info, c_venc, c_status_lbl, c_btn = st.columns([2.5, 1.5, 2, 2])
-                    with c_info:
-                        st.markdown(f"**👤 Salão:** `{u_id}`<br><span style='color: #94a3b8; font-size: 0.85rem;'>{u_info.get('email', 'Sem e-mail')}</span>", unsafe_allow_html=True)
-                    with c_venc:
-                        st.markdown(f"**Vencimento:**<br>{dt_venc.strftime('%d/%m/%Y')}", unsafe_allow_html=True)
-                    with c_status_lbl:
-                        st.markdown(f"**Status:**<br><span style='color: {cor_status}; font-weight: bold;'>● {texto_status}</span>", unsafe_allow_html=True)
-                    with c_btn:
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if status_atual == "Ativo" and not esta_vencido:
-                            if st.button("🔒 Bloquear Acesso", key=f"bloquear_{u_id}", use_container_width=True):
-                                usuarios_cadastrados[u_id]["status"] = "Suspenso"
-                                salvar_usuarios(usuarios_cadastrados)
-                                st.success(f"Acesso de {u_id} bloqueado!")
-                                st.rerun()
-                        else:
-                            if st.button("🔓 Desbloquear / Renovar", key=f"desbloquear_{u_id}", type="primary", use_container_width=True):
-                                novo_venc_renovado = (data_hoje + timedelta(days=30)).strftime("%Y-%m-%d")
-                                usuarios_cadastrados[u_id]["status"] = "Ativo"
-                                usuarios_cadastrados[u_id]["vencimento"] = novo_venc_renovado
-                                salvar_usuarios(usuarios_cadastrados)
-                                st.success(f"Acesso de {u_id} desbloqueado e renovado!")
-                                st.rerun()
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-        else:
-            st.info("Nenhum assinante cadastrado no momento.")
-
-    with tab_config:
-        nova_url_input = st.text_input("URL Principal do Sistema:", value=url_sistema_salva if url_sistema_salva else RENDER_BASE_URL)
-        if st.button("Salvar URL Global"):
-            atualizar_url_sistema(nova_url_input.strip())
-            st.success("URL Salva!")
-            st.rerun()
-    with st.sidebar:
-        st.markdown("---")
-        if st.button("🚪 Sair do Mestre", use_container_width=True):
-            st.session_state.clear()
-            if "token_sessao" in st.query_params:
-                del st.query_params["token_sessao"]
-            st.rerun()
-    st.stop()
-
-# ==============================================================================
-# PAINEL PRINCIPAL DO SALÃO (USUÁRIO LOGADO)
-# ==============================================================================
-df_fluxo_caixa = carregar_fluxo()
-servicos = carregar_servicos()
-_, _, url_sistema_salva = carregar_admin_hashes()
-
-hoje = pd.Timestamp(datetime.now(TZ).date())
-mes_atual = hoje.month
-ano_atual = hoje.year
-mes_passado = mes_atual - 1 if mes_atual > 1 else 12
-ano_passado = ano_atual if mes_atual > 1 else ano_atual - 1
-
-if not df_fluxo_caixa.empty:
-    df_limpo = df_fluxo_caixa.dropna(subset=['Data']).copy()
-    df_mes_atual = df_limpo[(df_limpo['Data'].dt.month == mes_atual) & (df_limpo['Data'].dt.year == ano_atual)]
-    df_mes_passado = df_limpo[(df_limpo['Data'].dt.month == mes_passado) & (df_limpo['Data'].dt.year == ano_passado)]
-else:
-    df_limpo = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
-    df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
-    df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
-
-base_url = RENDER_BASE_URL.rstrip('/')
-link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
-nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
-wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
-
-col_top_left, _ = st.columns([1, 4])
-with col_top_left:
-    with st.popover("⚙️ Configurações", use_container_width=False):
-        st.subheader("⚙️ Configurar Salão")
-        st.markdown("---")
-        opcoes_gerenciamento_pop = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-        servico_sel_pop = st.selectbox("Ação / Serviço:", opcoes_gerenciamento_pop, key="top_select_servico")
-        nome_p_pop = "" if servico_sel_pop == "➕ Cadastrar Novo Serviço" else servico_sel_pop
-        preco_p_pop = 0.0 if servico_sel_pop == "➕ Cadastrar Novo Serviço" else float(servicos[servico_sel_pop])
-        novo_servico_pop = st.text_input("Nome do Serviço:", value=nome_p_pop, key=f"top_nome_{servico_sel_pop}")
-        novo_preco_pop = st.number_input("Valor do Serviço (R$):", min_value=0.0, value=preco_p_pop, step=5.0, key=f"top_prc_{servico_sel_pop}")
-
-        col_tp1, col_tp2 = st.columns(2)
-        with col_tp1:
-            if st.button("💾 Salvar", type="primary", use_container_width=True, key="top_save_btn"):
-                if novo_servico_pop.strip():
-                    salvar_ou_atualizar_servico(servico_sel_pop, novo_servico_pop.strip(), novo_preco_pop)
-                    st.success("Serviço atualizado com sucesso!")
+                btn_lanc_serv = st.form_submit_button("Adicionar ao Saldo Devedor", type="primary")
+                if btn_lanc_serv:
+                    id_c = opcoes_mensalistas[escolha_mensalista]
+                    atualizar_cortes_cliente_mensal(id_c, qtd_servicos, valor_por_servico)
+                    st.success("✅ Serviços adicionados à conta do mensalista!")
                     st.rerun()
-                else: st.error("Informe o nome do serviço.")
-        with col_tp2:
-            if servico_sel_pop != "➕ Cadastrar Novo Serviço":
-                if st.button("🗑️ Excluir", use_container_width=True, key="top_del_btn"):
-                    deletar_servico_banco(servico_sel_pop)
-                    st.warning("Serviço excluído com sucesso!")
-                    st.rerun()
-
-        st.markdown("---")
-        renderizar_botao_download_apk(gerar_backup_json_completo().encode('utf-8'), f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", "application/json", "📥 Baixar Backup JSON")
-        st.markdown("---")
-        if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary", key="top_logout_btn"):
-            st.session_state.clear()
-            if "token_sessao" in st.query_params:
-                del st.query_params["token_sessao"]
-            st.rerun()
-
-st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #38bdf8 !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
-
-# ==============================================================================
-# FUNÇÕES DE DIÁLOGO (MODAIS PARA AÇÕES RÁPIDAS)
-# ==============================================================================
-
-@st.dialog("✂️ Registrar Novo Atendimento")
-def dialog_novo_atendimento(servicos_dict):
-    if list(servicos_dict.keys()):
-        servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_atend_serv_modal")
-        preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos_dict[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}_modal")
-        data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt_modal")
-        if st.button("Confirmar Entrada", type="primary", icon=":material/check_circle:", use_container_width=True):
-            inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
-            st.success("Atendimento registrado no caixa!")
-            st.rerun()
-
-@st.dialog("🛍️ Registrar Nova Despesa")
-def dialog_nova_despesa():
-    descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc_modal", placeholder="Ex: Produto de limpeza, conta de luz...")
-    valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val_modal")
-    data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt_modal")
-    if st.button("Lançar Saída", type="primary", icon=":material/remove_circle:", use_container_width=True):
-        if descricao_saida and valor_saida > 0:
-            inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
-            st.success("Despesa lançada!")
-            st.rerun()
-        else:
-            st.warning("Preencha a descrição e um valor válido.")
-
-@st.dialog("💰 Registrar Atendimento Fiado")
-def dialog_anotar_fiado(servicos_dict):
-    if list(servicos_dict.keys()):
-        nome_devedor = st.text_input("Nome do Cliente Devedor:", key="f_fiado_nome_modal")
-        servico_pendente = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_fiado_serv_modal")
-        preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos_dict[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}_modal")
-        data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt_modal")
-        if st.button("Anotar Pendência", type="primary", icon=":material/warning:", use_container_width=True):
-            if nome_devedor:
-                inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
-                st.success("Fiado registrado!")
-                st.rerun()
             else:
-                st.warning("Informe o nome do cliente devedor.")
+                st.info("Nenhum mensalista cadastrado.")
 
-@st.dialog("💸 Dar Baixa em Fiado")
-def dialog_baixar_fiado(df_fluxo):
-    df_pendencias = df_fluxo[df_fluxo['Tipo'] == 'Pendência']
-    if not df_pendencias.empty:
-        opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
-        pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel_modal")
-        if st.button("Confirmar Recebimento", type="primary", icon=":material/payments:", use_container_width=True):
-            id_alterar = opcoes_pendentes[pendencia_selecionada]
-            row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
-            nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
-            dar_baixa_fiado_direta(id_alterar, nova_desc)
-            st.success("Pagamento registrado no caixa!")
-            st.rerun()
-    else:
-        st.info("Nenhum fiado pendente no momento.")
+    st.markdown("---")
+    st.markdown("### 📋 Lista de Mensalistas e Saldos")
+    df_mensalistas_atual = carregar_clientes_mensais_banco()
+    if not df_mensalistas_atual.empty:
+        st.dataframe(df_mensalistas_atual, use_container_width=True, hide_index=True)
 
-# ==============================================================================
-# ABAS ATUALIZADAS (Com a nova aba de Clientes Mensais inclusa)
-# ==============================================================================
-tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "📜 Histórico"])
-
-# ==============================================================================
-# TAB 1: DASHBOARD
-# ==============================================================================
-with tab_dashboard:
-    def agg_valores(df_m):
-        entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
-        saidas = df_m[df_m['Tipo'] == 'Saída']['Valor'].sum()
-        faturamento = entradas + pendencias
-        lucro = entradas + saidas
-        return faturamento, entradas, abs(saidas), lucro
-
-    def agg_valores_dia(df_m, data_ref):
-        if df_m.empty:
-            return 0.0
-        df_dia = df_m[df_m['Data'].dt.date == data_ref]
-        entradas_dia = df_dia[df_dia['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias_dia = df_dia[df_dia['Tipo'] == 'Pendência']['Valor'].sum()
-        return entradas_dia + pendencias_dia
-
-    fat_dia_atual = agg_valores_dia(df_limpo, hoje.date())
-    fat_atual, ent_atual, sai_atual, lucro_atual = agg_valores(df_mes_atual)
-    fat_ant, ent_ant, sai_ant, lucro_ant = agg_valores(df_mes_passado)
-
-    def calc_perc(atual, anterior):
-        if anterior == 0: return 0 if atual == 0 else 100
-        return ((atual - anterior) / anterior) * 100
-
-    perc_ent = calc_perc(ent_atual, ent_ant)
-    perc_sai = calc_perc(sai_atual, sai_ant)
-    perc_luc = calc_perc(lucro_atual, lucro_ant)
-
-    def render_perc(val, reverse_colors=False):
-        if val == 0: return f'<span class="kpi-perc perc-neutral">0% vs mês anterior</span>'
-        seta = "▲" if val > 0 else "▼"
-        cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
-        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
-
-    col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-    with col_k1: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_dia_atual:,.2f}</div></div>', unsafe_allow_html=True)
-    with col_k2: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
-    with col_k3: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
-    with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
-
-    if not df_mes_atual.empty:
-        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
-        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
-        for col in ['Entrada', 'Saída', 'Pendência']:
-            if col not in df_group: df_group[col] = 0
-
-        df_group['Saída_Abs'] = df_group['Saída'].abs()
-        df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
-
-        fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#22c55e', width=2), fill='tozeroy', fillcolor='rgba(34, 197, 94, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#ef4444', width=2), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)', marker=dict(size=6)))
-
-        fig_area.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
-            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
-            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
-            margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
-        )
-        st.plotly_chart(fig_area, use_container_width=True)
-    else: st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
-
-    col_bottom1, col_bottom2 = st.columns(2)
-    with col_bottom1:
-        st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
-        if ent_atual > 0 or sai_atual > 0:
-            total_op = ent_atual + sai_atual
-            perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
-            perc_sai_donut = (sai_atual / total_op) * 100 if total_op > 0 else 0
-
-            col_donut_img, col_donut_leg = st.columns([1, 1.2])
-            with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#38bdf8', '#ef4444']), textinfo='none', hoverinfo='label+percent')])
-                fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
-                st.plotly_chart(fig_donut, use_container_width=True)
-            with col_donut_leg:
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
-                """, unsafe_allow_html=True)
-        else: st.info("Sem dados suficientes neste mês.")
-
-    with col_bottom2:
-        st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
-        if sai_atual > 0:
-            df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
-            df_desp['Valor'] = df_desp['Valor'].abs()
-            top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#38bdf8', '#22c55e', '#ef4444', '#94a3b8']
-            html_barras = ""
-            for i, (desc, valor) in enumerate(top_desp.items()):
-                perc_cat = (valor / sai_atual) * 100
-                cor = cores_barras[i % len(cores_barras)]
-                nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
-                html_barras += f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
-                    <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: #111827; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
-                        <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
-                    </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
-                </div>
-                """
-            st.markdown(html_barras, unsafe_allow_html=True)
-        else: st.info("Nenhuma despesa registrada neste mês.")
-
-# ==============================================================================
-# TAB 2: SERVIÇOS
-# ==============================================================================
-with tab_servicos:
-    st.markdown('### :material/bolt: Ações & Serviços')
-    st.markdown("<p style='color: #94a3b8 !important;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
-    
-    with col_srv1:
-        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
-            dialog_novo_atendimento(servicos)
-            
-    with col_srv2:
-        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
-            dialog_nova_despesa()
-            
-    with col_srv3:
-        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
-            dialog_anotar_fiado(servicos)
-            
-    with col_srv4:
-        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
-            dialog_baixar_fiado(df_fluxo_caixa)
-
-# ==============================================================================
-# TAB 3: CLIENTES MENSAIS / MENSALIDADE (COM AS ALTERAÇÕES REQUISITADAS)
-# ==============================================================================
-with tab_mensais:
-    st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
-    st.markdown("<p style='color: #94a3b8 !important;'>Cadastre seus clientes mensais (iniciam sem dever nada), registre os cortes realizados e dê baixa total ou parcial da dívida.</p>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    tab_m_cad, tab_m_lanc, tab_m_lista = st.tabs(["➕ Cadastrar Novo Cliente", "✂️ Registrar Corte / Serviço", "📋 Acompanhar Dívidas e Baixas"])
-
-    with tab_m_cad:
-        with st.form("form_cad_cliente_mensal", clear_on_submit=True):
-            st.markdown("#### Informações do Cliente Mensalista")
-            nome_cli_m = st.text_input("Nome Completo do Cliente:")
-            tel_cli_m = st.text_input("Telefone / WhatsApp:")
-            
-            btn_salvar_cli_m = st.form_submit_button("Cadastrar Cliente Mensalista", type="primary", use_container_width=True)
-            if btn_salvar_cli_m:
-                if nome_cli_m.strip():
-                    cadastrar_cliente_mensal_banco(nome_cli_m, tel_cli_m)
-                    st.success(f"Cliente mensal `{nome_cli_m}` cadastrado com sucesso! Iniciou sem dever nada.")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ Informe o nome do cliente.")
-
-    with tab_m_lanc:
-        st.markdown("#### Registrar Corte para Cliente Mensal")
-        df_mensalistas = carregar_clientes_mensais_banco()
-        if not df_mensalistas.empty:
-            mapa_clientes = {row['Cliente']: row['id'] for _, row in df_mensalistas.iterrows()}
-            cliente_escolhido_l = st.selectbox("Selecione o Cliente Mensal:", list(mapa_clientes.keys()))
-            id_cli_sel = mapa_clientes[cliente_escolhido_l]
-            
-            qtd_cortes = st.number_input("Quantos serviços/cortes foram feitos?", min_value=1, value=1, step=1)
-            preco_serv_mensal = st.number_input("Valor unitário cobrado por este serviço (R$):", min_value=0.0, value=30.0, step=5.0)
-
-            if st.button("Adicionar Serviço à Dívida do Cliente", type="primary", use_container_width=True):
-                atualizar_cortes_cliente_mensal(id_cli_sel, qtd_cortes, preco_serv_mensal)
-                st.success(f"Adicionado {qtd_cortes} serviço(s) para `{cliente_escolhido_l}`. O sistema atualizou a dívida automaticamente!")
-                st.rerun()
-        else:
-            st.info("Nenhum cliente mensal cadastrado ainda. Cadastre na aba anterior.")
-
-    with tab_m_lista:
-        st.markdown("#### Status de Dívidas e Baixas")
-        df_mensalistas = carregar_clientes_mensais_banco()
-        if not df_mensalistas.empty:
-            for _, row in df_mensalistas.iterrows():
-                c_id = row['id']
-                c_nome = row['Cliente']
-                c_tel = row['Telefone']
-                c_serv = row['Serviços Feitos']
-                c_val = float(row['Valor Devido'])
-                c_status = row['Status']
-
-                cor_st = "#22c55e" if c_status == "Quitado" or c_val == 0 else "#ef4444"
+        with st.form("form_baixa_mensalista"):
+            st.markdown("**Quitar ou Dar Baixa em Mensalista**")
+            opcoes_mensalistas_baixa = {f"{row['Cliente']} - Devido: R$ {row['Valor Devido']:.2f}": row['id'] for _, row in df_mensalistas_atual.iterrows()}
+            escolha_m_baixa = st.selectbox("Selecione para Baixa", options=list(opcoes_mensalistas_baixa.keys()))
+            valor_baixa_m = st.number_input("Valor Recebido na Baixa (R$)", min_value=0.0, step=10.0, format="%.2f")
+            btn_exec_baixa_m = st.form_submit_button("Confirmar Baixa / Pagamento", type="primary")
+            if btn_exec_baixa_m:
+                id_cli_alvo = opcoes_mensalistas_baixa[escolha_m_baixa]
+                dar_baixa_divida_mensalista(id_cli_alvo, valor_baixa_m)
                 
-                with st.container():
-                    col_info_m, col_val_m, col_action_m = st.columns([3, 2, 2])
-                    with col_info_m:
-                        st.markdown(f"**👤 {c_nome}** (`{c_tel if c_tel else 'Sem Tel'}`)<br><span style='color: #94a3b8; font-size: 0.85rem;'>Serviços realizados: {c_serv}</span>", unsafe_allow_html=True)
-                    with col_val_m:
-                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.1rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
-                    with col_action_m:
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if c_val > 0:
-                            # Popover/Formulário para escolha do tipo de baixa
-                            with st.popover(f"💸 Dar Baixa ({c_nome})", use_container_width=True):
-                                st.markdown(f"**Dívida atual:** R$ {c_val:,.2f}")
-                                tipo_baixa = st.radio("Escolha o tipo de baixa:", ["Baixa total da dívida", "Baixa parcial (escolher valor)"], key=f"tipo_baixa_{c_id}")
-                                
-                                valor_a_baixar = c_val
-                                if tipo_baixa == "Baixa parcial (escolher valor)":
-                                    valor_a_baixar = st.number_input("Valor que o cliente pagou (R$):", min_value=0.01, max_value=c_val, value=c_val, step=5.0, key=f"val_parcial_{c_id}")
-                                
-                                if st.button("Confirmar Baixa", key=f"btn_conf_baixa_{c_id}", type="primary", use_container_width=True):
-                                    inserir_movimentacao_direta("Entrada", f"Mensalidade recebida ({'parcial' if tipo_baixa != 'Baixa total da dívida' else 'total'}): {c_nome}", valor_a_baixar, datetime.now(TZ).date())
-                                    dar_baixa_divida_mensalista(c_id, valor_a_baixar)
-                                    st.success(f"Baixa de R$ {valor_a_baixar:,.2f} registrada com sucesso!")
-                                    st.rerun()
-                        else:
-                            st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-        else:
-            st.info("Nenhum cliente mensal cadastrado no momento.")
+                # Registra entrada no fluxo de caixa automaticamente
+                cliente_nome_txt = escolha_m_baixa.split(" - ")[0]
+                inserir_movimentacao_direta("Entrada", f"Mensalidade / Acerto - {cliente_nome_txt}", valor_baixa_m, datetime.now(TZ).date())
+                
+                st.success("✅ Baixa realizada com sucesso e registrada no Caixa!")
+                st.rerun()
+    else:
+        st.info("Nenhum mensalista cadastrado.")
 
-# ==============================================================================
-# TAB 4: AGENDAMENTOS
-# ==============================================================================
-with tab_agend:
-    col_ag_title, col_ag_btn = st.columns([3, 1])
-    with col_ag_title:
-        st.markdown("### 📅 Central de Agendamentos")
-        st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real.</p>", unsafe_allow_html=True)
-    with col_ag_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
+# ==========================================
+# 4. ABA: SERVIÇOS & PREÇOS
+# ==========================================
+with abas_principais[3]:
+    st.markdown("### ⚙️ Catálogo de Serviços & Preços")
     
-    df_agendamentos = carregar_agendamentos()
-
-    if not df_agendamentos.empty:
-        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
-        
-        servicos_salao = carregar_servicos()
-
-        for index, row in df_agendamentos.iterrows():
-            id_ag = row['id']
-            cliente = row['Cliente']
-            contato = row['Contato/WhatsApp']
-            servico = row['Serviço']
-            data_bd = row['Data']
-            hora = row['Horário']
+    col_s1, col_s2 = st.columns([1, 1])
+    with col_s1:
+        with st.form("form_cad_servico", clear_on_submit=True):
+            st.markdown("#### ➕ Cadastrar ou Atualizar Serviço")
+            servicos_atuais = carregar_servicos()
+            lista_nomes = ["➕ Cadastrar Novo Serviço"] + list(servicos_atuais.keys())
+            servico_selecionado = st.selectbox("Serviço Existente (para alterar) ou Novo", options=lista_nomes)
             
-            try:
-                data_formatada = pd.to_datetime(data_bd).strftime('%d/%m/%Y')
-            except:
-                data_formatada = data_bd
-
-            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
+            novo_nome_serv = st.text_input("Nome do Serviço")
+            novo_preco_serv = st.number_input("Preço (R$)", min_value=0.0, step=5.0, format="%.2f")
             
-            with col_info:
-                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
-            
-            with col_zap:
-                num_clean = re.sub(r'\D', '', str(contato))
-                if num_clean:
-                    if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
-                    msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
-                    wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
+            btn_salvar_serv = st.form_submit_button("Salvar Serviço", type="primary", use_container_width=True)
+            if btn_salvar_serv:
+                nome_final = novo_nome_serv.strip() if servico_selecionado == "➕ Cadastrar Novo Serviço" else servico_selecionado
+                if servico_selecionado != "➕ Cadastrar Novo Serviço" and novo_nome_serv.strip():
+                    nome_final = novo_nome_serv.strip()
+                
+                if nome_final and novo_preco_serv > 0:
+                    salvar_ou_atualizar_servico(servico_selecionado if servico_selecionado != "➕ Cadastrar Novo Serviço" else "", nome_final, novo_preco_serv)
+                    st.success("✅ Serviço salvo com sucesso!")
+                    st.rerun()
                 else:
-                    st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
+                    st.error("❌ Preencha o nome e o preço do serviço.")
 
-            with col_conf:
-                if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
-                    preco_servico = float(servicos_salao.get(servico, 0.0))
-                    inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
-                    deletar_agendamento(id_ag)
-                    st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
+    with col_s2:
+        st.markdown("#### 📋 Serviços Cadastrados Atualmente")
+        servicos_atuais = carregar_servicos()
+        if servicos_atuais:
+            df_serv = pd.DataFrame(list(servicos_atuais.items()), columns=["Serviço", "Preço (R$)"])
+            df_serv['Preço (R$)'] = df_serv['Preço (R$)'].apply(lambda x: f"R$ {x:.2f}")
+            st.dataframe(df_serv, use_container_width=True, hide_index=True)
+
+            with st.form("form_del_servico"):
+                st.markdown("**Remover Serviço**")
+                serv_a_deletar = st.selectbox("Selecione o Serviço para Excluir", options=list(servicos_atuais.keys()))
+                btn_exec_del_serv = st.form_submit_button("Excluir Serviço", type="primary")
+                if btn_exec_del_serv:
+                    deletar_servico_banco(serv_a_deletar)
+                    st.success("✅ Serviço excluído!")
                     st.rerun()
-            
-            with col_canc:
-                if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
-                    deletar_agendamento(id_ag)
-                    st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
-                    st.rerun()
-            
-            st.markdown("<hr style='margin: 15px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-    else:
-        st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
-
-# ==============================================================================
-# TAB 5: HISTÓRICO & RELATÓRIOS
-# ==============================================================================
-with tab_historico:
-    st.subheader("📜 Histórico Financeiro Completo")
-    if not df_fluxo_caixa.empty:
-        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
-
-        modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
-        if modo_filtro == "Por Mês Fechado":
-            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-            mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
-            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-            texto_pdf = mes_escolhido
-            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
         else:
-            col_dt1, col_dt2 = st.columns(2)
-            with col_dt1: dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
-            with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
-            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
-            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
-            nome_arq = "contabilidade_periodo"
+            st.info("Nenhum serviço cadastrado.")
 
-        if not df_exibicao.empty:
-            st.markdown("<br>", unsafe_allow_html=True)
-            pdf_bytes = gerar_pdf_contabilidade(df_exibicao, texto_pdf)
-            st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
-            st.markdown("<br>", unsafe_allow_html=True)
+# ==========================================
+# 5. ABA: RELATÓRIOS & CONTABILIDADE
+# ==========================================
+with abas_principais[4]:
+    st.markdown("### 📈 Relatórios & Contabilidade")
+    
+    df_fluxo_rel = carregar_fluxo()
+    if not df_fluxo_rel.empty:
+        col_r1, col_r2 = st.columns(2)
+        with col_r1:
+            mes_ref_rel = st.selectbox("Mês de Referência", options=["Todos os Registros", "Mês Atual", "Últimos 30 dias"])
+        
+        df_filtrado = df_fluxo_rel.copy()
+        if mes_ref_rel == "Mês Atual":
+            hoje = datetime.now(TZ)
+            df_filtrado = df_filtrado[(df_filtrado['Data'].dt.month == hoje.month) & (df_filtrado['Data'].dt.year == hoje.year)]
+        elif mes_ref_rel == "Últimos 30 dias":
+            limite_data = datetime.now(TZ) - timedelta(days=30)
+            df_filtrado = df_filtrado[df_filtrado['Data'] >= pd.Timestamp(limite_data.date())]
 
-            for index, row in df_exibicao.iterrows():
-                id_reg = row['id']
-                data_f = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
-                tipo = row['Tipo']
-                desc = row['Descrição']
-                val = row['Valor']
+        st.markdown("#### 📊 Gráfico de Movimentações")
+        if not df_filtrado.empty:
+            fig = px.bar(df_filtrado, x='Data', y='Valor', color='Tipo', barmode='group', color_discrete_map={'Entrada': '#22c55e', 'Saída': '#ef4444', 'Fiado / Pendente': '#facc15'})
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff')
+            st.plotly_chart(fig, use_container_width=True)
 
-                cor_val = "#22c55e" if tipo == 'Entrada' else ("#ef4444" if tipo == 'Saída' else "#f59e0b")
-                sinal = "+" if tipo == 'Entrada' else ("-" if tipo == 'Saída' else "⏳")
-                val_formatado = f"{sinal} R$ {abs(val):,.2f}"
-
-                col_reg_info, col_reg_btn = st.columns([5, 1])
-                with col_reg_info:
-                    st.markdown(f"**{data_f}** | *{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
-                with col_reg_btn:
-                    if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
-                        deletar_movimentacao_fluxo(id_reg)
-                        st.warning("Movimentação excluída!")
-                        st.rerun()
-                st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-        else:
-            st.info("Nenhum registro encontrado para este filtro.")
+        st.markdown("#### 📄 Gerar Relatório em PDF")
+        pdf_bytes = gerar_pdf_contabilidade(df_filtrado, mes_ref_rel)
+        st.download_button(
+            label="📥 Baixar Relatório Contábil (PDF)",
+            data=pdf_bytes,
+            file_name=f"relatorio_contabil_{usuario_atual}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
     else:
-        st.info("O histórico está vazio.")
+        st.info("Nenhum dado financeiro para gerar relatórios.")
+
+# ==========================================
+# 6. ABA: BACKUP & DADOS
+# ==========================================
+with abas_principais[5]:
+    st.markdown("### 💾 Backup e Exportação de Dados")
+    st.markdown("<p style='color: #94a3b8;'>Faça o backup de todos os seus registros financeiros e serviços em formato JSON para total segurança.</p>", unsafe_allow_html=True)
+
+    json_data_str = gerar_backup_json_completo()
+    st.download_button(
+        label="📥 Baixar Backup Completo (JSON)",
+        data=json_data_str,
+        file_name=f"backup_fiocaixa_{usuario_atual}_{datetime.now(TZ).strftime('%Y%m%d_%H%M%S')}.json",
+        mime="application/json",
+        use_container_width=True
+    )
