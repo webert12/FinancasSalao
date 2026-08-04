@@ -286,6 +286,22 @@ def set_background_com_logo(image_path):
             box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
         }}
         
+        /* CORREÇÃO DO TAMANHO DAS ABAS E ESPAÇAMENTO PARA DISPOSITIVOS MÓVEIS (MODO COMPUTADOR) */
+        @media screen and (max-width: 1024px) {{
+            .stTabs [data-baseweb="tab-list"] {{
+                gap: 10px !important;
+                overflow-x: auto !important;
+                justify-content: flex-start !important;
+                padding-bottom: 5px !important;
+            }}
+            .stTabs [data-baseweb="tab"] {{
+                font-size: 1.15rem !important;
+                padding: 14px 22px !important;
+                margin-right: 10px !important;
+                flex-shrink: 0 !important;
+            }}
+        }}
+
         @media(min-width: 1024px) {{
             .main .block-container {{
                 max-width: 82% !important;
@@ -543,19 +559,18 @@ def carregar_clientes_mensais_banco():
     except Exception: pass
     return pd.DataFrame(columns=["id", "Cliente", "Telefone", "Serviços Feitos", "Valor Devido", "Status"])
 
-def cadastrar_cliente_mensal_banco(nome, telefone, valor_inicial):
+def cadastrar_cliente_mensal_banco(nome, telefone):
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("""
             INSERT INTO clientes_mensais (usuario_id, nome_cliente, telefone, servicos_feitos, valor_devido, status_divida)
-            VALUES (:user, :nome, :tel, 0, :val, 'Pendente')
-        """), {"user": usuario, "nome": nome.strip(), "tel": telefone.strip(), "val": float(valor_inicial)})
+            VALUES (:user, :nome, :tel, 0, 0.0, 'Pendente')
+        """), {"user": usuario, "nome": nome.strip(), "tel": telefone.strip()})
 
 def atualizar_cortes_cliente_mensal(id_cliente, qtd_adicionar, valor_por_servico):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-        # Busca dados atuais
         res = conn.execute(text("SELECT servicos_feitos, valor_devido FROM clientes_mensais WHERE id = :id"), {"id": int(id_cliente)}).fetchone()
         if res:
             novos_servicos = int(res[0]) + int(qtd_adicionar)
@@ -566,14 +581,19 @@ def atualizar_cortes_cliente_mensal(id_cliente, qtd_adicionar, valor_por_servico
                 WHERE id = :id
             """), {"s": novos_servicos, "v": novo_valor, "id": int(id_cliente)})
 
-def dar_baixa_divida_mensalista(id_cliente):
+def dar_baixa_divida_mensalista(id_cliente, valor_baixa):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
-        conn.execute(text("""
-            UPDATE clientes_mensais 
-            SET valor_devido = 0, status_divida = 'Quitado'
-            WHERE id = :id
-        """), {"id": int(id_cliente)})
+        res = conn.execute(text("SELECT valor_devido FROM clientes_mensais WHERE id = :id"), {"id": int(id_cliente)}).fetchone()
+        if res:
+            devido_atual = float(res[0])
+            novo_valor_devido = max(0.0, devido_atual - float(valor_baixa))
+            novo_status = 'Quitado' if novo_valor_devido == 0 else 'Pendente'
+            conn.execute(text("""
+                UPDATE clientes_mensais 
+                SET valor_devido = :v, status_divida = :st
+                WHERE id = :id
+            """), {"v": novo_valor_devido, "st": novo_status, "id": int(id_cliente)})
 
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
@@ -1293,11 +1313,11 @@ with tab_servicos:
             dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
-# TAB 3: CLIENTES MENSAIS / MENSALIDADE (NOVA FUNÇÃO REQUISITADA)
+# TAB 3: CLIENTES MENSAIS / MENSALIDADE (COM AS ALTERAÇÕES REQUISITADAS)
 # ==============================================================================
 with tab_mensais:
     st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
-    st.markdown("<p style='color: #94a3b8 !important;'>Cadastre seus clientes mensais, registre os cortes realizados por mensalidade para automatizar a dívida, e dê baixa quando o pagamento for efetuado.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #94a3b8 !important;'>Cadastre seus clientes mensais (iniciam sem dever nada), registre os cortes realizados e dê baixa total ou parcial da dívida.</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     tab_m_cad, tab_m_lanc, tab_m_lista = st.tabs(["➕ Cadastrar Novo Cliente", "✂️ Registrar Corte / Serviço", "📋 Acompanhar Dívidas e Baixas"])
@@ -1307,13 +1327,12 @@ with tab_mensais:
             st.markdown("#### Informações do Cliente Mensalista")
             nome_cli_m = st.text_input("Nome Completo do Cliente:")
             tel_cli_m = st.text_input("Telefone / WhatsApp:")
-            valor_mensalidade_base = st.number_input("Valor da Mensalidade / Preço por Serviço (R$):", min_value=0.0, value=100.0, step=10.0)
             
             btn_salvar_cli_m = st.form_submit_button("Cadastrar Cliente Mensalista", type="primary", use_container_width=True)
             if btn_salvar_cli_m:
                 if nome_cli_m.strip():
-                    cadastrar_cliente_mensal_banco(nome_cli_m, tel_cli_m, 0.0)
-                    st.success(f"Cliente mensal `{nome_cli_m}` cadastrado com sucesso!")
+                    cadastrar_cliente_mensal_banco(nome_cli_m, tel_cli_m)
+                    st.success(f"Cliente mensal `{nome_cli_m}` cadastrado com sucesso! Iniciou sem dever nada.")
                     st.rerun()
                 else:
                     st.warning("⚠️ Informe o nome do cliente.")
@@ -1345,7 +1364,7 @@ with tab_mensais:
                 c_nome = row['Cliente']
                 c_tel = row['Telefone']
                 c_serv = row['Serviços Feitos']
-                c_val = row['Valor Devido']
+                c_val = float(row['Valor Devido'])
                 c_status = row['Status']
 
                 cor_st = "#22c55e" if c_status == "Quitado" or c_val == 0 else "#ef4444"
@@ -1359,12 +1378,20 @@ with tab_mensais:
                     with col_action_m:
                         st.markdown("<br>", unsafe_allow_html=True)
                         if c_val > 0:
-                            if st.button("💸 Dar Baixa na Dívida", key=f"baixa_mensal_{c_id}", type="primary", use_container_width=True):
-                                # Registra no fluxo de caixa também como entrada
-                                inserir_movimentacao_direta("Entrada", f"Mensalidade recebida: {c_nome}", c_val, datetime.now(TZ).date())
-                                dar_baixa_divida_mensalista(c_id)
-                                st.success(f"Dívida de {c_nome} quitada e valor lançado no caixa!")
-                                st.rerun()
+                            # Popover/Formulário para escolha do tipo de baixa
+                            with st.popover(f"💸 Dar Baixa ({c_nome})", use_container_width=True):
+                                st.markdown(f"**Dívida atual:** R$ {c_val:,.2f}")
+                                tipo_baixa = st.radio("Escolha o tipo de baixa:", ["Baixa total da dívida", "Baixa parcial (escolher valor)"], key=f"tipo_baixa_{c_id}")
+                                
+                                valor_a_baixar = c_val
+                                if tipo_baixa == "Baixa parcial (escolher valor)":
+                                    valor_a_baixar = st.number_input("Valor que o cliente pagou (R$):", min_value=0.01, max_value=c_val, value=c_val, step=5.0, key=f"val_parcial_{c_id}")
+                                
+                                if st.button("Confirmar Baixa", key=f"btn_conf_baixa_{c_id}", type="primary", use_container_width=True):
+                                    inserir_movimentacao_direta("Entrada", f"Mensalidade recebida ({'parcial' if tipo_baixa != 'Baixa total da dívida' else 'total'}): {c_nome}", valor_a_baixar, datetime.now(TZ).date())
+                                    dar_baixa_divida_mensalista(c_id, valor_a_baixar)
+                                    st.success(f"Baixa de R$ {valor_a_baixar:,.2f} registrada com sucesso!")
+                                    st.rerun()
                         else:
                             st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
                     st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
