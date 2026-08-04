@@ -1155,9 +1155,9 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS (Com a nova aba de Clientes Mensais inclusa)
+# ABAS ATUALIZADAS (Com a nova aba de Clientes Mensais inclusa e Fluxo de Caixa)
 # ==============================================================================
-tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "📜 Histórico"])
+tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "📜 Fluxo de caixa"])
 
 # ==============================================================================
 # TAB 1: DASHBOARD
@@ -1313,7 +1313,7 @@ with tab_servicos:
             dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
-# TAB 3: CLIENTES MENSAIS / MENSALIDADE (COM AS ALTERAÇÕES REQUISITADAS)
+# TAB 3: CLIENTES MENSAIS / MENSALIDADE
 # ==============================================================================
 with tab_mensais:
     st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
@@ -1467,56 +1467,56 @@ with tab_agend:
         st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 5: HISTÓRICO & RELATÓRIOS
+# TAB 5: FLUXO DE CAIXA (OCULTO POR PADRÃO)
 # ==============================================================================
 with tab_historico:
-    st.subheader("📜 Histórico Financeiro Completo")
-    if not df_fluxo_caixa.empty:
-        df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-        df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
+    with st.expander("Movimentação"):
+        if not df_fluxo_caixa.empty:
+            df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
+            df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
 
-        modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
-        if modo_filtro == "Por Mês Fechado":
-            meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-            mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
-            df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-            texto_pdf = mes_escolhido
-            nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
+            modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
+            if modo_filtro == "Por Mês Fechado":
+                meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
+                mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
+                df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
+                texto_pdf = mes_escolhido
+                nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
+            else:
+                col_dt1, col_dt2 = st.columns(2)
+                with col_dt1: dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
+                with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
+                df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
+                texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
+                nome_arq = "contabilidade_periodo"
+
+            if not df_exibicao.empty:
+                st.markdown("<br>", unsafe_allow_html=True)
+                pdf_bytes = gerar_pdf_contabilidade(df_exibicao, texto_pdf)
+                st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                for index, row in df_exibicao.iterrows():
+                    id_reg = row['id']
+                    data_f = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
+                    tipo = row['Tipo']
+                    desc = row['Descrição']
+                    val = row['Valor']
+
+                    cor_val = "#22c55e" if tipo == 'Entrada' else ("#ef4444" if tipo == 'Saída' else "#f59e0b")
+                    sinal = "+" if tipo == 'Entrada' else ("-" if tipo == 'Saída' else "⏳")
+                    val_formatado = f"{sinal} R$ {abs(val):,.2f}"
+
+                    col_reg_info, col_reg_btn = st.columns([5, 1])
+                    with col_reg_info:
+                        st.markdown(f"**{data_f}** | *{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
+                    with col_reg_btn:
+                        if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
+                            deletar_movimentacao_fluxo(id_reg)
+                            st.warning("Movimentação excluída!")
+                            st.rerun()
+                    st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+            else:
+                st.info("Nenhum registro encontrado para este filtro.")
         else:
-            col_dt1, col_dt2 = st.columns(2)
-            with col_dt1: dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
-            with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
-            df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
-            texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
-            nome_arq = "contabilidade_periodo"
-
-        if not df_exibicao.empty:
-            st.markdown("<br>", unsafe_allow_html=True)
-            pdf_bytes = gerar_pdf_contabilidade(df_exibicao, texto_pdf)
-            st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            for index, row in df_exibicao.iterrows():
-                id_reg = row['id']
-                data_f = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
-                tipo = row['Tipo']
-                desc = row['Descrição']
-                val = row['Valor']
-
-                cor_val = "#22c55e" if tipo == 'Entrada' else ("#ef4444" if tipo == 'Saída' else "#f59e0b")
-                sinal = "+" if tipo == 'Entrada' else ("-" if tipo == 'Saída' else "⏳")
-                val_formatado = f"{sinal} R$ {abs(val):,.2f}"
-
-                col_reg_info, col_reg_btn = st.columns([5, 1])
-                with col_reg_info:
-                    st.markdown(f"**{data_f}** | *{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
-                with col_reg_btn:
-                    if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
-                        deletar_movimentacao_fluxo(id_reg)
-                        st.warning("Movimentação excluída!")
-                        st.rerun()
-                st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-        else:
-            st.info("Nenhum registro encontrado para este filtro.")
-    else:
-        st.info("O histórico está vazio.")
+            st.info("O fluxo de caixa está vazio.")
