@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from calendar import monthrange
 import os
 import json
 import hashlib
@@ -286,7 +287,7 @@ def set_background_com_logo(image_path):
             box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
         }}
         
-        /* CORREÇÃO DO TAMANHO DAS ABAS E ESPAÇAMENTO PARA DISPOSITIVOS MÓVEIS (MODO COMPUTADOR) */
+        /* CORREÇÃO DO TAMANHO DAS ABAS E ESPAÇAMENTO PARA DISPOSITIVOS MÓVEIS */
         @media screen and (max-width: 1024px) {{
             .stTabs [data-baseweb="tab-list"] {{
                 gap: 10px !important;
@@ -354,7 +355,6 @@ def inicializar_banco():
         conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
-        # NOVA TABELA PARA CLIENTES MENSAIS / MENSALIDADE
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS clientes_mensais (
                 id SERIAL PRIMARY KEY,
@@ -650,6 +650,133 @@ def renderizar_whatsapp_flutuante():
             <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
         </a>
     """, unsafe_allow_html=True)
+
+# --- AGENDA PREMIUM (VISUAL DIÁRIO / SEMANAL) ---
+def _format_hora(h):
+    try:
+        return datetime.strptime(str(h), "%H:%M").strftime("%H:%M")
+    except Exception:
+        return str(h)
+
+def render_agenda_painel():
+    st.markdown("### 📅 Agenda Premium")
+    # Controle de data principal
+    if "agenda_data_ref" not in st.session_state:
+        st.session_state.agenda_data_ref = datetime.now(TZ).date()
+
+    col_a, col_b, col_c = st.columns([1,2,1])
+    with col_a:
+        if st.button("◀️ Dia Anterior"):
+            st.session_state.agenda_data_ref = st.session_state.agenda_data_ref - timedelta(days=1)
+            st.rerun()
+    with col_b:
+        if st.button("📍 Hoje"):
+            st.session_state.agenda_data_ref = datetime.now(TZ).date()
+            st.rerun()
+        st.markdown(f"**Data selecionada:** {st.session_state.agenda_data_ref.strftime('%d/%m/%Y')}")
+    with col_c:
+        if st.button("Dia Seguinte ▶️"):
+            st.session_state.agenda_data_ref = st.session_state.agenda_data_ref + timedelta(days=1)
+            st.rerun()
+
+    # Toggle entre vista diária e semanal
+    view = st.radio("Visualização", ["Diária", "Semanal"], horizontal=True)
+
+    df_ag = carregar_agendamentos()
+    if df_ag.empty:
+        st.info("Nenhum agendamento encontrado.")
+    else:
+        # Normaliza colunas
+        if "Data" in df_ag.columns:
+            df_ag["Data_dt"] = pd.to_datetime(df_ag["Data"]).dt.date
+        else:
+            df_ag["Data_dt"] = pd.NaT
+
+        if view == "Diária":
+            data_ref = st.session_state.agenda_data_ref
+            st.markdown(f"#### Agenda do dia — {data_ref.strftime('%d/%m/%Y')}")
+            df_dia = df_ag[df_ag["Data_dt"] == data_ref].copy()
+            if df_dia.empty:
+                st.write("Nenhum horário agendado para este dia.")
+            else:
+                df_dia = df_dia.sort_values(by="Horário")
+                for _, row in df_dia.iterrows():
+                    hora = _format_hora(row.get("Horário",""))
+                    with st.container():
+                        st.markdown(f"""
+                            <div class="ui-card">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div>
+                                        <div style="font-weight:800; font-size:1.05rem; color:#38bdf8;">{hora} — {row.get('Cliente','')}</div>
+                                        <div style="color:#94a3b8; margin-top:6px;">Serviço: {row.get('Serviço','')} · Contato: {row.get('Contato/WhatsApp','')}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+        else:  # Semanal
+            ref = st.session_state.agenda_data_ref
+            start_week = ref - timedelta(days=ref.weekday())
+            days = [start_week + timedelta(days=i) for i in range(7)]
+            st.markdown(f"#### Semana de {start_week.strftime('%d/%m/%Y')} a {(start_week+timedelta(days=6)).strftime('%d/%m/%Y')}")
+            cols = st.columns(7)
+            for i, d in enumerate(days):
+                with cols[i]:
+                    st.markdown(f"**{d.strftime('%a %d/%m')}**")
+                    df_day = df_ag[df_ag["Data_dt"] == d].sort_values(by="Horário")
+                    if df_day.empty:
+                        st.write("—")
+                    else:
+                        for _, row in df_day.iterrows():
+                            hora = _format_hora(row.get("Horário",""))
+                            st.markdown(f"- **{hora}** — {row.get('Cliente','')}  \n  _{row.get('Serviço','')}_")
+
+    # Ações rápidas (criar / deletar)
+    st.markdown("---")
+    st.markdown("#### Ações rápidas")
+    a_col1, a_col2, a_col3 = st.columns([2,2,1])
+    with a_col1:
+        if st.button("➕ Novo Agendamento"):
+            st.session_state._show_novo_agendamento = True
+    with a_col2:
+        if st.button("🗑️ Limpar agendamentos do dia"):
+            data_ref = st.session_state.agenda_data_ref
+            if not df_ag.empty:
+                ids = df_ag[df_ag["Data_dt"] == data_ref]["id"].tolist()
+                if ids:
+                    for _id in ids:
+                        deletar_agendamento(_id)
+                    st.success(f"Removidos {len(ids)} agendamentos de {data_ref.strftime('%d/%m/%Y')}.")
+                    st.rerun()
+                else:
+                    st.info("Nenhum agendamento para remover nesta data.")
+            else:
+                st.info("Nenhum agendamento cadastrado.")
+    with a_col3:
+        st.write("")
+
+    # Modal simples para novo agendamento
+    if st.session_state.get("_show_novo_agendamento"):
+        st.markdown("### Novo Agendamento")
+        with st.form("form_novo_ag"):
+            cliente = st.text_input("Nome do Cliente")
+            contato = st.text_input("Contato / WhatsApp")
+            servicos = list(carregar_servicos().keys())
+            serv = st.selectbox("Serviço", ["Selecione"] + servicos)
+            data_n = st.date_input("Data", value=st.session_state.agenda_data_ref)
+            hora_n = st.text_input("Horário (HH:MM)", value="09:00")
+            submitted = st.form_submit_button("Salvar Agendamento", type="primary")
+            if submitted:
+                if cliente and serv != "Selecione":
+                    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+                    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                        conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :cliente, :contato, :serv, :data, :hora)"),
+                                     {"user": usuario, "cliente": cliente.strip(), "contato": contato.strip(), "serv": serv, "data": data_n.strftime('%Y-%m-%d'), "hora": hora_n})
+                    st.session_state._show_novo_agendamento = False
+                    st.success("Agendamento salvo.")
+                    st.rerun()
+                else:
+                    st.error("Preencha o nome do cliente e selecione um serviço.")
 
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
@@ -1196,7 +1323,7 @@ with tab_dashboard:
         qtd_atendimentos = len(entradas[entradas['Mes_str'] == mes_atual_str])
         ticket_medio = (rec_mes_atual / qtd_atendimentos) if qtd_atendimentos > 0 else 0.0
 
-    # Clientes Ativos (Base de dados de Clientes Mensais + Clientes Agendados)
+    # Clientes Ativos (Base de dados de Clientes Mensais)
     df_cli_m = carregar_clientes_mensais_banco()
     total_clientes_ativos = len(df_cli_m) if not df_cli_m.empty else 0
 
@@ -1370,13 +1497,13 @@ with tab_mensais:
             st.info("Nenhum cliente mensal cadastrado no momento.")
 
 # ==============================================================================
-# TAB 4: AGENDAMENTOS
+# TAB 4: AGENDAMENTOS (AGENDA PREMIUM INTEGRADA)
 # ==============================================================================
 with tab_agend:
     col_ag_title, col_ag_btn = st.columns([3, 1])
     with col_ag_title:
         st.markdown("### 📅 Central de Agendamentos")
-        st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real com visualização diária e semanal.</p>", unsafe_allow_html=True)
     with col_ag_btn:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
@@ -1384,10 +1511,17 @@ with tab_agend:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     
+    # RENDERIZA O PAINEL DE AGENDA PREMIUM AQUI
+    try:
+        render_agenda_painel()
+    except Exception as e:
+        st.error(f"Erro ao renderizar Agenda Premium: {e}")
+
+    st.markdown("---")
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
+        st.markdown('<h4>📋 Lista Geral e Confirmações</h4>', unsafe_allow_html=True)
         
         servicos_salao = carregar_servicos()
 
@@ -1487,28 +1621,16 @@ with tab_historico:
             with st.container():
                 col_h1, col_h2, col_h3, col_h4 = st.columns([2, 4, 2, 1])
                 with col_h1:
-                    st.markdown(f"**{data_mov}**<br><span style='font-size: 0.85rem;'>{badge_tipo}</span>", unsafe_allow_html=True)
+                    st.markdown(f"**{data_mov}**<br><span style='font-size:0.85rem; color:#94a3b8;'>{badge_tipo}</span>", unsafe_allow_html=True)
                 with col_h2:
-                    st.markdown(f"**{desc_mov}**", unsafe_allow_html=True)
+                    st.markdown(f"**{desc_mov}**")
                 with col_h3:
-                    st.markdown(f"<span style='color: {cor_val}; font-weight: 800; font-size: 1.1rem;'>R$ {val_mov:,.2f}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<span style='color: {cor_val}; font-weight: bold; font-size: 1.1rem;'>R$ {val_mov:,.2f}</span>", unsafe_allow_html=True)
                 with col_h4:
-                    if st.button("🗑️", key=f"del_mov_{id_mov}", help="Excluir movimentação"):
+                    if st.button("🗑️", key=f"del_mov_{id_mov}", help="Excluir lançamento"):
                         deletar_movimentacao_fluxo(id_mov)
-                        st.success("Movimentação removida!")
+                        st.success("Lançamento excluído!")
                         st.rerun()
-                st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-
-        # Exportação de Relatório PDF
-        st.markdown("<br>", unsafe_allow_html=True)
-        mes_ref_pdf = filtro_mes if filtro_mes != "Todos" else datetime.now(TZ).strftime('%m/%Y')
-        pdf_bytes = gerar_pdf_contabilidade(df_exibir, mes_ref_pdf)
-        st.download_button(
-            label="📄 Exportar Relatório Contábil (PDF)",
-            data=pdf_bytes,
-            file_name=f"relatorio_contabil_{mes_ref_pdf.replace('/', '_')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+                st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
     else:
-        st.info("Nenhuma movimentação financeira encontrada no fluxo de caixa.")
+        st.info("Nenhuma movimentação financeira encontrada.")
