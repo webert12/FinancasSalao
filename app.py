@@ -1534,7 +1534,7 @@ with tab_historico:
                             cor_val = "#f59e0b"
                             prefixo_val = "⚠ "
 
-                        col_ hist_info, col_hist_val, col_hist_del = st.columns([3.5, 2, 1])
+                        col_hist_info, col_hist_val, col_hist_del = st.columns([3.5, 2, 1])
                         with col_hist_info:
                             st.markdown(f"**{tipo_reg}**: {desc_reg}")
                         with col_hist_val:
