@@ -609,6 +609,7 @@ def gerar_backup_json_completo():
         return str(obj)
     dados_backup = {"sistema": "Fio&Caixa", "usuario_dono": usuario, "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'), "catalogo_servicos": carregar_servicos(), "historico_financeiro": fluxo_dict}
     return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
+
 def gerar_pdf_contabilidade(df, mes_ref):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
@@ -616,51 +617,6 @@ def gerar_pdf_contabilidade(df, mes_ref):
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#38bdf8"), spaceAfter=15)
     story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
-    # ... restante da função segue igual
-    # Nenhuma alteração feita aqui
-
-# --- DASHBOARD PREMIUM ---
-st.title("📊 Dashboard Premium")
-
-# KPIs principais em cards modernos
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ 450,00</div><div class="kpi-perc perc-up">▲ +12%</div></div>', unsafe_allow_html=True)
-with col2:
-    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Mês</div><div class="kpi-value-v2 kpi-val-blue">R$ 12.300,00</div><div class="kpi-perc perc-up">▲ +8%</div></div>', unsafe_allow_html=True)
-with col3:
-    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Ticket Médio</div><div class="kpi-value-v2">R$ 75,00</div><div class="kpi-perc perc-neutral">≈ estável</div></div>', unsafe_allow_html=True)
-with col4:
-    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Clientes Ativos</div><div class="kpi-value-v2">128</div><div class="kpi-perc perc-up">▲ +5%</div></div>', unsafe_allow_html=True)
-
-# Gráfico de evolução mensal da receita
-df_fluxo = carregar_fluxo()
-if not df_fluxo.empty:
-    receita_mensal = df_fluxo.groupby(df_fluxo['Data'].dt.to_period("M"))['Valor'].sum().reset_index()
-    receita_mensal['Data'] = receita_mensal['Data'].dt.strftime('%b/%Y')
-    fig = px.line(receita_mensal, x="Data", y="Valor", markers=True,
-                  title="📈 Evolução da Receita Mensal",
-                  color_discrete_sequence=["#38bdf8"])
-    fig.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig, use_container_width=True)
-
-# Ranking de serviços mais vendidos
-df_servicos = carregar_agendamentos()
-if not df_servicos.empty:
-    ranking_servicos = df_servicos['Serviço'].value_counts().reset_index()
-    ranking_servicos.columns = ['Serviço', 'Quantidade']
-    fig2 = px.bar(ranking_servicos, x="Quantidade", y="Serviço", orientation="h",
-                  title="💇 Serviços Mais Vendidos",
-                  color="Quantidade", color_continuous_scale="Blues")
-    fig2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig2, use_container_width=True)
-
-# Barra de progresso da meta mensal
-meta_mensal = 15000
-receita_atual = receita_mensal['Valor'].sum() if not df_fluxo.empty else 0
-progresso = min(receita_atual / meta_mensal, 1.0)
-st.progress(progresso, text=f"Meta Mensal: R$ {receita_atual:,.2f} / R$ {meta_mensal:,.2f}")
-
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
     for _, row in df.iterrows():
         dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
@@ -1084,17 +1040,6 @@ _, _, url_sistema_salva = carregar_admin_hashes()
 hoje = pd.Timestamp(datetime.now(TZ).date())
 mes_atual = hoje.month
 ano_atual = hoje.year
-mes_passado = mes_atual - 1 if mes_atual > 1 else 12
-ano_passado = ano_atual if mes_atual > 1 else ano_atual - 1
-
-if not df_fluxo_caixa.empty:
-    df_limpo = df_fluxo_caixa.dropna(subset=['Data']).copy()
-    df_mes_atual = df_limpo[(df_limpo['Data'].dt.month == mes_atual) & (df_limpo['Data'].dt.year == ano_atual)]
-    df_mes_passado = df_limpo[(df_limpo['Data'].dt.month == mes_passado) & (df_limpo['Data'].dt.year == ano_passado)]
-else:
-    df_limpo = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
-    df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
-    df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
 base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
@@ -1199,136 +1144,118 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS (Com a nova aba de Clientes Mensais inclusa)
+# ABAS ATUALIZADAS
 # ==============================================================================
 tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "💸 Fluxo de Caixa"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD
+# TAB 1: DASHBOARD PREMIUM
 # ==============================================================================
 with tab_dashboard:
-    def agg_valores(df_m):
-        entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
-        saidas = df_m[df_m['Tipo'] == 'Saída']['Valor'].sum()
-        faturamento = entradas + pendencias
-        lucro = entradas + saidas
-        return faturamento, entradas, abs(saidas), lucro
+    st.title("📊 Dashboard Premium")
 
-    def agg_valores_dia(df_m, data_ref):
-        if df_m.empty:
-            return 0.0
-        df_dia = df_m[df_m['Data'].dt.date == data_ref]
-        entradas_dia = df_dia[df_dia['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias_dia = df_dia[df_dia['Tipo'] == 'Pendência']['Valor'].sum()
-        return entradas_dia + pendencias_dia
+    # Cálculos Dinâmicos com base nos dados do banco
+    df_fluxo = carregar_fluxo()
+    df_agendamentos = carregar_agendamentos()
 
-    fat_dia_atual = agg_valores_dia(df_limpo, hoje.date())
-    fat_atual, ent_atual, sai_atual, lucro_atual = agg_valores(df_mes_atual)
-    fat_ant, ent_ant, sai_ant, lucro_ant = agg_valores(df_mes_passado)
+    # Data de Referência
+    dt_hoje = datetime.now(TZ).date()
+    dt_ontem = dt_hoje - timedelta(days=1)
+    mes_atual_str = dt_hoje.strftime("%Y-%m")
+    
+    # Cálculo mês anterior
+    primeiro_dia_mes_atual = dt_hoje.replace(day=1)
+    ultimo_dia_mes_anterior = primeiro_dia_mes_atual - timedelta(days=1)
+    mes_anterior_str = ultimo_dia_mes_anterior.strftime("%Y-%m")
 
-    def calc_perc(atual, anterior):
-        if anterior == 0: return 0 if atual == 0 else 100
-        return ((atual - anterior) / anterior) * 100
+    # Inicialização das variáveis
+    rec_dia_atual = 0.0
+    rec_dia_anterior = 0.0
+    rec_mes_atual = 0.0
+    rec_mes_anterior = 0.0
+    ticket_medio = 0.0
+    total_clientes_ativos = 0
 
-    perc_ent = calc_perc(ent_atual, ent_ant)
-    perc_sai = calc_perc(sai_atual, sai_ant)
-    perc_luc = calc_perc(lucro_atual, lucro_ant)
+    if not df_fluxo.empty:
+        df_fluxo_calc = df_fluxo.copy()
+        df_fluxo_calc['Data_dt'] = pd.to_datetime(df_fluxo_calc['Data']).dt.date
+        df_fluxo_calc['Mes_str'] = pd.to_datetime(df_fluxo_calc['Data']).dt.strftime("%Y-%m")
+        
+        # Filtra apenas entradas/receitas
+        entradas = df_fluxo_calc[df_fluxo_calc['Tipo'] == 'Entrada']
+        
+        # Receita Hoje e Ontem
+        rec_dia_atual = entradas[entradas['Data_dt'] == dt_hoje]['Valor'].sum()
+        rec_dia_anterior = entradas[entradas['Data_dt'] == dt_ontem]['Valor'].sum()
+        
+        # Receita Mês Atual e Mês Anterior
+        rec_mes_atual = entradas[entradas['Mes_str'] == mes_atual_str]['Valor'].sum()
+        rec_mes_anterior = entradas[entradas['Mes_str'] == mes_anterior_str]['Valor'].sum()
+        
+        # Ticket Médio Mês Atual
+        qtd_atendimentos = len(entradas[entradas['Mes_str'] == mes_atual_str])
+        ticket_medio = (rec_mes_atual / qtd_atendimentos) if qtd_atendimentos > 0 else 0.0
 
-    def render_perc(val, reverse_colors=False):
-        if val == 0: return f'<span class="kpi-perc perc-neutral">0% vs mês anterior</span>'
-        seta = "▲" if val > 0 else "▼"
-        cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
-        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
+    # Clientes Ativos (Base de dados de Clientes Mensais + Clientes Agendados)
+    df_cli_m = carregar_clientes_mensais_banco()
+    total_clientes_ativos = len(df_cli_m) if not df_cli_m.empty else 0
 
-    col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-    with col_k1: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_dia_atual:,.2f}</div></div>', unsafe_allow_html=True)
-    with col_k2: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
-    with col_k3: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
-    with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
+    # Variações Porcentuais
+    perc_dia = ((rec_dia_atual - rec_dia_anterior) / rec_dia_anterior * 100) if rec_dia_anterior > 0 else 0.0
+    perc_mes = ((rec_mes_atual - rec_mes_anterior) / rec_mes_anterior * 100) if rec_mes_anterior > 0 else 0.0
+
+    # KPIs principais em cards modernos
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        txt_perc_dia = f"▲ +{perc_dia:.0f}%" if perc_dia >= 0 else f"▼ {perc_dia:.0f}%"
+        cls_perc_dia = "perc-up" if perc_dia >= 0 else "perc-down"
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ {rec_dia_atual:,.2f}</div><div class="kpi-perc {cls_perc_dia}">{txt_perc_dia}</div></div>', unsafe_allow_html=True)
+    with col2:
+        txt_perc_mes = f"▲ +{perc_mes:.0f}%" if perc_mes >= 0 else f"▼ {perc_mes:.0f}%"
+        cls_perc_mes = "perc-up" if perc_mes >= 0 else "perc-down"
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Mês</div><div class="kpi-value-v2 kpi-val-blue">R$ {rec_mes_atual:,.2f}</div><div class="kpi-perc {cls_perc_mes}">{txt_perc_mes}</div></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Ticket Médio</div><div class="kpi-value-v2">R$ {ticket_medio:,.2f}</div><div class="kpi-perc perc-neutral">≈ estável</div></div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Clientes Ativos</div><div class="kpi-value-v2">{total_clientes_ativos}</div><div class="kpi-perc perc-up">▲ Ativos</div></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
 
-    if not df_mes_atual.empty:
-        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
-        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
-        for col in ['Entrada', 'Saída', 'Pendência']:
-            if col not in df_group: df_group[col] = 0
+    # Gráfico de evolução mensal da receita
+    if not df_fluxo.empty:
+        df_entradas_grafico = df_fluxo[df_fluxo['Tipo'] == 'Entrada'].copy()
+        if not df_entradas_grafico.empty:
+            receita_mensal = df_entradas_grafico.groupby(df_entradas_grafico['Data'].dt.to_period("M"))['Valor'].sum().reset_index()
+            receita_mensal['Data'] = receita_mensal['Data'].dt.strftime('%b/%Y')
+            fig = px.line(receita_mensal, x="Data", y="Valor", markers=True,
+                          title="📈 Evolução da Receita Mensal",
+                          color_discrete_sequence=["#38bdf8"])
+            fig.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Ainda não há receitas registradas para exibir a evolução mensal.")
+    else:
+        st.info("Nenhuma movimentação registrada no caixa.")
 
-        df_group['Saída_Abs'] = df_group['Saída'].abs()
-        df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
+    # Ranking de serviços mais vendidos
+    df_servicos = carregar_agendamentos()
+    if not df_servicos.empty and 'Serviço' in df_servicos.columns:
+        ranking_servicos = df_servicos['Serviço'].value_counts().reset_index()
+        ranking_servicos.columns = ['Serviço', 'Quantidade']
+        fig2 = px.bar(ranking_servicos, x="Quantidade", y="Serviço", orientation="h",
+                      title="💇 Serviços Mais Vendidos",
+                      color="Quantidade", color_continuous_scale="Blues")
+        fig2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("Sem dados de agendamentos para exibir o ranking de serviços.")
 
-        fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#22c55e', width=2), fill='tozeroy', fillcolor='rgba(34, 197, 94, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#ef4444', width=2), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)', marker=dict(size=6)))
-
-        fig_area.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
-            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
-            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
-            margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
-        )
-        st.plotly_chart(fig_area, use_container_width=True)
-    else: st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
-
-    col_bottom1, col_bottom2 = st.columns(2)
-    with col_bottom1:
-        st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
-        if ent_atual > 0 or sai_atual > 0:
-            total_op = ent_atual + sai_atual
-            perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
-            perc_sai_donut = (sai_atual / total_op) * 100 if total_op > 0 else 0
-
-            col_donut_img, col_donut_leg = st.columns([1, 1.2])
-            with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#38bdf8', '#ef4444']), textinfo='none', hoverinfo='label+percent')])
-                fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
-                st.plotly_chart(fig_donut, use_container_width=True)
-            with col_donut_leg:
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
-                """, unsafe_allow_html=True)
-        else: st.info("Sem dados suficientes neste mês.")
-
-    with col_bottom2:
-        st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
-        if sai_atual > 0:
-            df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
-            df_desp['Valor'] = df_desp['Valor'].abs()
-            top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#38bdf8', '#22c55e', '#ef4444', '#94a3b8']
-            html_barras = ""
-            for i, (desc, valor) in enumerate(top_desp.items()):
-                perc_cat = (valor / sai_atual) * 100
-                cor = cores_barras[i % len(cores_barras)]
-                nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
-                html_barras += f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
-                    <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: #111827; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
-                        <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
-                    </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
-                </div>
-                """
-            st.markdown(html_barras, unsafe_allow_html=True)
-        else: st.info("Nenhuma despesa registrada neste mês.")
+    # Barra de progresso da meta mensal
+    meta_mensal = 15000.00
+    progresso_meta = min(1.0, rec_mes_atual / meta_mensal) if meta_mensal > 0 else 0.0
+    st.markdown("#### 🎯 Meta Financeira Mensal")
+    st.progress(progresso_meta)
+    st.markdown(f"<p style='text-align: right; color: #94a3b8;'>R$ {rec_mes_atual:,.2f} / R$ {meta_mensal:,.2f} ({progresso_meta*100:.1f}%)</p>", unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: SERVIÇOS
@@ -1357,7 +1284,7 @@ with tab_servicos:
             dialog_baixar_fiado(df_fluxo_caixa)
 
 # ==============================================================================
-# TAB 3: CLIENTES MENSAIS / MENSALIDADE (COM AS ALTERAÇÕES REQUISITADAS)
+# TAB 3: CLIENTES MENSAIS / MENSALIDADE
 # ==============================================================================
 with tab_mensais:
     st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
@@ -1514,81 +1441,74 @@ with tab_agend:
 # TAB 5: MOVIMENTAÇÃO (FLUXO DE CAIXA / HISTÓRICO)
 # ==============================================================================
 with tab_historico:
-    st.subheader("💸 Movimentação")
-    
-    # Botão para ocultar/mostrar todo o histórico
-    if "mostrar_movimentacao" not in st.session_state:
-        st.session_state.mostrar_movimentacao = False
+    st.markdown("### 💸 Historico do Fluxo de Caixa")
+    st.markdown("<p style='color: #94a3b8 !important;'>Acompanhe todas as entradas, saídas e pendências registradas no sistema.</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    btn_label = "📂 Ocultar Movimentação" if st.session_state.mostrar_movimentacao else "📁 Abrir Movimentação"
-    if st.button(btn_label, use_container_width=True, type="primary"):
-        st.session_state.mostrar_movimentacao = not st.session_state.mostrar_movimentacao
-        st.rerun()
+    df_historico_mov = carregar_fluxo()
 
-    if st.session_state.mostrar_movimentacao:
+    if not df_historico_mov.empty:
+        # Filtros de visualização
+        col_f1, col_f2 = st.columns([2, 2])
+        with col_f1:
+            filtro_tipo = st.selectbox("Filtrar por Tipo:", ["Todos", "Entrada", "Saída", "Pendência"])
+        with col_f2:
+            meses_disponiveis = df_historico_mov['Data'].dt.strftime('%m/%Y').unique().tolist()
+            filtro_mes = st.selectbox("Filtrar por Mês/Ano:", ["Todos"] + meses_disponiveis)
+
+        df_exibir = df_historico_mov.copy()
+
+        if filtro_tipo != "Todos":
+            df_exibir = df_exibir[df_exibir['Tipo'] == filtro_tipo]
+
+        if filtro_mes != "Todos":
+            df_exibir = df_exibir[df_exibir['Data'].dt.strftime('%m/%Y') == filtro_mes]
+
         st.markdown("<br>", unsafe_allow_html=True)
-        if not df_fluxo_caixa.empty:
-            df_filtro = df_fluxo_caixa.dropna(subset=['Data']).copy()
-            df_filtro['Mês/Ano'] = df_filtro['Data'].dt.strftime('%m/%Y')
 
-            modo_filtro = st.radio("Filtro de Exibição:", ["Por Mês Fechado", "Por Período Customizado"], horizontal=True)
-            if modo_filtro == "Por Mês Fechado":
-                meses = sorted(df_filtro['Mês/Ano'].unique(), reverse=True)
-                mes_escolhido = st.selectbox("📅 Selecione o Mês:", ["Ver Tudo"] + meses)
-                df_exibicao = df_filtro[df_filtro['Mês/Ano'] == mes_escolhido] if mes_escolhido != "Ver Tudo" else df_filtro
-                texto_pdf = mes_escolhido
-                nome_arq = f"contabilidade_{mes_escolhido.replace('/', '_')}" if mes_escolhido != "Ver Tudo" else "contabilidade_geral"
+        for _, row in df_exibir.iterrows():
+            id_mov = row['id']
+            data_mov = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
+            tipo_mov = row['Tipo']
+            desc_mov = row['Descrição']
+            val_mov = float(row['Valor'])
+
+            # Definição de cores baseadas no tipo de movimentação
+            if tipo_mov == "Entrada":
+                cor_val = "#22c55e"
+                badge_tipo = "🟢 Entrada"
+            elif tipo_mov == "Saída":
+                cor_val = "#ef4444"
+                badge_tipo = "🔴 Saída"
             else:
-                col_dt1, col_dt2 = st.columns(2)
-                with col_dt1: dt_inicio = st.date_input("Data Inicial:", datetime.now(TZ).date() - timedelta(days=30))
-                with col_dt2: dt_fim = st.date_input("Data Final:", datetime.now(TZ).date())
-                df_exibicao = df_filtro[(df_filtro['Data'].dt.date >= dt_inicio) & (df_filtro['Data'].dt.date <= dt_fim)]
-                texto_pdf = f"{dt_inicio.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}"
-                nome_arq = "contabilidade_periodo"
+                cor_val = "#eab308"
+                badge_tipo = "🟡 Pendência"
 
-            if not df_exibicao.empty:
-                st.markdown("<br>", unsafe_allow_html=True)
-                pdf_bytes = gerar_pdf_contabilidade(df_exibicao, texto_pdf)
-                st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+            with st.container():
+                col_h1, col_h2, col_h3, col_h4 = st.columns([2, 4, 2, 1])
+                with col_h1:
+                    st.markdown(f"**{data_mov}**<br><span style='font-size: 0.85rem;'>{badge_tipo}</span>", unsafe_allow_html=True)
+                with col_h2:
+                    st.markdown(f"**{desc_mov}**", unsafe_allow_html=True)
+                with col_h3:
+                    st.markdown(f"<span style='color: {cor_val}; font-weight: 800; font-size: 1.1rem;'>R$ {val_mov:,.2f}</span>", unsafe_allow_html=True)
+                with col_h4:
+                    if st.button("🗑️", key=f"del_mov_{id_mov}", help="Excluir movimentação"):
+                        deletar_movimentacao_fluxo(id_mov)
+                        st.success("Movimentação removida!")
+                        st.rerun()
+                st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
 
-                # Separar os serviços/movimentações por cada data
-                df_exibicao['DataApenas'] = df_exibicao['Data'].dt.date
-                datas_unicas = sorted(df_exibicao['DataApenas'].unique(), reverse=True)
-
-                for dt_val in datas_unicas:
-                    df_dia_corrente = df_exibicao[df_exibicao['DataApenas'] == dt_val]
-                    data_formatada_titulo = dt_val.strftime('%d/%m/%Y')
-                    
-                    st.markdown(f"#### 📅 Data: {data_formatada_titulo}")
-                    
-                    for _, row in df_dia_corrente.iterrows():
-                        reg_id = row['id']
-                        tipo_reg = row['Tipo']
-                        desc_reg = row['Descrição']
-                        val_reg = row['Valor']
-
-                        if tipo_reg == 'Entrada':
-                            cor_val = "#22c55e"
-                            prefixo_val = "+"
-                        elif tipo_reg == 'Saída':
-                            cor_val = "#ef4444"
-                            prefixo_val = "-"
-                        else:
-                            cor_val = "#f59e0b"
-                            prefixo_val = "⚠ "
-
-                        col_hist_info, col_hist_val, col_hist_del = st.columns([3.5, 2, 1])
-                        with col_hist_info:
-                            st.markdown(f"**{tipo_reg}**: {desc_reg}")
-                        with col_hist_val:
-                            st.markdown(f"<span style='color: {cor_val}; font-weight: bold;'>{prefixo_val} R$ {abs(val_reg):,.2f}</span>", unsafe_allow_html=True)
-                        with col_hist_del:
-                            if st.button("🗑️", key=f"del_mov_{reg_id}", help="Excluir este lançamento"):
-                                deletar_movimentacao_fluxo(reg_id)
-                                st.rerun()
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-            else:
-                st.info("Nenhuma movimentação encontrada para o período selecionado.")
-        else:
-            st.info("Nenhum registro no fluxo de caixa.")
+        # Exportação de Relatório PDF
+        st.markdown("<br>", unsafe_allow_html=True)
+        mes_ref_pdf = filtro_mes if filtro_mes != "Todos" else datetime.now(TZ).strftime('%m/%Y')
+        pdf_bytes = gerar_pdf_contabilidade(df_exibir, mes_ref_pdf)
+        st.download_button(
+            label="📄 Exportar Relatório Contábil (PDF)",
+            data=pdf_bytes,
+            file_name=f"relatorio_contabil_{mes_ref_pdf.replace('/', '_')}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+    else:
+        st.info("Nenhuma movimentação financeira encontrada no fluxo de caixa.")
