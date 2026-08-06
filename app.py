@@ -1170,6 +1170,80 @@ with tab_dashboard:
         faturamento = entradas + pendencias
         lucro = entradas + saidas
         return faturamento, entradas, abs(saidas), lucro
+            # ==============================================================================
+    # HEADER PREMIUM DO DASHBOARD
+    # ==============================================================================
+
+    from datetime import datetime
+
+    hora = datetime.now().hour
+
+    if hora < 12:
+        saudacao = "☀️ Bom dia"
+    elif hora < 18:
+        saudacao = "🌤 Boa tarde"
+    else:
+        saudacao = "🌙 Boa noite"
+
+    st.markdown(f"""
+    <style>
+
+    .dashboard-header{{
+        background:linear-gradient(135deg,#1f2937,#111827);
+        border:1px solid rgba(255,255,255,.08);
+        border-radius:18px;
+        padding:26px;
+        margin-bottom:22px;
+        box-shadow:0 8px 30px rgba(0,0,0,.25);
+    }}
+
+    .dashboard-title{{
+        color:white;
+        font-size:30px;
+        font-weight:700;
+        margin-bottom:6px;
+    }}
+
+    .dashboard-subtitle{{
+        color:#9ca3af;
+        font-size:15px;
+    }}
+
+    .dashboard-badge{{
+        display:inline-block;
+        margin-top:14px;
+        padding:8px 16px;
+        border-radius:999px;
+        background:#2563eb22;
+        color:#60a5fa;
+        font-weight:600;
+        border:1px solid #2563eb55;
+    }}
+
+    </style>
+
+    <div class="dashboard-header">
+
+        <div class="dashboard-title">
+            {saudacao}
+        </div>
+
+        <div class="dashboard-subtitle">
+
+            Bem-vindo ao painel do <b>Fio&Caixa</b>.
+
+            Aqui você acompanha os indicadores financeiros,
+            movimentações do caixa e desempenho do salão em tempo real.
+
+        </div>
+
+        <div class="dashboard-badge">
+            Dashboard Premium • Versão Comercial
+        </div>
+
+    </div>
+
+    """, unsafe_allow_html=True)
 
     def agg_valores_dia(df_m, data_ref):
         if df_m.empty:
