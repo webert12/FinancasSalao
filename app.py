@@ -1170,80 +1170,6 @@ with tab_dashboard:
         faturamento = entradas + pendencias
         lucro = entradas + saidas
         return faturamento, entradas, abs(saidas), lucro
-            # ==============================================================================
-    # HEADER PREMIUM DO DASHBOARD
-    # ==============================================================================
-
-    from datetime import datetime
-
-    hora = datetime.now().hour
-
-    if hora < 12:
-        saudacao = "☀️ Bom dia"
-    elif hora < 18:
-        saudacao = "🌤 Boa tarde"
-    else:
-        saudacao = "🌙 Boa noite"
-
-    st.markdown(f"""
-    <style>
-
-    .dashboard-header{{
-        background:linear-gradient(135deg,#1f2937,#111827);
-        border:1px solid rgba(255,255,255,.08);
-        border-radius:18px;
-        padding:26px;
-        margin-bottom:22px;
-        box-shadow:0 8px 30px rgba(0,0,0,.25);
-    }}
-
-    .dashboard-title{{
-        color:white;
-        font-size:30px;
-        font-weight:700;
-        margin-bottom:6px;
-    }}
-
-    .dashboard-subtitle{{
-        color:#9ca3af;
-        font-size:15px;
-    }}
-
-    .dashboard-badge{{
-        display:inline-block;
-        margin-top:14px;
-        padding:8px 16px;
-        border-radius:999px;
-        background:#2563eb22;
-        color:#60a5fa;
-        font-weight:600;
-        border:1px solid #2563eb55;
-    }}
-
-    </style>
-
-    <div class="dashboard-header">
-
-        <div class="dashboard-title">
-            {saudacao}
-        </div>
-
-        <div class="dashboard-subtitle">
-
-            Bem-vindo ao painel do <b>Fio&Caixa</b>.
-
-            Aqui você acompanha os indicadores financeiros,
-            movimentações do caixa e desempenho do salão em tempo real.
-
-        </div>
-
-        <div class="dashboard-badge">
-            Dashboard Premium • Versão Comercial
-        </div>
-
-    </div>
-
-    """, unsafe_allow_html=True)
 
     def agg_valores_dia(df_m, data_ref):
         if df_m.empty:
@@ -1587,42 +1513,38 @@ with tab_historico:
                 datas_unicas = sorted(df_exibicao['DataApenas'].unique(), reverse=True)
 
                 for dt_val in datas_unicas:
-                    df_dia_atual = df_exibicao[df_exibicao['DataApenas'] == dt_val]
+                    df_dia_corrente = df_exibicao[df_exibicao['DataApenas'] == dt_val]
                     data_formatada_titulo = dt_val.strftime('%d/%m/%Y')
                     
                     st.markdown(f"#### 📅 Data: {data_formatada_titulo}")
                     
-                    for index, row in df_dia_atual.iterrows():
-                        id_reg = row['id']
-                        tipo = row['Tipo']
-                        desc = row['Descrição']
-                        val = row['Valor']
+                    for _, row in df_dia_corrente.iterrows():
+                        reg_id = row['id']
+                        tipo_reg = row['Tipo']
+                        desc_reg = row['Descrição']
+                        val_reg = row['Valor']
 
-                        # Cores: verde para entradas, vermelho para saídas, amarelo para pendentes
-                        if tipo == 'Entrada':
+                        if tipo_reg == 'Entrada':
                             cor_val = "#22c55e"
-                            sinal = "+"
-                        elif tipo == 'Saída':
+                            prefixo_val = "+"
+                        elif tipo_reg == 'Saída':
                             cor_val = "#ef4444"
-                            sinal = "-"
-                        else: # Pendência
+                            prefixo_val = "-"
+                        else:
                             cor_val = "#f59e0b"
-                            sinal = "⏳"
+                            prefixo_val = "⚠ "
 
-                        val_formatado = f"{sinal} R$ {abs(val):,.2f}"
-
-                        col_reg_info, col_reg_btn = st.columns([5, 1])
-                        with col_reg_info:
-                            st.markdown(f"*{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
-                        with col_reg_btn:
-                            if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
-                                deletar_movimentacao_fluxo(id_reg)
-                                st.warning("Movimentação excluída!")
+                        col_ hist_info, col_hist_val, col_hist_del = st.columns([3.5, 2, 1])
+                        with col_hist_info:
+                            st.markdown(f"**{tipo_reg}**: {desc_reg}")
+                        with col_hist_val:
+                            st.markdown(f"<span style='color: {cor_val}; font-weight: bold;'>{prefixo_val} R$ {abs(val_reg):,.2f}</span>", unsafe_allow_html=True)
+                        with col_hist_del:
+                            if st.button("🗑️", key=f"del_mov_{reg_id}", help="Excluir este lançamento"):
+                                deletar_movimentacao_fluxo(reg_id)
                                 st.rerun()
-                        st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
             else:
-                st.info("Nenhum registro encontrado para este filtro.")
+                st.info("Nenhuma movimentação encontrada para o período selecionado.")
         else:
-            st.info("O histórico está vazio.")
+            st.info("Nenhum registro no fluxo de caixa.")
