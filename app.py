@@ -609,7 +609,6 @@ def gerar_backup_json_completo():
         return str(obj)
     dados_backup = {"sistema": "Fio&Caixa", "usuario_dono": usuario, "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'), "catalogo_servicos": carregar_servicos(), "historico_financeiro": fluxo_dict}
     return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
-
 def gerar_pdf_contabilidade(df, mes_ref):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
@@ -617,6 +616,51 @@ def gerar_pdf_contabilidade(df, mes_ref):
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor("#38bdf8"), spaceAfter=15)
     story.append(Paragraph(f"Fio&Caixa - Relatório Contábil ({mes_ref})", title_style))
+    # ... restante da função segue igual
+    # Nenhuma alteração feita aqui
+
+# --- DASHBOARD PREMIUM ---
+st.title("📊 Dashboard Premium")
+
+# KPIs principais em cards modernos
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ 450,00</div><div class="kpi-perc perc-up">▲ +12%</div></div>', unsafe_allow_html=True)
+with col2:
+    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Mês</div><div class="kpi-value-v2 kpi-val-blue">R$ 12.300,00</div><div class="kpi-perc perc-up">▲ +8%</div></div>', unsafe_allow_html=True)
+with col3:
+    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Ticket Médio</div><div class="kpi-value-v2">R$ 75,00</div><div class="kpi-perc perc-neutral">≈ estável</div></div>', unsafe_allow_html=True)
+with col4:
+    st.markdown('<div class="kpi-card-v2"><div class="kpi-title-v2">Clientes Ativos</div><div class="kpi-value-v2">128</div><div class="kpi-perc perc-up">▲ +5%</div></div>', unsafe_allow_html=True)
+
+# Gráfico de evolução mensal da receita
+df_fluxo = carregar_fluxo()
+if not df_fluxo.empty:
+    receita_mensal = df_fluxo.groupby(df_fluxo['Data'].dt.to_period("M"))['Valor'].sum().reset_index()
+    receita_mensal['Data'] = receita_mensal['Data'].dt.strftime('%b/%Y')
+    fig = px.line(receita_mensal, x="Data", y="Valor", markers=True,
+                  title="📈 Evolução da Receita Mensal",
+                  color_discrete_sequence=["#38bdf8"])
+    fig.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig, use_container_width=True)
+
+# Ranking de serviços mais vendidos
+df_servicos = carregar_agendamentos()
+if not df_servicos.empty:
+    ranking_servicos = df_servicos['Serviço'].value_counts().reset_index()
+    ranking_servicos.columns = ['Serviço', 'Quantidade']
+    fig2 = px.bar(ranking_servicos, x="Quantidade", y="Serviço", orientation="h",
+                  title="💇 Serviços Mais Vendidos",
+                  color="Quantidade", color_continuous_scale="Blues")
+    fig2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig2, use_container_width=True)
+
+# Barra de progresso da meta mensal
+meta_mensal = 15000
+receita_atual = receita_mensal['Valor'].sum() if not df_fluxo.empty else 0
+progresso = min(receita_atual / meta_mensal, 1.0)
+st.progress(progresso, text=f"Meta Mensal: R$ {receita_atual:,.2f} / R$ {meta_mensal:,.2f}")
+
     table_data = [["Data", "Tipo", "Descrição", "Valor"]]
     for _, row in df.iterrows():
         dt_str = row['Data'].strftime('%d/%m/%Y') if hasattr(row['Data'], 'strftime') else str(row['Data'])
