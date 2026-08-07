@@ -66,7 +66,7 @@ if not st.session_state.autenticado and "token_sessao" in query_params:
         st.session_state.eh_admin = True
     elif token_val:
         st.session_state.autenticado = True
-        st.session_state.usuario_logado = token_val
+        st.session_state.usuario_logado = str(token_val).strip().lower()
         st.session_state.eh_admin = False
 
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
@@ -77,7 +77,7 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM (MINIMALISTA E MODERNO CORRIGIDO) ---
+# --- DESIGN & CSS ULTRA PREMIUM (CORREÇÃO DE FONTES E ÍCONES) ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
@@ -90,12 +90,14 @@ def set_background_com_logo(image_path):
         bg_style = 'background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
         app_bg = "#0f172a"
         card_bg = "rgba(30, 41, 59, 0.8)"
-        input_bg = "rgba(15, 23, 42, 0.9)"
+        input_bg = "rgba(10, 15, 26, 0.85)"
 
     st.markdown(
         f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+        @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
         /* === CONFIGURAÇÕES GERAIS DE TELA E TIPOGRAFIA === */
         .stApp {{
@@ -108,19 +110,15 @@ def set_background_com_logo(image_path):
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
         }}
 
-        html, body, p, label, div, [class*="css"] {{
-            color: #f8fafc !important;
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+        html, body, p, label, div {{
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
         }}
 
-        span:not([data-testid="stIconMaterial"]) {{
-            color: #f8fafc !important;
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
-        }}
-
-        /* === CORREÇÃO CRÍTICA PARA ÍCONES MATERIAL DO STREAMLIT === */
+        /* === CORREÇÃO CRÍTICA PARA ÍCONES MATERIAL E EXPAND_MORE === */
         span[data-testid="stIconMaterial"], 
-        [data-testid="stIconMaterial"] {{
+        [data-testid="stIconMaterial"],
+        i.material-icons {{
             font-family: 'Material Symbols Outlined', 'Material Icons' !important;
             font-weight: normal !important;
             font-style: normal !important;
@@ -132,6 +130,7 @@ def set_background_com_logo(image_path):
             word-wrap: normal !important;
             white-space: nowrap !important;
             direction: ltr !important;
+            -webkit-font-smoothing: antialiased !important;
         }}
 
         h1, h2, h3, h4, h5, h6 {{
@@ -220,6 +219,10 @@ def set_background_com_logo(image_path):
             gap: 8px !important;
             width: auto !important;
             min-height: 44px !important;
+        }}
+
+        div[data-testid="stPopover"] button span[data-testid="stIconMaterial"] {{
+            font-family: 'Material Symbols Outlined', 'Material Icons' !important;
         }}
 
         div[data-testid="stPopover"] button:hover,
@@ -575,8 +578,8 @@ def carregar_usuarios():
             rows = result.fetchall()
             if rows: 
                 return {
-                    row[0]: {
-                        "id": row[0], 
+                    str(row[0]).strip().lower(): {
+                        "id": str(row[0]).strip().lower(), 
                         "senha": row[1], 
                         "email": row[2], 
                         "tipo": row[3], 
@@ -593,6 +596,7 @@ def salvar_usuarios(usuarios_dict):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
+            user_clean = str(k).strip().lower()
             venc_val = v["vencimento"]
             if hasattr(venc_val, 'strftime'):
                 venc_str = venc_val.strftime('%Y-%m-%d')
@@ -610,7 +614,7 @@ def salvar_usuarios(usuarios_dict):
                     status = EXCLUDED.status,
                     whatsapp = EXCLUDED.whatsapp
             """), {
-                "id": k, 
+                "id": user_clean, 
                 "senha": v["senha"], 
                 "email": v.get("email", ""), 
                 "tipo": v["tipo"], 
@@ -654,9 +658,10 @@ def deletar_servico_banco(nome):
 
 @st.cache_data(ttl=60)
 def carregar_fluxo_por_usuario(usuario):
+    usuario_clean = str(usuario).strip().lower()
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
+            result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario_clean})
             rows = result.fetchall()
             if rows:
                 df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
@@ -693,9 +698,10 @@ def deletar_movimentacao_fluxo(id_registro):
     carregar_fluxo_por_usuario.clear()
 
 def carregar_agendamentos_por_usuario_direto(usuario):
+    usuario_clean = str(usuario).strip().lower()
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), {"user": usuario})
+            result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), {"user": usuario_clean})
             rows = result.fetchall()
             if rows: return pd.DataFrame(rows, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
     except Exception: pass
@@ -711,16 +717,12 @@ def deletar_agendamento(id_agendamento):
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
-# --- FUNÇÃO DE ALERTA DE NOVO AGENDAMENTO VIA API (OPCIONAL/MENSAGERIA) ---
+# --- FUNÇÃO DE ALERTA DE NOVO AGENDAMENTO VIA API ---
 def enviar_alerta_servidor_whatsapp(numero_barbeiro, texto_mensagem):
-    """
-    Função opcional para disparar WhatsApp via API HTTP (Evolution API, Z-API, Twilio, etc).
-    Ativada se existirem as chaves nos st.secrets: WA_API_URL e WA_API_TOKEN.
-    """
     wa_api_url = st.secrets.get("WA_API_URL", "")
     wa_api_token = st.secrets.get("WA_API_TOKEN", "")
     
-    if wa_api_url and wa_api_token:
+    if wa_api_url and wa_api_token and numero_barbeiro:
         try:
             num_limpo = re.sub(r'\D', '', str(numero_barbeiro))
             if not num_limpo.startswith('55') and len(num_limpo) <= 11:
@@ -880,13 +882,19 @@ if salao_url:
             )
             link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
             
-            # --- AUTO-ABERTURA AUTOMÁTICA DO WHATSAPP DO BARBEIRO NO DISPOSITIVO DO CLIENTE ---
-            components.html(f'<script>window.open("{link_wa_dono}", "_blank");</script>', height=0, width=0)
+            # --- AUTO-ABERTURA NO WHATSAPP DO BARBEIRO ---
+            components.html(f'''
+                <script>
+                    setTimeout(function() {{
+                        window.top.location.href = "{link_wa_dono}";
+                    }}, 800);
+                </script>
+            ''', height=0, width=0)
 
             st.markdown(f'''
-                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:1.1rem; border-radius:16px; text-decoration:none; font-weight:800; font-size:1.05rem; margin-top:18px; margin-bottom:18px; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;">
+                <a href="{link_wa_dono}" target="_top" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:1.1rem; border-radius:16px; text-decoration:none; font-weight:800; font-size:1.05rem; margin-top:18px; margin-bottom:18px; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;">
                     <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
-                    Enviar Alerta no WhatsApp do Barbeiro
+                    Clique aqui se não abrir o WhatsApp automaticamente
                 </a>
             ''', unsafe_allow_html=True)
 
@@ -1253,7 +1261,7 @@ else:
 
 base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
-nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
+nome_salao_titulo = str(st.session_state.usuario_logado).replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
 col_top_left, _ = st.columns([1, 4])
@@ -1366,7 +1374,7 @@ def dialog_baixar_fiado(df_fluxo):
 tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "💸 Fluxo de Caixa"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD (RECONFIGURADO EM CARDS & MÉTRICAS)
+# TAB 1: DASHBOARD
 # ==============================================================================
 with tab_dashboard:
     def agg_valores(df_m):
@@ -1413,7 +1421,7 @@ with tab_dashboard:
         cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
         return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
 
-    # CARDS DE MÉTRICAS PRINCIPAIS (LINHA 1)
+    # CARDS DE MÉTRICAS PRINCIPAIS
     col_k1, col_k2, col_k3, col_k4 = st.columns(4)
     with col_k1:
         st.markdown(f'''
@@ -1450,7 +1458,7 @@ with tab_dashboard:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # CARDS DE MÉTRICAS COMPLEMENTARES (LINHA 2)
+    # CARDS DE MÉTRICAS COMPLEMENTARES
     col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1:
         st.markdown(f'''
@@ -1688,7 +1696,7 @@ with tab_mensais:
             st.info("Nenhum cliente mensal cadastrado no momento.")
 
 # ==============================================================================
-# TAB 4: AGENDAMENTOS COM PAINEL DE ALERTAS SINALIZADO
+# TAB 4: AGENDAMENTOS (ALERTAS CORRIGIDOS)
 # ==============================================================================
 with tab_agend:
     col_ag_title, col_ag_btn = st.columns([3, 1])
@@ -1705,20 +1713,24 @@ with tab_agend:
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        # --- BANNER DE ALERTA DE NOVOS AGENDAMENTOS DO DIA NO PAINEL ---
+        # --- LÓGICA DE ALERTA DE AGENDAMENTOS ---
+        total_agendamentos = len(df_agendamentos)
         data_hoje_str = datetime.now(TZ).strftime('%Y-%m-%d')
         df_hoje = df_agendamentos[df_agendamentos['Data'] == data_hoje_str]
         qtd_hoje = len(df_hoje)
 
+        texto_alerta = f"Você possui <strong>{total_agendamentos}</strong> agendamento(s) marcado(s) na sua lista!"
         if qtd_hoje > 0:
-            st.markdown(f'''
-                <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(2, 132, 199, 0.3) 100%); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 16px; padding: 16px 22px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <span style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">🔔 ALERTA DE AGENDAMENTOS</span>
-                        <p style="margin: 4px 0 0 0; color: #f8fafc; font-size: 0.95rem;">Você possui <strong>{qtd_hoje}</strong> agendamento(s) marcado(s) para o dia de hoje!</p>
-                    </div>
+            texto_alerta += f" (Sendo <strong>{qtd_hoje}</strong> para o dia de hoje)."
+
+        st.markdown(f'''
+            <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(2, 132, 199, 0.3) 100%); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 16px; padding: 16px 22px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <span style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">🔔 ALERTA DE AGENDAMENTOS</span>
+                    <p style="margin: 4px 0 0 0; color: #f8fafc; font-size: 0.95rem;">{texto_alerta}</p>
                 </div>
-            ''', unsafe_allow_html=True)
+            </div>
+        ''', unsafe_allow_html=True)
 
         st.markdown('<h4 style="margin-bottom: 16px;">📋 Clientes Agendados</h4>', unsafe_allow_html=True)
         
