@@ -665,6 +665,126 @@ def renderizar_whatsapp_flutuante():
         </a>
     """, unsafe_allow_html=True)
 
+# --- FINANCEIRO PREMIUM (FLUXO DE CAIXA) ---
+def _format_currency(v):
+    try:
+        return f"R$ {float(v):,.2f}"
+    except Exception:
+        return str(v)
+
+def render_financeiro_painel():
+    st.markdown("### 💰 Financeiro — Fluxo de Caixa")
+    df_fluxo = carregar_fluxo()
+    hoje = datetime.now(TZ).date()
+
+    # Resumo rápido
+    total_entradas = 0.0
+    total_saidas = 0.0
+    if not df_fluxo.empty:
+        entradas = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('entrada', na=False)]
+        saidas = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('saida|saída|despesa', na=False)]
+        total_entradas = float(entradas['Valor'].sum()) if not entradas.empty else 0.0
+        total_saidas = float(saidas['Valor'].sum()) if not saidas.empty else 0.0
+
+    r1, r2, r3 = st.columns(3)
+    with r1:
+        st.markdown("**Entradas (total)**")
+        st.markdown(f"<div class='kpi-value-v2 kpi-val-green'>{_format_currency(total_entradas)}</div>", unsafe_allow_html=True)
+    with r2:
+        st.markdown("**Saídas (total)**")
+        st.markdown(f"<div class='kpi-value-v2 kpi-val-red'>{_format_currency(total_saidas)}</div>", unsafe_allow_html=True)
+    with r3:
+        saldo = total_entradas - total_saidas
+        color = "kpi-val-green" if saldo >= 0 else "kpi-val-red"
+        st.markdown("**Saldo**")
+        st.markdown(f"<div class='kpi-value-v2 {color}'>{_format_currency(saldo)}</div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # Formulário rápido para nova movimentação
+    st.markdown("#### ➕ Adicionar Movimentação")
+    with st.form("form_nova_mov"):
+        tipo = st.selectbox("Tipo", ["Entrada", "Saída", "Fiado"], index=0)
+        descricao = st.text_input("Descrição")
+        valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f", step=1.0)
+        data_mov = st.date_input("Data", value=hoje)
+        submitted = st.form_submit_button("Salvar Movimentação")
+        if submitted:
+            if descricao and valor > 0:
+                try:
+                    inserir_movimentacao_direta(tipo, descricao, float(valor), data_mov)
+                    st.success("Movimentação adicionada com sucesso.")
+                    carregar_fluxo_por_usuario.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar movimentação: {e}")
+            else:
+                st.error("Preencha descrição e valor maior que zero.")
+
+    st.markdown("---")
+
+    # Tabela interativa com ações
+    st.markdown("#### 📋 Histórico (últimas 200 entradas)")
+    if df_fluxo.empty:
+        st.info("Nenhuma movimentação registrada.")
+        return
+
+    df_show = df_fluxo.copy().sort_values(by="Data", ascending=False).head(200)
+    df_show['Data_str'] = pd.to_datetime(df_show['Data']).dt.strftime('%d/%m/%Y')
+    df_show_display = df_show[['id', 'Data_str', 'Tipo', 'Descrição', 'Valor']].rename(columns={'Data_str':'Data'})
+
+    # Render tabela simples com botões de ação por linha
+    for _, row in df_show_display.iterrows():
+        with st.container():
+            cols = st.columns([2,2,3,3,1])
+            cols[0].markdown(f"**{row['Data']}**")
+            cols[1].markdown(f"**{row['Tipo']}**")
+            cols[2].markdown(f"{row['Descrição']}")
+            cols[3].markdown(f"<b>{_format_currency(row['Valor'])}</b>", unsafe_allow_html=True)
+            btn_col = cols[4]
+            if btn_col.button("🗑️", key=f"del_{row['id']}"):
+                try:
+                    deletar_movimentacao_fluxo(row['id'])
+                    st.success("Movimentação removida.")
+                    carregar_fluxo_por_usuario.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao deletar: {e}")
+
+    st.markdown("---")
+
+    # Ações em lote e relatórios rápidos
+    a1, a2, a3 = st.columns([2,2,2])
+    with a1:
+        if st.button("Marcar Fiados como Recebidos (hoje)"):
+            df_fiados = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('fiado', na=False)]
+            if df_fiados.empty:
+                st.info("Nenhum fiado encontrado.")
+            else:
+                count = 0
+                for idx, r in df_fiados.iterrows():
+                    try:
+                        dar_baixa_fiado_direta(int(r['id']), f"Baixa automática {datetime.now(TZ).strftime('%d/%m/%Y')}")
+                        count += 1
+                    except Exception:
+                        pass
+                carregar_fluxo_por_usuario.clear()
+                st.success(f"{count} fiados marcados como recebidos.")
+                st.rerun()
+    with a2:
+        if st.button("Limpar entradas antigas (mais de 2 anos)"):
+            cutoff = (datetime.now(TZ) - timedelta(days=365*2)).strftime('%Y-%m-%d')
+            try:
+                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                    res = conn.execute(text("DELETE FROM fluxo_caixa WHERE data < :cutoff"), {"cutoff": cutoff})
+                carregar_fluxo_por_usuario.clear()
+                st.success("Movimentações antigas removidas.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao limpar: {e}")
+    with a3:
+        st.write("")
+
 # --- TELA INICIAL (BOAS-VINDAS + RESUMO DO DIA) ---
 def render_tela_inicial():
     usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "Usuário"
@@ -784,7 +904,7 @@ def render_agenda_painel():
 
     df_ag = carregar_agendamentos()
     if df_ag.empty:
-        st.info("Nenhum agendamento encontrado.")
+        st.info("Nenum agendamento encontrado.")
     else:
         if "Data" in df_ag.columns:
             df_ag["Data_dt"] = pd.to_datetime(df_ag["Data"]).dt.date
@@ -1373,7 +1493,7 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS (INCLUINDO TELA INICIAL)
+# ABAS ATUALIZADAS
 # ==============================================================================
 tab_inicio, tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs([
     "🏠 Início", 
@@ -1544,201 +1664,79 @@ with tab_mensais:
         with st.form("form_cad_cliente_mensal", clear_on_submit=True):
             st.markdown("#### Informações do Cliente Mensalista")
             nome_cli_m = st.text_input("Nome Completo do Cliente:")
-            tel_cli_m = st.text_input("Telefone / WhatsApp:")
-            
-            btn_salvar_cli_m = st.form_submit_button("Cadastrar Cliente Mensalista", type="primary", use_container_width=True)
-            if btn_salvar_cli_m:
+            tel_cli_m = st.text_input("WhatsApp / Telefone (com DDD):")
+            submit_m_cad = st.form_submit_button("Cadastrar Cliente Mensal", type="primary", use_container_width=True)
+            if submit_m_cad:
                 if nome_cli_m.strip():
                     cadastrar_cliente_mensal_banco(nome_cli_m, tel_cli_m)
-                    st.success(f"Cliente mensal `{nome_cli_m}` cadastrado com sucesso! Iniciou sem dever nada.")
+                    st.success(f"Cliente {nome_cli_m} cadastrado com sucesso com saldo zerado!")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Informe o nome do cliente.")
+                    st.error("Informe pelo menos o nome do cliente.")
 
     with tab_m_lanc:
-        st.markdown("#### Registrar Corte para Cliente Mensal")
-        df_mensalistas = carregar_clientes_mensais_banco()
-        if not df_mensalistas.empty:
-            mapa_clientes = {row['Cliente']: row['id'] for _, row in df_mensalistas.iterrows()}
-            cliente_escolhido_l = st.selectbox("Selecione o Cliente Mensal:", list(mapa_clientes.keys()))
-            id_cli_sel = mapa_clientes[cliente_escolhido_l]
+        df_cm = carregar_clientes_mensais_banco()
+        if not df_cm.empty:
+            dict_cm = {f"{row['Cliente']} (Serviços: {row['Serviços Feitos']} | Devendo: R$ {Decimal(str(row['Valor Devido'])):.2f})": row['id'] for _, row in df_cm.iterrows()}
+            cliente_sel_m = st.selectbox("Selecione o Cliente:", list(dict_cm.keys()))
+            id_cm_sel = dict_cm[cliente_sel_m]
             
-            qtd_cortes = st.number_input("Quantos serviços/cortes foram feitos?", min_value=1, value=1, step=1)
-            preco_input = st.number_input("Valor unitário cobrado por este serviço (R$):", min_value=0.0, value=30.0, step=5.0)
-            preco_serv_mensal = Decimal(str(preco_input))
-
-            if st.button("Adicionar Serviço à Dívida do Cliente", type="primary", use_container_width=True):
-                atualizar_cortes_cliente_mensal(id_cli_sel, qtd_cortes, preco_serv_mensal)
-                st.success(f"Adicionado {qtd_cortes} serviço(s) para `{cliente_escolhido_l}`. O sistema atualizou a dívida automaticamente!")
+            val_corte_padrao = float(servicos.get("Corte de Cabelo", Decimal("30.00")))
+            qtd_servicos = st.number_input("Quantidade de Serviços Realizados Hoje:", min_value=1, value=1, step=1)
+            val_un_servico = Decimal(str(st.number_input("Valor Unitário do Serviço (R$):", min_value=0.0, value=val_corte_padrao, step=5.0)))
+            
+            if st.button("Acrescentar à Conta do Cliente", type="primary", use_container_width=True):
+                atualizar_cortes_cliente_mensal(id_cm_sel, qtd_servicos, val_un_servico)
+                st.success("Corte/Serviço adicionado à conta do cliente com sucesso!")
                 st.rerun()
         else:
-            st.info("Nenhum cliente mensal cadastrado ainda. Cadastre na aba anterior.")
+            st.info("Nenhum cliente mensal cadastrado. Cadastre um cliente na aba acima.")
 
     with tab_m_lista:
-        st.markdown("#### Status de Dívidas e Baixas")
-        df_mensalistas = carregar_clientes_mensais_banco()
-        if not df_mensalistas.empty:
-            for _, row in df_mensalistas.iterrows():
-                c_id = row['id']
-                c_nome = row['Cliente']
-                c_tel = row['Telefone']
-                c_serv = row['Serviços Feitos']
-                c_val = Decimal(str(row['Valor Devido']))
-                c_status = row['Status']
+        df_cm_list = carregar_clientes_mensais_banco()
+        if not df_cm_list.empty:
+            for _, row in df_cm_list.iterrows():
+                val_dev = Decimal(str(row['Valor Devido']))
+                st_cor = "#22c55e" if val_dev == Decimal("0.00") else "#ef4444"
+                st_txt = "Quitado / Em Dia" if val_dev == Decimal("0.00") else f"Devendo R$ {val_dev:.2f}"
 
-                cor_st = "#22c55e" if c_status == "Quitado" or c_val == Decimal("0.00") else "#ef4444"
-                
                 with st.container():
-                    col_info_m, col_val_m, col_action_m = st.columns([3, 2, 2])
-                    with col_info_m:
-                        st.markdown(f"**👤 {c_nome}** (`{c_tel if c_tel else 'Sem Tel'}`)<br><span style='color: #94a3b8; font-size: 0.85rem;'>Serviços realizados: {c_serv}</span>", unsafe_allow_html=True)
-                    with col_val_m:
-                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.1rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
-                    with col_action_m:
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if c_val > Decimal("0.00"):
-                            with st.popover(f"💸 Dar Baixa ({c_nome})", use_container_width=True):
-                                st.markdown(f"**Dívida atual:** R$ {c_val:,.2f}")
-                                tipo_baixa = st.radio("Escolha o tipo de baixa:", ["Baixa total da dívida", "Baixa parcial (escolher valor)"], key=f"tipo_baixa_{c_id}")
-                                
-                                valor_a_baixar = c_val
-                                if tipo_baixa == "Baixa parcial (escolher valor)":
-                                    val_parcial_inp = st.number_input("Valor que o cliente pagou (R$):", min_value=0.01, max_value=float(c_val), value=float(c_val), step=5.0, key=f"val_parcial_{c_id}")
-                                    valor_a_baixar = Decimal(str(val_parcial_inp))
-                                
-                                if st.button("Confirmar Baixa", key=f"btn_conf_baixa_{c_id}", type="primary", use_container_width=True):
-                                    inserir_movimentacao_direta("Entrada", f"Mensalidade recebida ({'parcial' if tipo_baixa != 'Baixa total da dívida' else 'total'}): {c_nome}", valor_a_baixar, datetime.now(TZ).date())
-                                    dar_baixa_divida_mensalista(c_id, valor_a_baixar)
-                                    st.success(f"Baixa de R$ {valor_a_baixar:,.2f} registrada com sucesso!")
+                    c_cli, c_det, c_baix = st.columns([2.5, 2, 2.5])
+                    with c_cli:
+                        st.markdown(f"**👤 {row['Cliente']}**<br><span style='color:#94a3b8;'>📞 {row['Telefone']}</span>", unsafe_allow_html=True)
+                    with c_det:
+                        st.markdown(f"**Serviços Realizados:** {row['Serviços Feitos']}<br><span style='color:{st_cor}; font-weight:bold;'>{st_txt}</span>", unsafe_allow_html=True)
+                    with c_baix:
+                        if val_dev > Decimal("0.00"):
+                            with st.popover(f"💰 Dar Baixa (R$ {val_dev:.2f})"):
+                                val_pagamento = Decimal(str(st.number_input("Valor Recebido (R$):", min_value=0.01, max_value=float(val_dev), value=float(val_dev), step=5.0, key=f"pop_val_{row['id']}")))
+                                lancar_no_fluxo = st.checkbox("Lançar valor no Fluxo de Caixa principal", value=True, key=f"pop_chk_{row['id']}")
+                                if st.button("Confirmar Pagamento", type="primary", key=f"pop_btn_{row['id']}"):
+                                    dar_baixa_divida_mensalista(row['id'], val_pagamento)
+                                    if lancar_no_fluxo:
+                                        inserir_movimentacao_direta("Entrada", f"Mensalidade recebida: {row['Cliente']}", val_pagamento, datetime.now(TZ).date())
+                                    st.success("Pagamento registrado com sucesso!")
                                     st.rerun()
                         else:
-                            st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
+                            st.markdown("<span style='color:#22c55e; font-weight:bold;'>✓ Conta Zerada</span>", unsafe_allow_html=True)
                     st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
         else:
-            st.info("Nenhum cliente mensal cadastrado no momento.")
+            st.info("Nenhum cliente mensal cadastrado.")
 
 # ==============================================================================
-# TAB 4: AGENDAMENTOS (AGENDA PREMIUM INTEGRADA)
+# TAB 4: AGENDAMENOTI (AGENDA PREMIUM)
 # ==============================================================================
 with tab_agend:
-    col_ag_title, col_ag_btn = st.columns([3, 1])
-    with col_ag_title:
-        st.markdown("### 📅 Central de Agendamentos")
-        st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real com visualização diária e semanal.</p>", unsafe_allow_html=True)
-    with col_ag_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
-    
     try:
         render_agenda_painel()
     except Exception as e:
-        st.error(f"Erro ao renderizar Agenda Premium: {e}")
-
-    st.markdown("---")
-    df_agendamentos = carregar_agendamentos()
-
-    if not df_agendamentos.empty:
-        st.markdown('<h4>📋 Lista Geral e Confirmações</h4>', unsafe_allow_html=True)
-        
-        servicos_salao = carregar_servicos()
-
-        for index, row in df_agendamentos.iterrows():
-            id_ag = row['id']
-            cliente = row['Cliente']
-            contato = row['Contato/WhatsApp']
-            servico = row['Serviço']
-            data_bd = row['Data']
-            hora = row['Horário']
-            
-            try:
-                data_formatada = pd.to_datetime(data_bd).strftime('%d/%m/%Y')
-            except:
-                data_formatada = data_bd
-
-            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
-            
-            with col_info:
-                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
-            
-            with col_zap:
-                num_clean = re.sub(r'\D', '', str(contato))
-                if num_clean:
-                    if not num_clean.startswith('55') and len(num_clean) <= 11:
-                        num_clean = '55' + num_clean
-                    msg_wa = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento para {data_formatada} às {hora} ({servico}). Podemos confirmar?")
-                    link_wa = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_wa}"
-                    st.markdown(f'<a href="{link_wa}" target="_blank" style="display:inline-block; background-color:#22c55e; color:white; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">💬 WhatsApp</a>', unsafe_allow_html=True)
-                else:
-                    st.markdown("<span style='color:#64748b; font-size:0.85rem;'>Sem WhatsApp</span>", unsafe_allow_html=True)
-
-            with col_conf:
-                val_s = servicos_salao.get(servico, Decimal("30.00"))
-                if st.button(f"✔ Concluir (R$ {val_s:.2f})", key=f"btn_concluir_ag_{id_ag}", use_container_width=True):
-                    inserir_movimentacao_direta("Entrada", f"Atendimento Agendado: {cliente} ({servico})", val_s, datetime.now(TZ).date())
-                    deletar_agendamento(id_ag)
-                    st.success("Atendimento concluído e lançado no caixa!")
-                    st.rerun()
-
-            with col_canc:
-                if st.button("🗑️ Cancelar", key=f"btn_canc_ag_{id_ag}", use_container_width=True):
-                    deletar_agendamento(id_ag)
-                    st.warning("Agendamento cancelado.")
-                    st.rerun()
-
-            st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-    else:
-        st.info("Nenhum agendamento pendente registrado.")
+        st.error(f"Erro ao renderizar a Agenda Premium: {e}")
 
 # ==============================================================================
-# TAB 5: FLUXO DE CAIXA
+# TAB 5: FINANCEIRO PREMIUM (FLUXO DE CAIXA)
 # ==============================================================================
 with tab_historico:
-    st.markdown("### 💸 Historico & Relatórios Financeiros")
-    df_fluxo = carregar_fluxo()
-
-    if not df_fluxo.empty:
-        col_fl1, col_fl2 = st.columns([2, 1])
-        with col_fl1:
-            meses_disponiveis = df_fluxo['Data'].dt.strftime('%m/%Y').unique()
-            mes_sel = st.selectbox("Filtrar Mês/Ano:", meses_disponiveis)
-        with col_fl2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            df_filtrado = df_fluxo[df_fluxo['Data'].dt.strftime('%m/%Y') == mes_sel].copy()
-            pdf_bytes = gerar_pdf_contabilidade(df_filtrado, mes_sel)
-            renderizar_botao_download_apk(pdf_bytes, f"relatorio_{mes_sel.replace('/', '_')}.pdf", "application/pdf", "📄 Baixar Relatório PDF")
-
-        tot_entrada = sum(df_filtrado[df_filtrado['Tipo'] == 'Entrada']['Valor'], Decimal("0.00"))
-        tot_saida = sum(df_filtrado[df_filtrado['Tipo'] == 'Saída']['Valor'], Decimal("0.00"))
-        saldo_periodo = tot_entrada + tot_saida
-
-        m1, m2, m3 = st.columns(3)
-        with m1: st.metric("Entradas", f"R$ {tot_entrada:,.2f}")
-        with m2: st.metric("Saídas", f"R$ {tot_saida:,.2f}")
-        with m3: st.metric("Saldo do Período", f"R$ {saldo_periodo:,.2f}")
-
-        st.markdown("---")
-        st.markdown("#### Detalhamento das Lançamentos")
-
-        for index, row in df_filtrado.iterrows():
-            id_mov = row['id']
-            dt_str = row['Data'].strftime('%d/%m/%Y')
-            tipo = row['Tipo']
-            desc = row['Descrição']
-            val = Decimal(str(row['Valor']))
-
-            cor_val = "#22c55e" if tipo == "Entrada" else ("#ef4444" if tipo == "Saída" else "#f59e0b")
-
-            c_d, c_t, c_v, c_del = st.columns([2, 3, 2, 1])
-            with c_d: st.write(f"📅 {dt_str}")
-            with c_t: st.write(f"**{desc}** ({tipo})")
-            with c_v: st.markdown(f"<span style='color:{cor_val}; font-weight:bold;'>R$ {val:,.2f}</span>", unsafe_allow_html=True)
-            with c_del:
-                if st.button("🗑️", key=f"del_fl_{id_mov}"):
-                    deletar_movimentacao_fluxo(id_mov)
-                    st.rerun()
-            st.markdown("<hr style='margin: 4px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-    else:
-        st.info("Nenhuma movimentação financeira encontrada.")
+    try:
+        render_financeiro_painel()
+    except Exception as e:
+        st.error(f"Erro ao renderizar Financeiro: {e}")
