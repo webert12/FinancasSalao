@@ -76,24 +76,27 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM ---
+# --- DESIGN & CSS ULTRA PREMIUM (MINIMALISTA E MODERNO) ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
     if st.session_state.tema_escuro:
-        bg_style = f'background-image: linear-gradient(135deg, rgba(8, 12, 20, 0.96) 0%, rgba(3, 5, 8, 0.99) 100%), url("data:image/png;base64,{encoded_string}") !important;'
-        app_bg = "#030508"
-        card_bg = "#0d131f"
-        input_bg = "#080c14"
+        bg_style = f'background-image: radial-gradient(circle at 50% 0%, rgba(14, 23, 42, 0.95) 0%, rgba(6, 9, 15, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
+        app_bg = "#06090f"
+        card_bg = "rgba(15, 23, 42, 0.75)"
+        input_bg = "rgba(10, 15, 26, 0.85)"
     else:
-        bg_style = 'background: radial-gradient(circle at top, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
+        bg_style = 'background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
         app_bg = "#0f172a"
-        card_bg = "#1e293b"
-        input_bg = "#0f172a"
+        card_bg = "rgba(30, 41, 59, 0.8)"
+        input_bg = "rgba(15, 23, 42, 0.9)"
 
     st.markdown(
         f"""
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        /* === CONFIGURAÇÕES GERAIS DE TELA E TIPOGRAFIA === */
         .stApp {{
             {bg_style}
             background-color: {app_bg} !important;
@@ -101,19 +104,37 @@ def set_background_com_logo(image_path):
             background-position: center !important;
             background-attachment: fixed !important;
             color: #f8fafc !important;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
         }}
 
         html, body, p, span, label, div, [class*="css"] {{
             color: #f8fafc !important;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
         }}
 
         h1, h2, h3, h4, h5, h6 {{
             color: #ffffff !important;
             font-weight: 700 !important;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.5px !important;
         }}
 
+        /* Scrollbar Personalizada */
+        ::-webkit-scrollbar {{
+            width: 8px;
+            height: 8px;
+        }}
+        ::-webkit-scrollbar-track {{
+            background: rgba(6, 9, 15, 0.5);
+        }}
+        ::-webkit-scrollbar-thumb {{
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 999px;
+        }}
+        ::-webkit-scrollbar-thumb:hover {{
+            background: #38bdf8;
+        }}
+
+        /* === CAMPOS DE ENTRADA E SELEÇÃO === */
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div,
         input, select, textarea,
@@ -123,25 +144,39 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
-            border: 1.5px solid #1e293b !important;
-            border-radius: 12px !important;
-            padding: 12px 14px !important;
-            font-size: 1rem !important;
-            transition: all 0.2s ease-in-out !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 14px !important;
+            padding: 12px 16px !important;
+            font-size: 0.95rem !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            backdrop-filter: blur(10px) !important;
         }}
 
         input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
             border-color: #38bdf8 !important;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25) !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
             background-color: {input_bg} !important;
         }}
 
+        /* === FORMULÁRIOS === */
+        div[data-testid="stForm"] {{
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 20px !important;
+            padding: 24px !important;
+            background: rgba(13, 19, 31, 0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        }}
+
+        /* === POPOVERS E DROPDOWNS === */
         div[data-testid="stPopoverBody"] {{
-            background-color: {card_bg} !important;
-            border: 2px solid #38bdf8 !important;
-            border-radius: 16px !important;
-            box-shadow: 0 20px 45px rgba(0,0,0,0.85) !important;
+            background-color: rgba(13, 19, 31, 0.95) !important;
+            border: 1px solid rgba(56, 189, 248, 0.3) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8) !important;
+            backdrop-filter: blur(16px) !important;
             z-index: 999999 !important;
+            padding: 18px !important;
         }}
         div[data-testid="stPopoverBody"] * {{
             color: #ffffff !important;
@@ -149,29 +184,33 @@ def set_background_com_logo(image_path):
 
         div[data-testid="stPopover"] button,
         [data-testid="stPopoverButton"] {{
-            background-color: #111827 !important;
-            border: 1.5px solid #38bdf8 !important;
-            border-radius: 12px !important;
-            padding: 8px 18px !important;
+            background: rgba(17, 24, 39, 0.8) !important;
+            border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            border-radius: 14px !important;
+            padding: 10px 20px !important;
             color: #ffffff !important;
-            font-weight: 800 !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+            transition: all 0.25s ease !important;
         }}
 
         div[data-testid="stPopover"] button:hover {{
-            background-color: #1f2937 !important;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5) !important;
+            background: rgba(31, 41, 55, 0.9) !important;
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4) !important;
+            transform: translateY(-2px) !important;
         }}
 
         ul[data-baseweb="menu"],
         li[role="option"],
         div[data-testid="stSelectboxVirtualDropdown"] {{
-            background-color: {card_bg} !important;
+            background-color: #0d131f !important;
             color: #ffffff !important;
-            border: 1px solid #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 14px !important;
         }}
         li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
-            background-color: #111827 !important;
+            background-color: rgba(56, 189, 248, 0.15) !important;
             color: #38bdf8 !important;
         }}
 
@@ -180,78 +219,103 @@ def set_background_com_logo(image_path):
         div[role="application"] {{
             background-color: {input_bg} !important;
             color: #ffffff !important;
-            border: 1px solid #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 16px !important;
         }}
         div[data-baseweb="calendar"] * {{ color: #ffffff !important; background-color: transparent !important; }}
         div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #38bdf8 !important; color: #ffffff !important; border-radius: 50% !important; }}
 
+        /* === CARDS DE KPI (MÉTRICAS MODERNAS) === */
         .kpi-card-v2 {{ 
-            background-color: {card_bg}; 
-            border: 1px solid #1e293b; 
-            border-radius: 16px; 
-            padding: 20px; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.45); 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 26, 0.9) 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            border-radius: 20px; 
+            padding: 22px; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(12px);
             height: 100%; 
             display: flex; 
             flex-direction: column; 
             justify-content: space-between; 
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }}
+        .kpi-card-v2::before {{
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.4), transparent);
+            opacity: 0.6;
         }}
         .kpi-card-v2:hover {{
-            border-color: rgba(56, 189, 248, 0.4);
-            transform: translateY(-2px);
+            border-color: rgba(56, 189, 248, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.15);
         }}
-        .kpi-title-v2 {{ font-size: 0.92rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }}
-        .kpi-value-v2 {{ font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }}
-        .kpi-val-green {{ color: #22c55e !important; }}
-        .kpi-val-red {{ color: #ef4444 !important; }}
+        .kpi-title-v2 {{ font-size: 0.88rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px; }}
+        .kpi-value-v2 {{ font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.8px; }}
+        .kpi-val-green {{ color: #10b981 !important; }}
+        .kpi-val-red {{ color: #f43f5e !important; }}
         .kpi-val-blue {{ color: #38bdf8 !important; }}
         .kpi-perc {{ font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }}
-        .perc-up {{ color: #22c55e !important; }}
-        .perc-down {{ color: #ef4444 !important; }}
+        .perc-up {{ color: #10b981 !important; }}
+        .perc-down {{ color: #f43f5e !important; }}
         .perc-neutral {{ color: #94a3b8 !important; }}
 
+        /* === UI CARDS (CONTAINERS DE CONTEÚDO) === */
         .ui-card {{ 
-            background: {card_bg}; 
-            border: 1px solid #1e293b; 
-            border-radius: 18px; 
-            padding: 24px; 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 26, 0.85) 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            border-radius: 22px; 
+            padding: 26px; 
             margin-bottom: 20px; 
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5); 
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
         }}
-        .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #111827 100%); border: 1px solid #38bdf8; border-radius: 18px; padding: 24px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.15); }}
+        .ui-card-highlight {{ 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%); 
+            border: 1px solid rgba(56, 189, 248, 0.4); 
+            border-radius: 22px; 
+            padding: 26px; 
+            box-shadow: 0 12px 35px rgba(56, 189, 248, 0.15); 
+        }}
 
+        /* === TELA DE LOGIN PREMIUM === */
         .login-card {{ 
-            background: linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 17, 32, 0.98) 100%); 
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 12, 20, 0.95) 100%); 
             border: 1px solid rgba(56, 189, 248, 0.25); 
-            border-radius: 24px; 
-            padding: 45px 36px; 
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.1); 
+            border-radius: 28px; 
+            padding: 48px 38px; 
+            box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(56, 189, 248, 0.12); 
             max-width: 480px; 
             margin: 0 auto; 
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
+            animation: fadeIn 0.5s ease-out;
         }}
         .login-brand-wrapper {{
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 28px;
         }}
         .login-badge-icon {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 64px;
-            height: 64px;
+            width: 70px;
+            height: 70px;
             background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
-            border-radius: 18px;
-            font-size: 30px;
-            margin-bottom: 16px;
-            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4);
+            border-radius: 22px;
+            font-size: 32px;
+            margin-bottom: 18px;
+            box-shadow: 0 12px 28px rgba(56, 189, 248, 0.4);
+            animation: pulseGlow 3s infinite ease-in-out;
         }}
         .login-title {{ 
             color: #ffffff !important; 
-            font-size: 2.3rem !important; 
+            font-size: 2.4rem !important; 
             font-weight: 800 !important; 
-            letter-spacing: -1px;
+            letter-spacing: -1.2px !important;
             margin-bottom: 8px !important; 
             line-height: 1.1; 
             text-align: center; 
@@ -267,58 +331,89 @@ def set_background_com_logo(image_path):
             font-weight: 500;
         }}
 
+        /* === BOTÕES CUSTOMIZADOS === */
         .stButton > button, [data-testid="stDownloadButton"] > button {{
-            background-color: #111827 !important;
+            background: rgba(255, 255, 255, 0.04) !important;
             color: #ffffff !important;
-            border: 1px solid #1f2937 !important;
-            border-radius: 12px !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 14px !important;
             font-weight: 700 !important;
-            padding: 12px 20px !important;
-            transition: all 0.2s ease !important;
+            padding: 12px 22px !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
             width: 100% !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
         }}
         .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{
-            background-color: #1f2937 !important;
+            background: rgba(255, 255, 255, 0.09) !important;
             border-color: #38bdf8 !important;
             color: #38bdf8 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.2) !important;
         }}
-        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 6px 20px rgba(56,189,248,0.4) !important; }}
-        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #0369a1 100%, #0284c7 0%) !important; color: #ffffff !important; box-shadow: 0 8px 25px rgba(56,189,248,0.6) !important; }}
+        .stButton > button[kind="primary"] {{ 
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; 
+            color: #ffffff !important; 
+            border: none !important; 
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important; 
+        }}
+        .stButton > button[kind="primary"]:hover {{ 
+            background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%) !important; 
+            color: #ffffff !important; 
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.5) !important; 
+        }}
 
+        /* === NAVEGAÇÃO POR ABAS (SEGMENTED CONTROL MODERNO) === */
         .stTabs [data-baseweb="tab-list"] {{ 
-            gap: 15px; 
-            background-color: transparent; 
+            gap: 12px; 
+            background: rgba(15, 23, 42, 0.6); 
+            padding: 8px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
             display: flex; 
             justify-content: center; 
+            margin-bottom: 24px;
         }}
         .stTabs [data-baseweb="tab"] {{ 
-            background-color: {card_bg}; 
-            border-radius: 12px 12px 0 0; 
-            border: 1px solid #1e293b; 
-            padding: 14px 28px; 
+            background-color: transparent !important; 
+            border-radius: 12px !important; 
+            border: none !important; 
+            padding: 12px 24px !important; 
             color: #94a3b8 !important; 
-            font-size: 1.05rem;
+            font-size: 0.98rem;
             font-weight: 600;
+            transition: all 0.2s ease !important;
         }}
         .stTabs [aria-selected="true"] {{ 
-            background-color: #111827 !important; 
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(2, 132, 199, 0.25) 100%) !important; 
             color: #38bdf8 !important; 
-            font-weight: bold; 
-            border-top: 3px solid #38bdf8 !important; 
-            box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
+            font-weight: 700; 
+            border: 1px solid rgba(56, 189, 248, 0.3) !important; 
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.15) !important;
+        }}
+
+        /* === KEYFRAMES DE ANIMAÇÕES === */
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
+        @keyframes pulseGlow {{
+            0%, 100% {{ box-shadow: 0 10px 25px rgba(56, 189, 248, 0.3); }}
+            50% {{ box-shadow: 0 10px 35px rgba(56, 189, 248, 0.6); }}
         }}
         
         @media screen and (max-width: 1024px) {{
             .stTabs [data-baseweb="tab-list"] {{
-                gap: 10px !important;
+                gap: 8px !important;
                 overflow-x: auto !important;
                 justify-content: flex-start !important;
-                padding-bottom: 5px !important;
+                padding-bottom: 8px !important;
             }}
             .stTabs [data-baseweb="tab"] {{
-                font-size: 1.15rem !important;
-                padding: 14px 22px !important;
-                margin-right: 10px !important;
+                font-size: 0.95rem !important;
+                padding: 10px 18px !important;
                 flex-shrink: 0 !important;
             }}
         }}
@@ -662,9 +757,9 @@ def renderizar_whatsapp_flutuante():
     support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
     st.markdown(f"""
         <style>
-        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background-color: #22c55e; border-radius: 50px; text-align: center; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.3s ease; }}
-        .floating-wa:hover {{ transform: scale(1.1); }}
-        .floating-wa svg {{ width: 32px; height: 32px; fill: white; }}
+        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50px; text-align: center; box-shadow: 0px 8px 25px rgba(16,185,129,0.4); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }}
+        .floating-wa:hover {{ transform: scale(1.1) translateY(-3px); box-shadow: 0px 12px 30px rgba(16,185,129,0.6); }}
+        .floating-wa svg {{ width: 30px; height: 30px; fill: white; }}
         </style>
         <a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_msg}" class="floating-wa" target="_blank" title="Falar com Suporte">
             <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
@@ -687,7 +782,7 @@ if salao_url:
     dados_dono = todos_usuarios.get(salao_id_clean, {})
     wa_dono = dados_dono.get("whatsapp", "")
 
-    st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align: center; margin-bottom: 25px;"><h1 style="margin: 0; color: #ffffff; font-size: 2.2rem;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 6px; font-size: 0.95rem;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
     if st.session_state.get("agendamento_sucesso"):
         dados_ag = st.session_state.agendamento_sucesso
@@ -710,7 +805,7 @@ if salao_url:
             link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
             
             st.markdown(f'''
-                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:800; font-size:1.1rem; margin-top:15px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);">
+                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:1.1rem; border-radius:16px; text-decoration:none; font-weight:800; font-size:1.05rem; margin-top:18px; margin-bottom:18px; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;">
                     <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
                     Confirmar e Enviar no WhatsApp do Salão
                 </a>
@@ -872,7 +967,7 @@ if not st.session_state.autenticado:
                 st.rerun()
         with col_whats:
             wa_login_msg = urllib.parse.quote("Olá! Gostaria de falar sobre o sistema Fio&Caixa.")
-            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #22c55e; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -960,7 +1055,7 @@ if st.session_state.eh_admin:
 
     with tab_assinantes:
         st.markdown("### 📊 Painel de Monitoramento de Assinantes")
-        st.markdown("Acompanhe o status das assinaturas, verifique quem está em dia ou vencido, e bloqueie ou desbloqueie acessos automaticamente ou manualmente.")
+        st.markdown("<p style='color: #94a3b8;'>Acompanhe o status das assinaturas, verifique quem está em dia ou vencido, e bloqueie ou desbloqueie acessos automaticamente ou manualmente.</p>", unsafe_allow_html=True)
 
         if usuarios_cadastrados:
             data_hoje = datetime.now(TZ).date()
@@ -1004,34 +1099,34 @@ if st.session_state.eh_admin:
                 status_atual = u_info.get("status", "Ativo")
                 esta_vencido = dt_venc < data_hoje
 
-                cor_status = "#22c55e" if (status_atual == "Ativo" and not esta_vencido) else "#ef4444"
+                cor_status = "#10b981" if (status_atual == "Ativo" and not esta_vencido) else "#f43f5e"
                 texto_status = "Em Dia (Ativo)" if (status_atual == "Ativo" and not esta_vencido) else "Vencido / Bloqueado"
 
                 with st.container():
+                    st.markdown('<div class="ui-card" style="padding: 16px 20px; margin-bottom: 12px;">', unsafe_allow_html=True)
                     c_info, c_venc, c_status_lbl, c_btn = st.columns([2.5, 1.5, 2, 2])
                     with c_info:
                         st.markdown(f"**👤 Salão:** `{u_id}`<br><span style='color: #94a3b8; font-size: 0.85rem;'>{u_info.get('email', 'Sem e-mail')}</span>", unsafe_allow_html=True)
                     with c_venc:
                         st.markdown(f"**Vencimento:**<br>{dt_venc.strftime('%d/%m/%Y')}", unsafe_allow_html=True)
                     with c_status_lbl:
-                        st.markdown(f"**Status:**<br><span style='color: {cor_status}; font-weight: bold;'>● {texto_status}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Status:**<br><span style='color: {cor_status}; font-weight: 700;'>● {texto_status}</span>", unsafe_allow_html=True)
                     with c_btn:
-                        st.markdown("<br>", unsafe_allow_html=True)
                         if status_atual == "Ativo" and not esta_vencido:
-                            if st.button("🔒 Bloquear Acesso", key=f"bloquear_{u_id}", use_container_width=True):
+                            if st.button("🔒 Bloquear", key=f"bloquear_{u_id}", use_container_width=True):
                                 usuarios_cadastrados[u_id]["status"] = "Suspenso"
                                 salvar_usuarios(usuarios_cadastrados)
                                 st.success(f"Acesso de {u_id} bloqueado!")
                                 st.rerun()
                         else:
-                            if st.button("🔓 Desbloquear / Renovar", key=f"desbloquear_{u_id}", type="primary", use_container_width=True):
+                            if st.button("🔓 Desbloquear", key=f"desbloquear_{u_id}", type="primary", use_container_width=True):
                                 novo_venc_renovado = (data_hoje + timedelta(days=30)).strftime("%Y-%m-%d")
                                 usuarios_cadastrados[u_id]["status"] = "Ativo"
                                 usuarios_cadastrados[u_id]["vencimento"] = novo_venc_renovado
                                 salvar_usuarios(usuarios_cadastrados)
                                 st.success(f"Acesso de {u_id} desbloqueado e renovado!")
                                 st.rerun()
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("Nenhum assinante cadastrado no momento.")
 
@@ -1113,7 +1208,14 @@ with col_top_left:
                 del st.query_params["token_sessao"]
             st.rerun()
 
-st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #38bdf8 !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
+st.markdown(f'''
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 28px; background: linear-gradient(145deg, rgba(15, 23, 42, 0.7) 0%, rgba(10, 15, 26, 0.8) 100%); border: 1px solid rgba(255,255,255,0.06); border-radius: 22px; margin-bottom: 24px; backdrop-filter: blur(12px);">
+        <div>
+            <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">✂️ {nome_salao_titulo}</h2>
+            <p style="margin: 4px 0 0 0; color: #38bdf8 !important; font-size: 0.9rem; font-weight: 500;">Painel de Controle Financeiro & Agendamentos</p>
+        </div>
+    </div>
+''', unsafe_allow_html=True)
 
 # ==============================================================================
 # FUNÇÕES DE DIÁLOGO (MODAIS PARA AÇÕES RÁPIDAS)
@@ -1295,7 +1397,7 @@ with tab_dashboard:
 
     # CARD PRINCIPAL DO GRÁFICO DE EVOLUÇÃO
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    st.markdown('<h4 style="margin-bottom: 15px; color: #ffffff;">📊 Evolução Diária do Fluxo de Caixa</h4>', unsafe_allow_html=True)
+    st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">📊 Evolução Diária do Fluxo de Caixa</h4>', unsafe_allow_html=True)
 
     if not df_mes_atual.empty:
         df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
@@ -1307,12 +1409,12 @@ with tab_dashboard:
         df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
 
         fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro Líquido', line=dict(color='#22c55e', width=3), fill='tozeroy', fillcolor='rgba(34, 197, 94, 0.12)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro Líquido', line=dict(color='#10b981', width=3), fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)', marker=dict(size=6)))
         fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.08)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#ef4444', width=2), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.08)', marker=dict(size=6)))
+        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#f43f5e', width=2), fill='tozeroy', fillcolor='rgba(244, 63, 94, 0.08)', marker=dict(size=6)))
 
         fig_area.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8', family='Plus Jakarta Sans'),
             xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
             yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
@@ -1327,7 +1429,7 @@ with tab_dashboard:
     col_bottom1, col_bottom2 = st.columns(2)
     with col_bottom1:
         st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
-        st.markdown('<h4 style="margin-bottom: 20px; color: #ffffff;">🍩 Receitas vs. Despesas</h4>', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 20px; color: #ffffff; font-weight: 700;">🍩 Receitas vs. Despesas</h4>', unsafe_allow_html=True)
         if ent_atual > 0 or sai_atual > 0:
             total_op = ent_atual + sai_atual
             perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
@@ -1335,24 +1437,24 @@ with tab_dashboard:
 
             col_donut_img, col_donut_leg = st.columns([1, 1.2])
             with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#38bdf8', '#ef4444']), textinfo='none', hoverinfo='label+percent')])
+                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.68, marker=dict(colors=['#38bdf8', '#f43f5e']), textinfo='none', hoverinfo='label+percent')])
                 fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
                 st.plotly_chart(fig_donut, use_container_width=True)
             with col_donut_leg:
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
+                        <div style="width: 10px; height: 10px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: 600; color: #ffffff;">Entradas</span>
+                    </div><span style="font-weight: 700; color: #ffffff;">{perc_ent_donut:.0f}%</span>
                 </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <div style="color: #94a3b8; font-size: 0.88rem; margin-left: 18px; margin-bottom: 16px;">R$ {ent_atual:,.2f}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
+                        <div style="width: 10px; height: 10px; background-color: #f43f5e; border-radius: 50%;"></div><span style="font-weight: 600; color: #ffffff;">Saídas</span>
+                    </div><span style="font-weight: 700; color: #ffffff;">{perc_sai_donut:.0f}%</span>
                 </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
+                <div style="color: #94a3b8; font-size: 0.88rem; margin-left: 18px;">R$ {sai_atual:,.2f}</div>
                 """, unsafe_allow_html=True)
         else: 
             st.info("Sem dados suficientes neste mês.")
@@ -1360,12 +1462,12 @@ with tab_dashboard:
 
     with col_bottom2:
         st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
-        st.markdown('<h4 style="margin-bottom: 25px; color: #ffffff;">📌 Top Despesas por Categoria</h4>', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 25px; color: #ffffff; font-weight: 700;">📌 Top Despesas por Categoria</h4>', unsafe_allow_html=True)
         if sai_atual > 0:
             df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
             df_desp['Valor'] = df_desp['Valor'].abs()
             top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#38bdf8', '#22c55e', '#ef4444', '#a855f7']
+            cores_barras = ['#38bdf8', '#10b981', '#f43f5e', '#a855f7']
             html_barras = ""
             for i, (desc, valor) in enumerate(top_desp.items()):
                 perc_cat = (valor / sai_atual) * 100
@@ -1373,12 +1475,12 @@ with tab_dashboard:
                 nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
                 html_barras += f"""
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
-                    <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: #111827; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
-                        <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
+                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.92rem;">{nome_formatado}</span>
+                    <span style="color: #94a3b8; width: 15%; font-size: 0.88rem;">{perc_cat:.0f}%</span>
+                    <div style="width: 25%; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; height: 8px; margin-right: 15px;">
+                        <div style="width: {perc_cat}%; background: {cor}; height: 100%; border-radius: 999px;"></div>
                     </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
+                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.92rem;">R$ {valor:,.2f}</span>
                 </div>
                 """
             st.markdown(html_barras, unsafe_allow_html=True)
@@ -1390,9 +1492,9 @@ with tab_dashboard:
 # TAB 2: SERVIÇOS
 # ==============================================================================
 with tab_servicos:
-    st.markdown('### :material/bolt: Ações & Serviços')
-    st.markdown("<p style='color: #94a3b8 !important;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    st.markdown('<h3 style="margin-bottom: 8px;">:material/bolt: Ações & Serviços</h3>', unsafe_allow_html=True)
+    st.markdown("<p style='color: #94a3b8 !important; margin-bottom: 20px;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
     
     col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
     
@@ -1411,6 +1513,7 @@ with tab_servicos:
     with col_srv4:
         if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
             dialog_baixar_fiado(df_fluxo_caixa)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 3: CLIENTES MENSAIS / MENSALIDADE
@@ -1438,7 +1541,8 @@ with tab_mensais:
                     st.warning("⚠️ Informe o nome do cliente.")
 
     with tab_m_lanc:
-        st.markdown("#### Registrar Corte para Cliente Mensal")
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown("<h4 style='margin-bottom: 15px;'>Registrar Corte para Cliente Mensal</h4>", unsafe_allow_html=True)
         df_mensalistas = carregar_clientes_mensais_banco()
         if not df_mensalistas.empty:
             mapa_clientes = {row['Cliente']: row['id'] for _, row in df_mensalistas.iterrows()}
@@ -1448,12 +1552,14 @@ with tab_mensais:
             qtd_cortes = st.number_input("Quantos serviços/cortes foram feitos?", min_value=1, value=1, step=1)
             preco_serv_mensal = st.number_input("Valor unitário cobrado por este serviço (R$):", min_value=0.0, value=30.0, step=5.0)
 
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Adicionar Serviço à Dívida do Cliente", type="primary", use_container_width=True):
                 atualizar_cortes_cliente_mensal(id_cli_sel, qtd_cortes, preco_serv_mensal)
                 st.success(f"Adicionado {qtd_cortes} serviço(s) para `{cliente_escolhido_l}`. O sistema atualizou a dívida automaticamente!")
                 st.rerun()
         else:
             st.info("Nenhum cliente mensal cadastrado ainda. Cadastre na aba anterior.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with tab_m_lista:
         st.markdown("#### Status de Dívidas e Baixas")
@@ -1467,16 +1573,16 @@ with tab_mensais:
                 c_val = float(row['Valor Devido'])
                 c_status = row['Status']
 
-                cor_st = "#22c55e" if c_status == "Quitado" or c_val == 0 else "#ef4444"
+                cor_st = "#10b981" if c_status == "Quitado" or c_val == 0 else "#f43f5e"
                 
                 with st.container():
+                    st.markdown('<div class="ui-card" style="padding: 18px 24px; margin-bottom: 14px;">', unsafe_allow_html=True)
                     col_info_m, col_val_m, col_action_m = st.columns([3, 2, 2])
                     with col_info_m:
                         st.markdown(f"**👤 {c_nome}** (`{c_tel if c_tel else 'Sem Tel'}`)<br><span style='color: #94a3b8; font-size: 0.85rem;'>Serviços realizados: {c_serv}</span>", unsafe_allow_html=True)
                     with col_val_m:
-                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.1rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.15rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
                     with col_action_m:
-                        st.markdown("<br>", unsafe_allow_html=True)
                         if c_val > 0:
                             with st.popover(f"💸 Dar Baixa ({c_nome})", use_container_width=True):
                                 st.markdown(f"**Dívida atual:** R$ {c_val:,.2f}")
@@ -1492,8 +1598,8 @@ with tab_mensais:
                                     st.success(f"Baixa de R$ {valor_a_baixar:,.2f} registrada com sucesso!")
                                     st.rerun()
                         else:
-                            st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                            st.markdown("<span style='color: #10b981; font-weight: 700;'>✔ Quitado</span>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("Nenhum cliente mensal cadastrado no momento.")
 
@@ -1510,12 +1616,12 @@ with tab_agend:
         if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:0.95rem; border-radius:14px; text-decoration:none; font-weight:700; margin-bottom:24px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35); transition: all 0.3s ease;">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
-        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 16px;">📋 Clientes Agendados</h4>', unsafe_allow_html=True)
         
         servicos_salao = carregar_servicos()
 
@@ -1532,38 +1638,39 @@ with tab_agend:
             except:
                 data_formatada = data_bd
 
-            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
-            
-            with col_info:
-                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
-            
-            with col_zap:
-                num_clean = re.sub(r'\D', '', str(contato))
-                if num_clean:
-                    if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
-                    msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
-                    wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
-                else:
-                    st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
+            with st.container():
+                st.markdown('<div class="ui-card" style="padding: 18px 24px; margin-bottom: 14px;">', unsafe_allow_html=True)
+                col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
+                
+                with col_info:
+                    st.markdown(f"<div><strong style='font-size: 1.05rem;'>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>📅 {data_formatada} às {hora} | ✂️ {servico}</span></div>", unsafe_allow_html=True)
+                
+                with col_zap:
+                    num_clean = re.sub(r'\D', '', str(contato))
+                    if num_clean:
+                        if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
+                        msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
+                        wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
+                        st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:10px;text-decoration:none;font-weight:700; font-size: 14px; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
+                    else:
+                        st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
 
-            with col_conf:
-                if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
-                    preco_servico = float(servicos_salao.get(servico, 0.0))
-                    inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
-                    deletar_agendamento(id_ag)
-                    st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
-                    st.rerun()
-            
-            with col_canc:
-                if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
-                    deletar_agendamento(id_ag)
-                    st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
-                    st.rerun()
-            
-            st.markdown("<hr style='margin: 15px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                with col_conf:
+                    if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
+                        preco_servico = float(servicos_salao.get(servico, 0.0))
+                        inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
+                        deletar_agendamento(id_ag)
+                        st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
+                        st.rerun()
+                
+                with col_canc:
+                    if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
+                        deletar_agendamento(id_ag)
+                        st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
+                        st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="ui-card" style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 6px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 5: MOVIMENTAÇÃO (FLUXO DE CAIXA / HISTÓRICO)
@@ -1622,10 +1729,10 @@ with tab_historico:
                         val = row['Valor']
 
                         if tipo == 'Entrada':
-                            cor_val = "#22c55e"
+                            cor_val = "#10b981"
                             sinal = "+"
                         elif tipo == 'Saída':
-                            cor_val = "#ef4444"
+                            cor_val = "#f43f5e"
                             sinal = "-"
                         else:
                             cor_val = "#f59e0b"
@@ -1633,15 +1740,17 @@ with tab_historico:
 
                         val_formatado = f"{sinal} R$ {abs(val):,.2f}"
 
-                        col_reg_info, col_reg_btn = st.columns([5, 1])
-                        with col_reg_info:
-                            st.markdown(f"*{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
-                        with col_reg_btn:
-                            if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
-                                deletar_movimentacao_fluxo(id_reg)
-                                st.warning("Movimentação excluída!")
-                                st.rerun()
-                        st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                        with st.container():
+                            st.markdown('<div class="ui-card" style="padding: 14px 20px; margin-bottom: 10px;">', unsafe_allow_html=True)
+                            col_reg_info, col_reg_btn = st.columns([5, 1])
+                            with col_reg_info:
+                                st.markdown(f"*{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: 700; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
+                            with col_reg_btn:
+                                if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
+                                    deletar_movimentacao_fluxo(id_reg)
+                                    st.warning("Movimentação excluída!")
+                                    st.rerun()
+                            st.markdown('</div>', unsafe_allow_html=True)
                     
                     st.markdown("<br>", unsafe_allow_html=True)
             else:
