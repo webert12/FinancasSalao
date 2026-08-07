@@ -107,9 +107,30 @@ def set_background_com_logo(image_path):
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
         }}
 
-        html, body, p, span, label, div, [class*="css"] {{
+        html, body, p, label, div, [class*="css"] {{
             color: #f8fafc !important;
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+        }}
+
+        span:not([data-testid="stIconMaterial"]) {{
+            color: #f8fafc !important;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+        }}
+
+        /* === CORREÇÃO CRÍTICA PARA ÍCONES MATERIAL DO STREAMLIT === */
+        span[data-testid="stIconMaterial"], 
+        [data-testid="stIconMaterial"] {{
+            font-family: 'Material Symbols Outlined', 'Material Icons' !important;
+            font-weight: normal !important;
+            font-style: normal !important;
+            font-size: 1.25rem !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+            word-wrap: normal !important;
+            white-space: nowrap !important;
+            direction: ltr !important;
         }}
 
         h1, h2, h3, h4, h5, h6 {{
@@ -194,7 +215,7 @@ def set_background_com_logo(image_path):
             transition: all 0.25s ease !important;
             display: inline-flex !important;
             align-items: center !important;
-            justify-content: center !important;
+            justify-content: space-between !important;
             gap: 8px !important;
             width: auto !important;
             min-height: 44px !important;
@@ -331,7 +352,7 @@ def set_background_com_logo(image_path):
             font-weight: 500;
         }}
 
-        /* === CORREÇÃO COMPLETA DOS BOTÕES (ZERO TEXT OVERFLOW) === */
+        /* === CORREÇÃO COMPLETA DOS BOTÕES === */
         .stButton > button, [data-testid="stDownloadButton"] > button {{
             background: rgba(255, 255, 255, 0.05) !important;
             color: #ffffff !important;
@@ -355,7 +376,7 @@ def set_background_com_logo(image_path):
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
         }}
 
-        .stButton > button p, .stButton > button div, .stButton > button span,
+        .stButton > button p, .stButton > button div,
         [data-testid="stDownloadButton"] button p, [data-testid="stDownloadButton"] button div {{
             font-size: 0.92rem !important;
             line-height: 1.2 !important;
@@ -386,12 +407,6 @@ def set_background_com_logo(image_path):
             color: #ffffff !important; 
             transform: translateY(-2px) !important;
             box-shadow: 0 8px 25px rgba(56, 189, 248, 0.5) !important; 
-        }}
-
-        /* Esconde ruídos de ícones nativos quebrados */
-        span[data-testid="stIconMaterial"] {{
-            font-size: 1.1rem !important;
-            margin-right: 2px !important;
         }}
 
         /* === NAVEGAÇÃO POR ABAS (SEGMENTED CONTROL MODERNO) === */
