@@ -1447,8 +1447,8 @@ with tab_dashboard:
         meta_val = st.number_input("🎯 Sua Meta Mensal (R$):", min_value=100.0, value=float(st.session_state.meta_mensal), step=500.0, key="input_meta_dinamica")
         st.session_state.meta_mensal = meta_val
     with c_meta_bar:
-        pct_meta = min(100.0, (rec_mes / meta_val) * 100) if meta_val > 0 else 0.0
-        restante_meta = max(0.0, meta_val - rec_mes)
+        pct_meta = min(100.0, (float(rec_mes) / meta_val) * 100) if meta_val > 0 else 0.0
+        restante_meta = max(0.0, meta_val - float(rec_mes))
         cor_barra = "#10b981" if pct_meta >= 100 else "#38bdf8"
         
         st.markdown(f"""
