@@ -947,112 +947,71 @@ def render_agenda_painel():
     col_a, col_b, col_c = st.columns([1,2,1])
     with col_a:
         if st.button("◀️ Dia Anterior"):
-            st.session_state.agenda_data_ref = st.session_state.agenda_data_ref - timedelta(days=1)
-            st.rerun()
+            st.session_state.agenda_data_ref -= timedelta(days=1)
     with col_b:
         if st.button("📍 Hoje"):
             st.session_state.agenda_data_ref = datetime.now(TZ).date()
-            st.rerun()
         st.markdown(f"**Data selecionada:** {st.session_state.agenda_data_ref.strftime('%d/%m/%Y')}")
     with col_c:
         if st.button("Dia Seguinte ▶️"):
-            st.session_state.agenda_data_ref = st.session_state.agenda_data_ref + timedelta(days=1)
-            st.rerun()
+            st.session_state.agenda_data_ref += timedelta(days=1)
 
     view = st.radio("Visualização", ["Diária", "Semanal"], horizontal=True)
-
     df_ag = carregar_agendamentos()
     if df_ag.empty:
-        st.info("Nenum agendamento encontrado.")
-    else:
-        if "Data" in df_ag.columns:
-            df_ag["Data_dt"] = pd.to_datetime(df_ag["Data"]).dt.date
+        st.info("Nenhum agendamento encontrado.")
+        return
+
+    df_ag["Data_dt"] = pd.to_datetime(df_ag["Data"]).dt.date
+
+    if view == "Diária":
+        data_ref = st.session_state.agenda_data_ref
+        st.markdown(f"#### Agenda do dia — {data_ref.strftime('%A, %d %b %Y')}")
+        df_dia = df_ag[df_ag["Data_dt"] == data_ref].copy()
+        if df_dia.empty:
+            st.write("Nenhum horário agendado para este dia.")
         else:
-            df_ag["Data_dt"] = pd.NaT
+            df_dia = df_dia.sort_values(by="Horário")
+            for _, row in df_dia.iterrows():
+                hora = _format_hora(row.get("Horário",""))
+                contato = str(row.get("Contato/WhatsApp","")).strip()
+                link_whatsapp = f"https://wa.me/{contato}" if contato else None
+                btn_html = f'<a href="{link_whatsapp}" target="_blank" style="background:#25D366;color:#fff;padding:6px 12px;border-radius:6px;text-decoration:none;">WhatsApp</a>' if link_whatsapp else ""
+                
+                col_info, col_actions = st.columns([4, 1])
+                with col_info:
+                    st.markdown(f"""
+                        <div class="ui-card" style="padding:15px; margin-bottom:10px;">
+                            <div style="font-weight:800; font-size:1.05rem;">{hora} — {row.get('Cliente','')}</div>
+                            <div style="color:#94a3b8; margin-top:6px;">Serviço: {row.get('Serviço','')}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col_actions:
+                    if link_whatsapp:
+                        st.markdown(btn_html, unsafe_allow_html=True)
+                    if st.button("Excluir", key=f"del_ag_{row.get('id')}"):
+                        deletar_agendamento(row.get('id'))
+                        st.rerun()
 
-        if view == "Diária":
-            data_ref = st.session_state.agenda_data_ref
-            st.markdown(f"#### Agenda do dia — {data_ref.strftime('%d/%m/%Y')}")
-            df_dia = df_ag[df_ag["Data_dt"] == data_ref].copy()
-            if df_dia.empty:
-                st.write("Nenhum horário agendado para este dia.")
-            else:
-                df_dia = df_dia.sort_values(by="Horário")
-                for _, row in df_dia.iterrows():
-                    hora = _format_hora(row.get("Horário",""))
-                    with st.container():
-                        st.markdown(f"""
-                            <div class="ui-card">
-                                <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <div>
-                                        <div style="font-weight:800; font-size:1.05rem; color:#38bdf8;">{hora} — {row.get('Cliente','')}</div>
-                                        <div style="color:#94a3b8; margin-top:6px;">Serviço: {row.get('Serviço','')} · Contato: {row.get('Contato/WhatsApp','')}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-        else:
-            ref = st.session_state.agenda_data_ref
-            start_week = ref - timedelta(days=ref.weekday())
-            days = [start_week + timedelta(days=i) for i in range(7)]
-            st.markdown(f"#### Semana de {start_week.strftime('%d/%m/%Y')} a {(start_week+timedelta(days=6)).strftime('%d/%m/%Y')}")
-            cols = st.columns(7)
-            for i, d in enumerate(days):
-                with cols[i]:
-                    st.markdown(f"**{d.strftime('%a %d/%m')}**")
-                    df_day = df_ag[df_ag["Data_dt"] == d].sort_values(by="Horário")
-                    if df_day.empty:
-                        st.write("—")
-                    else:
-                        for _, row in df_day.iterrows():
-                            hora = _format_hora(row.get("Horário",""))
-                            st.markdown(f"- **{hora}** — {row.get('Cliente','')}  \n  _{row.get('Serviço','')}_")
-
-    st.markdown("---")
-    st.markdown("#### Ações rápidas")
-    a_col1, a_col2, a_col3 = st.columns([2,2,1])
-    with a_col1:
-        if st.button("➕ Novo Agendamento"):
-            st.session_state._show_novo_agendamento = True
-    with a_col2:
-        if st.button("🗑️ Limpar agendamentos do dia"):
-            data_ref = st.session_state.agenda_data_ref
-            if not df_ag.empty:
-                ids = df_ag[df_ag["Data_dt"] == data_ref]["id"].tolist()
-                if ids:
-                    for _id in ids:
-                        deletar_agendamento(_id)
-                    st.success(f"Removidos {len(ids)} agendamentos de {data_ref.strftime('%d/%m/%Y')}.")
-                    st.rerun()
+    else:  # Semanal
+        ref = st.session_state.agenda_data_ref
+        start_week = ref - timedelta(days=ref.weekday())
+        days = [start_week + timedelta(days=i) for i in range(7)]
+        st.markdown(f"#### Semana de {start_week.strftime('%d/%m/%Y')} a {(start_week+timedelta(days=6)).strftime('%d/%m/%Y')}")
+        cols = st.columns(7)
+        for i, d in enumerate(days):
+            with cols[i]:
+                st.markdown(f"**{d.strftime('%a %d/%m')}**")
+                df_day = df_ag[df_ag["Data_dt"] == d].sort_values(by="Horário")
+                if df_day.empty:
+                    st.write("—")
                 else:
-                    st.info("Nenhum agendamento para remover nesta data.")
-            else:
-                st.info("Nenhum agendamento cadastrado.")
-    with a_col3:
-        st.write("")
-
-    if st.session_state.get("_show_novo_agendamento"):
-        st.markdown("### Novo Agendamento")
-        with st.form("form_novo_ag"):
-            cliente = st.text_input("Nome do Cliente")
-            contato = st.text_input("Contato / WhatsApp")
-            servicos = list(carregar_servicos().keys())
-            serv = st.selectbox("Serviço", ["Selecione"] + servicos)
-            data_n = st.date_input("Data", value=st.session_state.agenda_data_ref)
-            hora_n = st.text_input("Horário (HH:MM)", value="09:00")
-            submitted = st.form_submit_button("Salvar Agendamento", type="primary")
-            if submitted:
-                if cliente and serv != "Selecione":
-                    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
-                    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                        conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :cliente, :contato, :serv, :data, :hora)"),
-                                     {"user": usuario, "cliente": cliente.strip(), "contato": contato.strip(), "serv": serv, "data": data_n.strftime('%Y-%m-%d'), "hora": hora_n})
-                    st.session_state._show_novo_agendamento = False
-                    st.success("Agendamento salvo.")
-                    st.rerun()
-                else:
-                    st.error("Preencha o nome do cliente e selecione um serviço.")
+                    for _, row in df_day.iterrows():
+                        hora = _format_hora(row.get("Horário",""))
+                        contato = str(row.get("Contato/WhatsApp","")).strip()
+                        link_whatsapp = f"https://wa.me/{contato}" if contato else None
+                        btn_html = f'<a href="{link_whatsapp}" target="_blank" style="color:#25D366;font-weight:600;">📲 WhatsApp</a>' if link_whatsapp else ""
+                        st.markdown(f"- **{hora}** — {row.get('Cliente','')} · _{row.get('Serviço','')}_ {btn_html}")
 
 # ==============================================================================
 # ROTA PÚBLICA DE AGENDAMENTO CLIENTE (?salao=nome)
@@ -1625,113 +1584,10 @@ with tab_dashboard:
     total_clientes_ativos = len(df_cli_m) if not df_cli_m.empty else 0
 
     # Variações Porcentuais
-    perc_dia = Decimal(str(((rec_dia_atual - rec_dia_anterior) / rec_dia_anterior * Decimal("100.00")))) if rec_dia_anterior > Decimal("0.00") else Decimal("0.00")
-    perc_mes = Decimal(str(((rec_mes_atual - rec_mes_anterior) / rec_mes_anterior * Decimal("100.00")))) if rec_mes_anterior > Decimal("0.00") else Decimal("0.00")
+    perc_dia = Decimal(str(((rec_dia_atual - rec_dia_anterior) / rec_dia_anterior * Decimal("100.00")))) if rec_dia_anterior > 0 else Decimal("0.00")
 
-    # KPIs principais em cards modernos
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        txt_perc_dia = f"▲ +{perc_dia:.0f}%" if perc_dia >= Decimal("0.00") else f"▼ {perc_dia:.0f}%"
-        cls_perc_dia = "perc-up" if perc_dia >= Decimal("0.00") else "perc-down"
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ {rec_dia_atual:,.2f}</div><div class="kpi-perc {cls_perc_dia}">{txt_perc_dia}</div></div>', unsafe_allow_html=True)
-    with col2:
-        txt_perc_mes = f"▲ +{perc_mes:.0f}%" if perc_mes >= Decimal("0.00") else f"▼ {perc_mes:.0f}%"
-        cls_perc_mes = "perc-up" if perc_mes >= Decimal("0.00") else "perc-down"
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Receita do Mês</div><div class="kpi-value-v2 kpi-val-blue">R$ {rec_mes_atual:,.2f}</div><div class="kpi-perc {cls_perc_mes}">{txt_perc_mes}</div></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Ticket Médio</div><div class="kpi-value-v2">R$ {ticket_medio:,.2f}</div><div class="kpi-perc perc-neutral">≈ estável</div></div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Clientes Ativos</div><div class="kpi-value-v2">{total_clientes_ativos}</div><div class="kpi-perc perc-up">▲ Ativos</div></div>', unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Gráfico de evolução mensal da receita
-    if not df_fluxo.empty:
-        df_entradas_grafico = df_fluxo[df_fluxo['Tipo'] == 'Entrada'].copy()
-        if not df_entradas_grafico.empty:
-            df_entradas_grafico['Valor_Float'] = df_entradas_grafico['Valor'].astype(float)
-            receita_mensal = df_entradas_grafico.groupby(df_entradas_grafico['Data'].dt.to_period("M"))['Valor_Float'].sum().reset_index()
-            receita_mensal['Data'] = receita_mensal['Data'].dt.strftime('%b/%Y')
-            fig = px.line(receita_mensal, x="Data", y="Valor_Float", markers=True,
-                          title="📈 Evolução da Receita Mensal",
-                          color_discrete_sequence=["#38bdf8"],
-                          labels={"Valor_Float": "Valor (R$)"})
-            fig.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Ainda não há receitas registradas para exibir a evolução mensal.")
-    else:
-        st.info("Nenhuma movimentação registrada no caixa.")
-
-    # Ranking de serviços mais vendidos
-    df_servicos = carregar_agendamentos()
-    if not df_servicos.empty and 'Serviço' in df_servicos.columns:
-        ranking_servicos = df_servicos['Serviço'].value_counts().reset_index()
-        ranking_servicos.columns = ['Serviço', 'Quantidade']
-        fig2 = px.bar(ranking_servicos, x="Quantidade", y="Serviço", orientation="h",
-                      title="💇 Serviços Mais Vendidos",
-                      color="Quantidade", color_continuous_scale="Blues")
-        fig2.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("Sem dados de agendamentos para exibir o ranking de serviços.")
-
-    # Barra de progresso da meta mensal
-    meta_mensal = Decimal("15000.00")
-    progresso_meta = float(min(Decimal("1.00"), rec_mes_atual / meta_mensal)) if meta_mensal > Decimal("0.00") else 0.0
-    st.markdown(f"#### 🎯 Meta do Mês: R$ {rec_mes_atual:,.2f} / R$ {meta_mensal:,.2f}")
-    st.progress(progresso_meta)
-
-# ==============================================================================
-# TAB 2: SERVIÇOS
-# ==============================================================================
-with tab_servicos:
-    st.markdown("### 🚀 Ações Rápidas & Catálogo de Serviços")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        if st.button("✂️ Novo Atendimento", use_container_width=True, type="primary"):
-            dialog_novo_atendimento(servicos)
-    with c2:
-        if st.button("🛍️ Nova Despesa", use_container_width=True):
-            dialog_nova_despesa()
-    with c3:
-        if st.button("💰 Anotar Fiado", use_container_width=True):
-            dialog_anotar_fiado(servicos)
-    with c4:
-        if st.button("💸 Dar Baixa Fiado", use_container_width=True):
-            dialog_baixar_fiado(df_fluxo_caixa)
-
-    st.markdown("---")
-    st.markdown("#### 📋 Serviços Cadastrados")
-    if servicos:
-        df_serv = pd.DataFrame([{"Serviço": k, "Preço (R$)": f"R$ {v:.2f}"} for k, v in servicos.items()])
-        st.dataframe(df_serv, use_container_width=True)
-    else:
-        st.info("Nenhum serviço cadastrado.")
-
-# ==============================================================================
-# TAB 3: CLIENTES MENSAIS
-# ==============================================================================
-with tab_mensais:
-    try:
-        render_clientes_mensais()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Clientes Mensais: {e}")
-
-# ==============================================================================
-# TAB 4: AGENDAMENTOS
-# ==============================================================================
-with tab_agend:
-    try:
-        render_agenda_painel()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Agenda: {e}")
-
-# ==============================================================================
-# TAB 5: FLUXO DE CAIXA (HISTÓRICO)
-# ==============================================================================
-with tab_historico:
-    try:
-        render_financeiro_painel()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Financeiro: {e}")
+# Renderiza a agenda automaticamente após o Dashboard
+try:
+    render_agenda_painel()
+except Exception as e:
+    st.error(f"Erro ao renderizar Agenda Premium: {e}")
