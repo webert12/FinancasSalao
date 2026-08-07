@@ -12,6 +12,7 @@ import urllib.parse
 import re
 import decimal
 import base64
+import requests
 import streamlit.components.v1 as components
 
 # --- Bibliotecas de Conexão Direta SQL ---
@@ -710,6 +711,33 @@ def deletar_agendamento(id_agendamento):
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
 
+# --- FUNÇÃO DE ALERTA DE NOVO AGENDAMENTO VIA API (OPCIONAL/MENSAGERIA) ---
+def enviar_alerta_servidor_whatsapp(numero_barbeiro, texto_mensagem):
+    """
+    Função opcional para disparar WhatsApp via API HTTP (Evolution API, Z-API, Twilio, etc).
+    Ativada se existirem as chaves nos st.secrets: WA_API_URL e WA_API_TOKEN.
+    """
+    wa_api_url = st.secrets.get("WA_API_URL", "")
+    wa_api_token = st.secrets.get("WA_API_TOKEN", "")
+    
+    if wa_api_url and wa_api_token:
+        try:
+            num_limpo = re.sub(r'\D', '', str(numero_barbeiro))
+            if not num_limpo.startswith('55') and len(num_limpo) <= 11:
+                num_limpo = '55' + num_limpo
+                
+            payload = {
+                "number": num_limpo,
+                "message": texto_mensagem
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "apikey": wa_api_token
+            }
+            requests.post(wa_api_url, json=payload, headers=headers, timeout=5)
+        except Exception:
+            pass
+
 # --- FUNÇÕES PARA CLIENTES MENSAIS / MENSALIDADE ---
 def carregar_clientes_mensais_banco():
     usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
@@ -843,7 +871,7 @@ if salao_url:
                 wa_dono_clean = '55' + wa_dono_clean
             
             msg_wa = urllib.parse.quote(
-                f"Olá! Acabei de realizar um agendamento pelo site:\n\n"
+                f"🚨 *NOVO AGENDAMENTO RECEBIDO!*\n\n"
                 f"👤 *Cliente:* {dados_ag['nome']}\n"
                 f"📱 *Contato:* {dados_ag['contato']}\n"
                 f"✂️ *Serviço:* {dados_ag['servico']}\n"
@@ -852,10 +880,13 @@ if salao_url:
             )
             link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
             
+            # --- AUTO-ABERTURA AUTOMÁTICA DO WHATSAPP DO BARBEIRO NO DISPOSITIVO DO CLIENTE ---
+            components.html(f'<script>window.open("{link_wa_dono}", "_blank");</script>', height=0, width=0)
+
             st.markdown(f'''
                 <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:1.1rem; border-radius:16px; text-decoration:none; font-weight:800; font-size:1.05rem; margin-top:18px; margin-bottom:18px; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;">
                     <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
-                    Confirmar e Enviar no WhatsApp do Salão
+                    Enviar Alerta no WhatsApp do Barbeiro
                 </a>
             ''', unsafe_allow_html=True)
 
@@ -892,6 +923,11 @@ if salao_url:
                     conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
                     conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
                 
+                # --- ALERTA NO SERVIDOR SE TIVER API CONFIGURADA ---
+                if wa_dono:
+                    texto_alerta_api = f"🚨 NOVO AGENDAMENTO RECEBIDO!\n\nCliente: {nome_cliente.strip()}\nContato: {telefone_cliente.strip()}\nServiço: {servico_escolhido}\nData: {data_formatada}\nHorário: {horario_escolhido}"
+                    enviar_alerta_servidor_whatsapp(wa_dono, texto_alerta_api)
+
                 st.session_state.agendamento_sucesso = {
                     "nome": nome_cliente.strip(),
                     "contato": telefone_cliente.strip(),
@@ -1537,7 +1573,7 @@ with tab_dashboard:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 2: SERVIÇOS (CORRIGIDO)
+# TAB 2: SERVIÇOS
 # ==============================================================================
 with tab_servicos:
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
@@ -1652,7 +1688,7 @@ with tab_mensais:
             st.info("Nenhum cliente mensal cadastrado no momento.")
 
 # ==============================================================================
-# TAB 4: AGENDAMENTOS
+# TAB 4: AGENDAMENTOS COM PAINEL DE ALERTAS SINALIZADO
 # ==============================================================================
 with tab_agend:
     col_ag_title, col_ag_btn = st.columns([3, 1])
@@ -1669,6 +1705,21 @@ with tab_agend:
     df_agendamentos = carregar_agendamentos()
 
     if not df_agendamentos.empty:
+        # --- BANNER DE ALERTA DE NOVOS AGENDAMENTOS DO DIA NO PAINEL ---
+        data_hoje_str = datetime.now(TZ).strftime('%Y-%m-%d')
+        df_hoje = df_agendamentos[df_agendamentos['Data'] == data_hoje_str]
+        qtd_hoje = len(df_hoje)
+
+        if qtd_hoje > 0:
+            st.markdown(f'''
+                <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(2, 132, 199, 0.3) 100%); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 16px; padding: 16px 22px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <span style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">🔔 ALERTA DE AGENDAMENTOS</span>
+                        <p style="margin: 4px 0 0 0; color: #f8fafc; font-size: 0.95rem;">Você possui <strong>{qtd_hoje}</strong> agendamento(s) marcado(s) para o dia de hoje!</p>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+
         st.markdown('<h4 style="margin-bottom: 16px;">📋 Clientes Agendados</h4>', unsafe_allow_html=True)
         
         servicos_salao = carregar_servicos()
