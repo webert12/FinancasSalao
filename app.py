@@ -1692,111 +1692,172 @@ with tab_dashboard:
     # Data de Referência
     dt_hoje = datetime.now(TZ).date()
     dt_ontem = dt_hoje - timedelta(days=1)
-    mes_atual_str = dt_hoje.strftime("%Y-%m")
-    
-    # Cálculo mês anterior
-    primeiro_dia_mes_atual = dt_hoje.replace(day=1)
-    ultimo_dia_mes_anterior = primeiro_dia_mes_atual - timedelta(days=1)
-    mes_anterior_str = ultimo_dia_mes_anterior.strftime("%Y-%m")
 
-    # Inicialização das variáveis
-    rec_dia_atual = Decimal("0.00")
-    rec_dia_anterior = Decimal("0.00")
-    rec_mes_atual = Decimal("0.00")
-    rec_mes_anterior = Decimal("0.00")
-    ticket_medio = Decimal("0.00")
+    receita_hoje = Decimal("0.00")
+    receita_ontem = Decimal("0.00")
 
     if not df_fluxo.empty:
-        df_fluxo_calc = df_fluxo.copy()
-        df_fluxo_calc['Data_dt'] = pd.to_datetime(df_fluxo_calc['Data']).dt.date
-        df_fluxo_calc['Mes_str'] = pd.to_datetime(df_fluxo_calc['Data']).dt.strftime("%Y-%m")
+        df_fluxo['Data_dt'] = pd.to_datetime(df_fluxo['Data']).dt.date
         
-        # Filtra apenas entradas/receitas
-        entradas = df_fluxo_calc[df_fluxo_calc['Tipo'] == 'Entrada']
+        # Filtrar entradas
+        df_entradas = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('entrada', na=False)]
         
-        # Receita Hoje e Ontem
-        rec_dia_atual = sum(entradas[entradas['Data_dt'] == dt_hoje]['Valor'], Decimal("0.00"))
-        rec_dia_anterior = sum(entradas[entradas['Data_dt'] == dt_ontem]['Valor'], Decimal("0.00"))
-        
-        # Receita Mês Atual e Mês Anterior
-        rec_mes_atual = sum(entradas[entradas['Mes_str'] == mes_atual_str]['Valor'], Decimal("0.00"))
-        rec_mes_anterior = sum(entradas[entradas['Mes_str'] == mes_anterior_str]['Valor'], Decimal("0.00"))
-        
-        # Ticket Médio
-        if not entradas.empty:
-            ticket_medio = sum(entradas['Valor'], Decimal("0.00")) / Decimal(str(len(entradas)))
+        receita_hoje = sum(df_entradas[df_entradas['Data_dt'] == dt_hoje]['Valor'], Decimal("0.00"))
+        receita_ontem = sum(df_entradas[df_entradas['Data_dt'] == dt_ontem]['Valor'], Decimal("0.00"))
 
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    with kpi1:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Receita Hoje</div><div class="kpi-value-v2 kpi-val-green">R$ {rec_dia_atual:,.2f}</div><div class="kpi-perc perc-neutral">Ontem: R$ {rec_dia_anterior:,.2f}</div></div>', unsafe_allow_html=True)
-    with kpi2:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Receita Mês Atual</div><div class="kpi-value-v2 kpi-val-blue">R$ {rec_mes_atual:,.2f}</div><div class="kpi-perc perc-neutral">Mês Anterior: R$ {rec_mes_anterior:,.2f}</div></div>', unsafe_allow_html=True)
-    with kpi3:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Ticket Médio</div><div class="kpi-value-v2">R$ {ticket_medio:,.2f}</div><div class="kpi-perc perc-neutral">Por Atendimento</div></div>', unsafe_allow_html=True)
-    with kpi4:
-        st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Agendamentos Hoje</div><div class="kpi-value-v2 kpi-val-blue">{len(df_agendamentos)}</div><div class="kpi-perc perc-neutral">Registrados</div></div>', unsafe_allow_html=True)
+    # Cálculo de variação percentual do dia
+    if receita_ontem > Decimal("0.00"):
+        var_dia = ((receita_hoje - receita_ontem) / receita_ontem) * Decimal("100.00")
+        perc_class = "perc-up" if var_dia >= 0 else "perc-down"
+        perc_str = f"<span class='{perc_class}'>{'▲' if var_dia >= 0 else '▼'} {abs(var_dia):.1f}% em relação a ontem</span>"
+    else:
+        perc_str = "<span class='perc-neutral'>• Sem dados de comparação ontem</span>"
+
+    k1, k2, k3 = st.columns(3)
+    with k1:
+        st.markdown(f"""
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">Receita de Hoje</div>
+                <div class="kpi-value-v2 kpi-val-green">R$ {receita_hoje:,.2f}</div>
+                <div class="kpi-perc">{perc_str}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with k2:
+        total_ag_hoje = 0
+        if not df_agendamentos.empty:
+            df_agendamentos['Data_dt'] = pd.to_datetime(df_agendamentos['Data']).dt.date
+            total_ag_hoje = len(df_agendamentos[df_agendamentos['Data_dt'] == dt_hoje])
+            
+        st.markdown(f"""
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">Agendamentos para Hoje</div>
+                <div class="kpi-value-v2 kpi-val-blue">{total_ag_hoje}</div>
+                <div class="kpi-perc"><span class="perc-neutral">• Atendimentos agendados</span></div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with k3:
+        total_fiado_pendente = Decimal("0.00")
+        if not df_fluxo.empty:
+            df_fiados = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('fiado|pendência|pendencia', na=False)]
+            total_fiado_pendente = sum(df_fiados['Valor'], Decimal("0.00"))
+
+        st.markdown(f"""
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">Total em Fiados (A Receber)</div>
+                <div class="kpi-value-v2 kpi-val-red">R$ {total_fiado_pendente:,.2f}</div>
+                <div class="kpi-perc"><span class="perc-neutral">• Pendências ativas</span></div>
+            </div>
+        """, unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: SERVIÇOS
 # ==============================================================================
 with tab_servicos:
-    st.markdown("### 🚀 Gestão de Serviços & Preços")
-    st.write("Cadastre ou atualize a lista de serviços oferecidos no seu salão.")
-    opcoes_gerenciamento = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Selecione para Editar ou Cadastrar:", opcoes_gerenciamento)
-    nome_p = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_p = Decimal("0.00") if servico_sel == "➕ Cadastrar Novo Serviço" else Decimal(str(servicos[servico_sel]))
-    novo_servico = st.text_input("Nome do Serviço:", value=nome_p, key="input_nome_serv")
-    novo_preco = Decimal(str(st.number_input("Valor do Serviço (R$):", min_value=0.0, value=float(preco_p), step=5.0, key="input_prc_serv")))
-
-    cs1, cs2 = st.columns(2)
-    with cs1:
-        if st.button("💾 Salvar Serviço", type="primary", use_container_width=True):
-            if novo_servico.strip():
-                salvar_ou_atualizar_servico(servico_sel, novo_servico.strip(), novo_preco)
-                st.success("Serviço atualizado com sucesso!")
+    st.markdown("### 🚀 Catálogo & Gestão de Serviços")
+    st.write("Gerencie os serviços prestados pelo seu salão e seus respectivos valores.")
+    
+    opcoes_servicos = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
+    servico_sel = st.selectbox("Selecione um serviço para editar ou cadastre um novo:", opcoes_servicos)
+    
+    nome_serv_init = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
+    preco_serv_init = Decimal("0.00") if servico_sel == "➕ Cadastrar Novo Serviço" else Decimal(str(servicos[servico_sel]))
+    
+    with st.form("form_gestao_servicos"):
+        nome_s_input = st.text_input("Nome do Serviço:", value=nome_serv_init)
+        preco_s_input = st.number_input("Preço (R$):", min_value=0.0, value=float(preco_serv_init), step=5.0, format="%.2f")
+        btn_salvar_servico = st.form_submit_button("Salvar Serviço", type="primary")
+        
+        if btn_salvar_servico:
+            if nome_s_input.strip():
+                salvar_ou_atualizar_servico(servico_sel, nome_s_input.strip(), preco_s_input)
+                st.success("Serviço salvo com sucesso!")
                 st.rerun()
             else:
-                st.error("Informe o nome do serviço.")
-    with cs2:
-        if servico_sel != "➕ Cadastrar Novo Serviço":
-            if st.button("🗑️ Excluir Serviço", use_container_width=True):
-                deletar_servico_banco(servico_sel)
-                st.warning("Serviço excluído com sucesso!")
-                st.rerun()
+                st.error("Por favor, digite um nome válido para o serviço.")
+                
+    if servico_sel != "➕ Cadastrar Novo Serviço":
+        if st.button("🗑️ Excluir Este Serviço", type="secondary"):
+            deletar_servico_banco(servico_sel)
+            st.warning("Serviço removido com sucesso!")
+            st.rerun()
 
 # ==============================================================================
 # TAB 3: CLIENTES MENSAIS
 # ==============================================================================
 with tab_mensais:
-    render_clientes_mensais()
+    try:
+        render_clientes_mensais()
+    except Exception as e:
+        st.error(f"Erro ao renderizar Clientes Mensais: {e}")
 
 # ==============================================================================
 # TAB 4: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
-    render_agenda_painel()
+    try:
+        render_agenda_painel()
+    except Exception as e:
+        st.error(f"Erro ao renderizar Agendamentos: {e}")
 
 # ==============================================================================
 # TAB 5: FLUXO DE CAIXA
 # ==============================================================================
 with tab_historico:
-    render_financeiro_painel()
+    try:
+        render_financeiro_painel()
+    except Exception as e:
+        st.error(f"Erro ao renderizar Fluxo de Caixa: {e}")
 
 # ==============================================================================
-# TAB 6: RELATÓRIOS PREMIUM
+# TAB 6: RELATÓRIOS
 # ==============================================================================
 with tab_relatorios:
     try:
         render_relatorios_painel()
     except Exception as e:
-        st.error(f"Erro ao renderizar Relatórios Premium: {e}")
+        st.error(f"Erro ao renderizar Relatórios: {e}")
 
 # ==============================================================================
-# TAB 7: CONFIGURAÇÕES PREMIUM
+# TAB 7: CONFIGURAÇÕES
 # ==============================================================================
 with tab_config_app:
     try:
         render_configuracoes_painel()
     except Exception as e:
-        st.error(f"Erro ao renderizar Configurações Premium: {e}")
+        st.error(f"Erro ao renderizar Configurações: {e}")
+
+# --- ENCERRAMENTO PREMIUM ---
+def render_encerramento_painel():
+    st.markdown("---")
+    st.markdown("### 🏁 Encerramento Premium")
+
+    col1, col2 = st.columns([2,1])
+    with col1:
+        st.markdown("""
+        <div style="padding:15px; border-radius:12px; background:linear-gradient(135deg,#0f172a,#1e293b); color:#f8fafc;">
+            <h4 style="margin:0; font-weight:800;">Fio&Caixa — Gestão & Agendamento</h4>
+            <p style="margin:5px 0;">Sistema desenvolvido para salões e barbearias com foco em simplicidade e performance.</p>
+            <p style="margin:5px 0; font-size:0.9rem; color:#94a3b8;">© 2026 WeberFilmes · Todos os direitos reservados</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div style="text-align:right;">
+            <a href="https://wa.me/5531999999999" target="_blank" style="background:#25D366;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;">📲 Suporte via WhatsApp</a>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("#### 🔧 Otimizações Finais")
+    st.write("- Cache inteligente para consultas ao banco de dados")
+    st.write("- Layout responsivo para desktop e mobile")
+    st.write("- Integração com WhatsApp para confirmação de agendamentos")
+    st.write("- Exportação de relatórios em PDF e JSON")
+
+# Renderiza painel de encerramento automaticamente
+try:
+    render_encerramento_painel()
+except Exception as e:
+    st.error(f"Erro ao renderizar Encerramento Premium: {e}")
