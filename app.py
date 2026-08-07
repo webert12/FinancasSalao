@@ -607,6 +607,65 @@ def dar_baixa_divida_mensalista(id_cliente, valor_baixa):
                 WHERE id = :id
             """), {"v": float(novo_valor_devido), "st": novo_status, "id": int(id_cliente)})
 
+# --- RENDERIZADOR DE CLIENTES MENSAIS ---
+def render_clientes_mensais():
+    st.markdown("### 👥 Clientes Mensais / Mensalistas")
+
+    df_cli = carregar_clientes_mensais_banco()
+    if df_cli.empty:
+        st.info("Nenhum cliente mensalista cadastrado.")
+    else:
+        st.dataframe(df_cli, use_container_width=True)
+
+    st.markdown("---")
+    st.markdown("#### ➕ Cadastrar Novo Cliente Mensalista")
+    with st.form("form_novo_cliente_mensal"):
+        nome = st.text_input("Nome do Cliente")
+        telefone = st.text_input("Telefone / WhatsApp")
+        submitted = st.form_submit_button("Salvar Cliente")
+        if submitted:
+            if nome:
+                try:
+                    cadastrar_cliente_mensal_banco(nome, telefone)
+                    st.success("Cliente mensalista cadastrado com sucesso.")
+                    carregar_clientes_mensais_banco.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar cliente: {e}")
+            else:
+                st.error("Informe o nome do cliente.")
+
+    st.markdown("---")
+    st.markdown("#### ✂️ Atualizar Serviços / Cortes")
+    if not df_cli.empty:
+        cliente_sel = st.selectbox("Selecione Cliente", df_cli["Cliente"].tolist())
+        qtd = st.number_input("Quantidade de serviços/cortes a adicionar", min_value=1, step=1)
+        valor_servico = st.number_input("Valor por serviço (R$)", min_value=0.0, step=1.0, format="%.2f")
+        if st.button("Adicionar Serviços"):
+            try:
+                id_cliente = int(df_cli[df_cli["Cliente"] == cliente_sel]["id"].iloc[0])
+                atualizar_cortes_cliente_mensal(id_cliente, qtd, valor_servico)
+                st.success("Serviços adicionados com sucesso.")
+                carregar_clientes_mensais_banco.clear()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao atualizar: {e}")
+
+    st.markdown("---")
+    st.markdown("#### 💵 Dar Baixa em Dívida")
+    if not df_cli.empty:
+        cliente_sel2 = st.selectbox("Selecione Cliente para baixa", df_cli["Cliente"].tolist(), key="baixa")
+        valor_baixa = st.number_input("Valor da baixa (R$)", min_value=0.0, step=1.0, format="%.2f")
+        if st.button("Dar Baixa"):
+            try:
+                id_cliente = int(df_cli[df_cli["Cliente"] == cliente_sel2]["id"].iloc[0])
+                dar_baixa_divida_mensalista(id_cliente, valor_baixa)
+                st.success("Baixa registrada com sucesso.")
+                carregar_clientes_mensais_banco.clear()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao dar baixa: {e}")
+
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
@@ -1620,120 +1679,56 @@ with tab_dashboard:
     # Barra de progresso da meta mensal
     meta_mensal = Decimal("15000.00")
     progresso_meta = float(min(Decimal("1.00"), rec_mes_atual / meta_mensal)) if meta_mensal > Decimal("0.00") else 0.0
-    st.markdown("#### 🎯 Meta Financeira Mensal")
+    st.markdown(f"#### 🎯 Meta do Mês: R$ {rec_mes_atual:,.2f} / R$ {meta_mensal:,.2f}")
     st.progress(progresso_meta)
-    st.markdown(f"<p style='text-align: right; color: #94a3b8;'>R$ {rec_mes_atual:,.2f} / R$ {meta_mensal:,.2f} ({progresso_meta*100:.1f}%)</p>", unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: SERVIÇOS
 # ==============================================================================
 with tab_servicos:
-    st.markdown('### :material/bolt: Ações & Serviços')
-    st.markdown("<p style='color: #94a3b8 !important;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
-    
-    with col_srv1:
-        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+    st.markdown("### 🚀 Ações Rápidas & Catálogo de Serviços")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        if st.button("✂️ Novo Atendimento", use_container_width=True, type="primary"):
             dialog_novo_atendimento(servicos)
-            
-    with col_srv2:
-        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+    with c2:
+        if st.button("🛍️ Nova Despesa", use_container_width=True):
             dialog_nova_despesa()
-            
-    with col_srv3:
-        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+    with c3:
+        if st.button("💰 Anotar Fiado", use_container_width=True):
             dialog_anotar_fiado(servicos)
-            
-    with col_srv4:
-        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+    with c4:
+        if st.button("💸 Dar Baixa Fiado", use_container_width=True):
             dialog_baixar_fiado(df_fluxo_caixa)
 
+    st.markdown("---")
+    st.markdown("#### 📋 Serviços Cadastrados")
+    if servicos:
+        df_serv = pd.DataFrame([{"Serviço": k, "Preço (R$)": f"R$ {v:.2f}"} for k, v in servicos.items()])
+        st.dataframe(df_serv, use_container_width=True)
+    else:
+        st.info("Nenhum serviço cadastrado.")
+
 # ==============================================================================
-# TAB 3: CLIENTES MENSAIS / MENSALIDADE
+# TAB 3: CLIENTES MENSAIS
 # ==============================================================================
 with tab_mensais:
-    st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
-    st.markdown("<p style='color: #94a3b8 !important;'>Cadastre seus clientes mensais (iniciam sem dever nada), registre os cortes realizados e dê baixa total ou parcial da dívida.</p>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    tab_m_cad, tab_m_lanc, tab_m_lista = st.tabs(["➕ Cadastrar Novo Cliente", "✂️ Registrar Corte / Serviço", "📋 Acompanhar Dívidas e Baixas"])
-
-    with tab_m_cad:
-        with st.form("form_cad_cliente_mensal", clear_on_submit=True):
-            st.markdown("#### Informações do Cliente Mensalista")
-            nome_cli_m = st.text_input("Nome Completo do Cliente:")
-            tel_cli_m = st.text_input("WhatsApp / Telefone (com DDD):")
-            submit_m_cad = st.form_submit_button("Cadastrar Cliente Mensal", type="primary", use_container_width=True)
-            if submit_m_cad:
-                if nome_cli_m.strip():
-                    cadastrar_cliente_mensal_banco(nome_cli_m, tel_cli_m)
-                    st.success(f"Cliente {nome_cli_m} cadastrado com sucesso com saldo zerado!")
-                    st.rerun()
-                else:
-                    st.error("Informe pelo menos o nome do cliente.")
-
-    with tab_m_lanc:
-        df_cm = carregar_clientes_mensais_banco()
-        if not df_cm.empty:
-            dict_cm = {f"{row['Cliente']} (Serviços: {row['Serviços Feitos']} | Devendo: R$ {Decimal(str(row['Valor Devido'])):.2f})": row['id'] for _, row in df_cm.iterrows()}
-            cliente_sel_m = st.selectbox("Selecione o Cliente:", list(dict_cm.keys()))
-            id_cm_sel = dict_cm[cliente_sel_m]
-            
-            val_corte_padrao = float(servicos.get("Corte de Cabelo", Decimal("30.00")))
-            qtd_servicos = st.number_input("Quantidade de Serviços Realizados Hoje:", min_value=1, value=1, step=1)
-            val_un_servico = Decimal(str(st.number_input("Valor Unitário do Serviço (R$):", min_value=0.0, value=val_corte_padrao, step=5.0)))
-            
-            if st.button("Acrescentar à Conta do Cliente", type="primary", use_container_width=True):
-                atualizar_cortes_cliente_mensal(id_cm_sel, qtd_servicos, val_un_servico)
-                st.success("Corte/Serviço adicionado à conta do cliente com sucesso!")
-                st.rerun()
-        else:
-            st.info("Nenhum cliente mensal cadastrado. Cadastre um cliente na aba acima.")
-
-    with tab_m_lista:
-        df_cm_list = carregar_clientes_mensais_banco()
-        if not df_cm_list.empty:
-            for _, row in df_cm_list.iterrows():
-                val_dev = Decimal(str(row['Valor Devido']))
-                st_cor = "#22c55e" if val_dev == Decimal("0.00") else "#ef4444"
-                st_txt = "Quitado / Em Dia" if val_dev == Decimal("0.00") else f"Devendo R$ {val_dev:.2f}"
-
-                with st.container():
-                    c_cli, c_det, c_baix = st.columns([2.5, 2, 2.5])
-                    with c_cli:
-                        st.markdown(f"**👤 {row['Cliente']}**<br><span style='color:#94a3b8;'>📞 {row['Telefone']}</span>", unsafe_allow_html=True)
-                    with c_det:
-                        st.markdown(f"**Serviços Realizados:** {row['Serviços Feitos']}<br><span style='color:{st_cor}; font-weight:bold;'>{st_txt}</span>", unsafe_allow_html=True)
-                    with c_baix:
-                        if val_dev > Decimal("0.00"):
-                            with st.popover(f"💰 Dar Baixa (R$ {val_dev:.2f})"):
-                                val_pagamento = Decimal(str(st.number_input("Valor Recebido (R$):", min_value=0.01, max_value=float(val_dev), value=float(val_dev), step=5.0, key=f"pop_val_{row['id']}")))
-                                lancar_no_fluxo = st.checkbox("Lançar valor no Fluxo de Caixa principal", value=True, key=f"pop_chk_{row['id']}")
-                                if st.button("Confirmar Pagamento", type="primary", key=f"pop_btn_{row['id']}"):
-                                    dar_baixa_divida_mensalista(row['id'], val_pagamento)
-                                    if lancar_no_fluxo:
-                                        inserir_movimentacao_direta("Entrada", f"Mensalidade recebida: {row['Cliente']}", val_pagamento, datetime.now(TZ).date())
-                                    st.success("Pagamento registrado com sucesso!")
-                                    st.rerun()
-                        else:
-                            st.markdown("<span style='color:#22c55e; font-weight:bold;'>✓ Conta Zerada</span>", unsafe_allow_html=True)
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
-        else:
-            st.info("Nenhum cliente mensal cadastrado.")
+    try:
+        render_clientes_mensais()
+    except Exception as e:
+        st.error(f"Erro ao renderizar Clientes Mensais: {e}")
 
 # ==============================================================================
-# TAB 4: AGENDAMENOTI (AGENDA PREMIUM)
+# TAB 4: AGENDAMENTOS
 # ==============================================================================
 with tab_agend:
     try:
         render_agenda_painel()
     except Exception as e:
-        st.error(f"Erro ao renderizar a Agenda Premium: {e}")
+        st.error(f"Erro ao renderizar Agenda: {e}")
 
 # ==============================================================================
-# TAB 5: FINANCEIRO PREMIUM (FLUXO DE CAIXA)
+# TAB 5: FLUXO DE CAIXA (HISTÓRICO)
 # ==============================================================================
 with tab_historico:
     try:
