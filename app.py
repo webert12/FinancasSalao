@@ -56,6 +56,7 @@ if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = N
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
+if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
 # Recupera sessão persistida pela URL se houver
 if not st.session_state.autenticado and "token_sessao" in query_params:
@@ -290,6 +291,8 @@ def set_background_com_logo(image_path):
         .kpi-val-green {{ color: #10b981 !important; }}
         .kpi-val-red {{ color: #f43f5e !important; }}
         .kpi-val-blue {{ color: #38bdf8 !important; }}
+        .kpi-val-purple {{ color: #a855f7 !important; }}
+        .kpi-val-orange {{ color: #f59e0b !important; }}
         .kpi-perc {{ font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }}
         .perc-up {{ color: #10b981 !important; }}
         .perc-down {{ color: #f43f5e !important; }}
@@ -1254,10 +1257,12 @@ if not df_fluxo_caixa.empty:
     df_limpo = df_fluxo_caixa.dropna(subset=['Data']).copy()
     df_mes_atual = df_limpo[(df_limpo['Data'].dt.month == mes_atual) & (df_limpo['Data'].dt.year == ano_atual)]
     df_mes_passado = df_limpo[(df_limpo['Data'].dt.month == mes_passado) & (df_limpo['Data'].dt.year == ano_passado)]
+    df_ano_atual = df_limpo[df_limpo['Data'].dt.year == ano_atual]
 else:
     df_limpo = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+    df_ano_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
 base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
@@ -1371,213 +1376,342 @@ def dialog_baixar_fiado(df_fluxo):
 # ==============================================================================
 # ABAS DO PAINEL PRINCIPAL
 # ==============================================================================
-tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "💸 Fluxo de Caixa"])
+tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard Premium", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "💸 Fluxo de Caixa"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD
+# TAB 1: DASHBOARD PREMIUM (TOTALMENTE REFORMULADO)
 # ==============================================================================
 with tab_dashboard:
-    def agg_valores(df_m):
-        if df_m.empty:
-            return 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0
-        
-        entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
-        saidas = df_m[df_m['Tipo'] == 'Saída']['Valor'].sum()
-        
-        faturamento = entradas + pendencias
-        lucro = entradas + saidas
-        
-        df_atendimentos = df_m[df_m['Tipo'] == 'Entrada']
-        qtd_atendimentos = len(df_atendimentos)
-        ticket_medio = (entradas / qtd_atendimentos) if qtd_atendimentos > 0 else 0.0
-        
-        return faturamento, entradas, abs(saidas), lucro, pendencias, qtd_atendimentos, ticket_medio
-
-    def agg_valores_dia(df_m, data_ref):
-        if df_m.empty:
-            return 0.0
-        df_dia = df_m[df_m['Data'].dt.date == data_ref]
-        entradas_dia = df_dia[df_dia['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias_dia = df_dia[df_dia['Tipo'] == 'Pendência']['Valor'].sum()
-        return entradas_dia + pendencias_dia
-
-    fat_dia_atual = agg_valores_dia(df_limpo, hoje.date())
-    fat_atual, ent_atual, sai_atual, lucro_atual, pend_atual, qtd_atend_atual, ticket_medio_atual = agg_valores(df_mes_atual)
-    fat_ant, ent_ant, sai_ant, lucro_ant, pend_ant, qtd_atend_ant, ticket_medio_ant = agg_valores(df_mes_passado)
-
     def calc_perc(atual, anterior):
         if anterior == 0: return 0 if atual == 0 else 100
         return ((atual - anterior) / anterior) * 100
-
-    perc_ent = calc_perc(ent_atual, ent_ant)
-    perc_sai = calc_perc(sai_atual, sai_ant)
-    perc_luc = calc_perc(lucro_atual, lucro_ant)
-    perc_atend = calc_perc(qtd_atend_atual, qtd_atend_ant)
 
     def render_perc(val, reverse_colors=False):
         if val == 0: return f'<span class="kpi-perc perc-neutral">0% vs mês anterior</span>'
         seta = "▲" if val > 0 else "▼"
         cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
-        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
+        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.1f}% vs mês ant.</span>'
 
-    # CARDS DE MÉTRICAS PRINCIPAIS
+    # --- PROCESSAMENTO DE DADOS FINANCEIROS & METRICAS ---
+    dt_hoje = hoje.date()
+    dt_hoje_str = dt_hoje.strftime('%Y-%m-%d')
+
+    # Receitas (Entradas + Pendências/Fiados faturados)
+    rec_dia = df_limpo[(df_limpo['Data'].dt.date == dt_hoje) & (df_limpo['Tipo'].isin(['Entrada', 'Pendência']))]['Valor'].sum() if not df_limpo.empty else 0.0
+    rec_mes = df_mes_atual[df_mes_atual['Tipo'].isin(['Entrada', 'Pendência'])]['Valor'].sum() if not df_mes_atual.empty else 0.0
+    rec_ano = df_ano_atual[df_ano_atual['Tipo'].isin(['Entrada', 'Pendência'])]['Valor'].sum() if not df_ano_atual.empty else 0.0
+    
+    # Entradas x Saídas x Lucro
+    ent_mes = df_mes_atual[df_mes_atual['Tipo'] == 'Entrada']['Valor'].sum() if not df_mes_atual.empty else 0.0
+    sai_mes = abs(df_mes_atual[df_mes_atual['Tipo'] == 'Saída']['Valor'].sum()) if not df_mes_atual.empty else 0.0
+    lucro_mes = ent_mes - sai_mes
+
+    # Mês Anterior para Comparativo
+    rec_mes_passado = df_mes_passado[df_mes_passado['Tipo'].isin(['Entrada', 'Pendência'])]['Valor'].sum() if not df_mes_passado.empty else 0.0
+    ent_mes_passado = df_mes_passado[df_mes_passado['Tipo'] == 'Entrada']['Valor'].sum() if not df_mes_passado.empty else 0.0
+    sai_mes_passado = abs(df_mes_passado[df_mes_passado['Tipo'] == 'Saída']['Valor'].sum()) if not df_mes_passado.empty else 0.0
+    lucro_mes_passado = ent_mes_passado - sai_mes_passado
+
+    # Comparativos em %
+    perc_rec_mes = calc_perc(rec_mes, rec_mes_passado)
+    perc_lucro_mes = calc_perc(lucro_mes, lucro_mes_passado)
+
+    # Ticket Médio & Atendimentos
+    qtd_atendimentos_mes = len(df_mes_atual[df_mes_atual['Tipo'] == 'Entrada']) if not df_mes_atual.empty else 0
+    ticket_medio = (ent_mes / qtd_atendimentos_mes) if qtd_atendimentos_mes > 0 else 0.0
+
+    # Agendamentos
+    df_agendamentos_all = carregar_agendamentos()
+    agendamentos_hoje = df_agendamentos_all[df_agendamentos_all['Data'] == dt_hoje_str] if not df_agendamentos_all.empty else pd.DataFrame()
+    qtd_agend_hoje = len(agendamentos_hoje)
+
+    # Próximos Horários (Futuros)
+    if not df_agendamentos_all.empty:
+        df_proximos = df_agendamentos_all[df_agendamentos_all['Data'] >= dt_hoje_str].sort_values(by=['Data', 'Horário']).head(5)
+    else:
+        df_proximos = pd.DataFrame()
+
+    # Contagem Única de Clientes
+    df_clientes_m = carregar_clientes_mensais_banco()
+    set_clientes = set(df_clientes_m['Cliente'].unique()) if not df_clientes_m.empty else set()
+    if not df_agendamentos_all.empty:
+        set_clientes.update(df_agendamentos_all['Cliente'].unique())
+    total_clientes_cadastrados = len(set_clientes)
+    if total_clientes_cadastrados == 0 and not df_limpo.empty:
+        total_clientes_cadastrados = len(df_limpo['Descrição'].unique())
+
+    # --- SEÇÃO 1: BARRA DE META MENSAL ---
+    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    c_meta_input, c_meta_bar = st.columns([1, 2.5])
+    with c_meta_input:
+        meta_val = st.number_input("🎯 Sua Meta Mensal (R$):", min_value=100.0, value=float(st.session_state.meta_mensal), step=500.0, key="input_meta_dinamica")
+        st.session_state.meta_mensal = meta_val
+    with c_meta_bar:
+        pct_meta = min(100.0, (rec_mes / meta_val) * 100) if meta_val > 0 else 0.0
+        restante_meta = max(0.0, meta_val - rec_mes)
+        cor_barra = "#10b981" if pct_meta >= 100 else "#38bdf8"
+        
+        st.markdown(f"""
+            <div style="margin-top: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 700; color: #ffffff; font-size: 1rem;">Progresso da Meta Mensal</span>
+                    <span style="font-weight: 800; color: {cor_barra}; font-size: 1.1rem;">{pct_meta:.1f}% ({'Meta Atingida! 🎉' if pct_meta >= 100 else f'Faltam R$ {restante_meta:,.2f}'})</span>
+                </div>
+                <div style="width: 100%; background: rgba(255,255,255,0.08); border-radius: 999px; height: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="width: {pct_meta}%; background: linear-gradient(90deg, #0284c7 0%, {cor_barra} 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: #94a3b8; margin-top: 6px;">
+                    <span>Realizado: <strong>R$ {rec_mes:,.2f}</strong></span>
+                    <span>Meta: <strong>R$ {meta_val:,.2f}</strong></span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- SEÇÃO 2: GRID DE KPIS PRINCIPAIS ---
     col_k1, col_k2, col_k3, col_k4 = st.columns(4)
     with col_k1:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">⚡ Faturamento do Dia</div>
-                <div class="kpi-value-v2 kpi-val-green">R$ {fat_dia_atual:,.2f}</div>
-                <span class="kpi-perc perc-neutral">Hoje ({hoje.strftime('%d/%m')})</span>
+                <div class="kpi-title-v2">⚡ Receita do Dia</div>
+                <div class="kpi-value-v2 kpi-val-green">R$ {rec_dia:,.2f}</div>
+                <span class="kpi-perc perc-neutral">Hoje ({dt_hoje.strftime('%d/%m')})</span>
             </div>
         ''', unsafe_allow_html=True)
     with col_k2:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">💰 Entradas do Mês</div>
-                <div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>
-                {render_perc(perc_ent)}
+                <div class="kpi-title-v2">💰 Receita do Mês</div>
+                <div class="kpi-value-v2 kpi-val-green">R$ {rec_mes:,.2f}</div>
+                {render_perc(perc_rec_mes)}
             </div>
         ''', unsafe_allow_html=True)
     with col_k3:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">🛍️ Saídas / Despesas</div>
-                <div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>
-                {render_perc(perc_sai, reverse_colors=True)}
+                <div class="kpi-title-v2">📅 Receita Anual</div>
+                <div class="kpi-value-v2 kpi-val-blue">R$ {rec_ano:,.2f}</div>
+                <span class="kpi-perc perc-neutral">Acumulado {ano_atual}</span>
             </div>
         ''', unsafe_allow_html=True)
     with col_k4:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">📈 Lucro Líquido</div>
-                <div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>
-                {render_perc(perc_luc)}
+                <div class="kpi-title-v2">📈 Lucro Líquido (Mês)</div>
+                <div class="kpi-value-v2 kpi-val-purple">R$ {lucro_mes:,.2f}</div>
+                {render_perc(perc_lucro_mes)}
             </div>
         ''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # CARDS DE MÉTRICAS COMPLEMENTARES
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1:
+    col_k5, col_k6, col_k7, col_k8 = st.columns(4)
+    with col_k5:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">✂️ Total de Atendimentos</div>
-                <div class="kpi-value-v2" style="color: #a855f7 !important;">{qtd_atend_atual}</div>
-                {render_perc(perc_atend)}
+                <div class="kpi-title-v2">🎯 Ticket Médio</div>
+                <div class="kpi-value-v2 kpi-val-blue">R$ {ticket_medio:,.2f}</div>
+                <span class="kpi-perc perc-neutral">Por atendimento no mês</span>
             </div>
         ''', unsafe_allow_html=True)
-    with col_m2:
+    with col_k6:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">🎯 Ticket Médio / Cliente</div>
-                <div class="kpi-value-v2" style="color: #38bdf8 !important;">R$ {ticket_medio_atual:,.2f}</div>
-                <span class="kpi-perc perc-neutral">Média por atendimento</span>
+                <div class="kpi-title-v2">👥 Total de Clientes</div>
+                <div class="kpi-value-v2 kpi-val-purple">{total_clientes_cadastrados}</div>
+                <span class="kpi-perc perc-neutral">Base ativa cadastrada</span>
             </div>
         ''', unsafe_allow_html=True)
-    with col_m3:
+    with col_k7:
         st.markdown(f'''
             <div class="kpi-card-v2">
-                <div class="kpi-title-v2">⏳ Fiados em Aberto</div>
-                <div class="kpi-value-v2" style="color: #f59e0b !important;">R$ {pend_atual:,.2f}</div>
-                <span class="kpi-perc perc-neutral">Valores pendentes no mês</span>
+                <div class="kpi-title-v2">📅 Agendamentos Hoje</div>
+                <div class="kpi-value-v2 kpi-val-orange">{qtd_agend_hoje}</div>
+                <span class="kpi-perc perc-neutral">Marcados para {dt_hoje.strftime('%d/%m')}</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k8:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">📊 Comparativo Mês Ant.</div>
+                <div class="kpi-value-v2 {'kpi-val-green' if perc_rec_mes >= 0 else 'kpi-val-red'}">{'+' if perc_rec_mes > 0 else ''}{perc_rec_mes:.1f}%</div>
+                <span class="kpi-perc perc-neutral">Var. Receita ({'Mês Passado: R$ ' + f'{rec_mes_passado:,.2f}'})</span>
             </div>
         ''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # CARD PRINCIPAL DO GRÁFICO DE EVOLUÇÃO
-    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">📊 Evolução Diária do Fluxo de Caixa</h4>', unsafe_allow_html=True)
-
-    if not df_mes_atual.empty:
-        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
-        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
-        for col in ['Entrada', 'Saída', 'Pendência']:
-            if col not in df_group: df_group[col] = 0
-
-        df_group['Saída_Abs'] = df_group['Saída'].abs()
-        df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
-
-        fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro Líquido', line=dict(color='#10b981', width=3), fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.08)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#f43f5e', width=2), fill='tozeroy', fillcolor='rgba(244, 63, 94, 0.08)', marker=dict(size=6)))
-
-        fig_area.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8', family='Plus Jakarta Sans'),
-            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
-            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
-            margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
-        )
-        st.plotly_chart(fig_area, use_container_width=True)
-    else: 
-        st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # CARDS INFERIORES LADO A LADO
-    col_bottom1, col_bottom2 = st.columns(2)
-    with col_bottom1:
+    # --- SEÇÃO 3: AGENDA DO DIA E PRÓXIMOS HORÁRIOS ---
+    c_ag_hoje, c_ag_prox = st.columns(2)
+    with c_ag_hoje:
         st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
-        st.markdown('<h4 style="margin-bottom: 20px; color: #ffffff; font-weight: 700;">🍩 Receitas vs. Despesas</h4>', unsafe_allow_html=True)
-        if ent_atual > 0 or sai_atual > 0:
-            total_op = ent_atual + sai_atual
-            perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
-            perc_sai_donut = (sai_atual / total_op) * 100 if total_op > 0 else 0
-
-            col_donut_img, col_donut_leg = st.columns([1, 1.2])
-            with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.68, marker=dict(colors=['#38bdf8', '#f43f5e']), textinfo='none', hoverinfo='label+percent')])
-                fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
-                st.plotly_chart(fig_donut, use_container_width=True)
-            with col_donut_leg:
-                st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 16px; color: #ffffff; font-weight: 700;">📌 Agendamentos de Hoje</h4>', unsafe_allow_html=True)
+        if not agendamentos_hoje.empty:
+            for _, r in agendamentos_hoje.iterrows():
                 st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 10px; height: 10px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: 600; color: #ffffff;">Entradas</span>
-                    </div><span style="font-weight: 700; color: #ffffff;">{perc_ent_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.88rem; margin-left: 18px; margin-bottom: 16px;">R$ {ent_atual:,.2f}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 10px; height: 10px; background-color: #f43f5e; border-radius: 50%;"></div><span style="font-weight: 600; color: #ffffff;">Saídas</span>
-                    </div><span style="font-weight: 700; color: #ffffff;">{perc_sai_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.88rem; margin-left: 18px;">R$ {sai_atual:,.2f}</div>
+                    <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #38bdf8; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.95rem;">{r['Cliente']}</strong><br>
+                            <span style="color: #94a3b8; font-size: 0.85rem;">✂️ {r['Serviço']}</span>
+                        </div>
+                        <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 0.9rem;">⏰ {r['Horário']}</span>
+                    </div>
                 """, unsafe_allow_html=True)
-        else: 
-            st.info("Sem dados suficientes neste mês.")
+        else:
+            st.info("Nenhum agendamento para hoje.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    with col_bottom2:
+    with c_ag_prox:
         st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
-        st.markdown('<h4 style="margin-bottom: 25px; color: #ffffff; font-weight: 700;">📌 Top Despesas por Categoria</h4>', unsafe_allow_html=True)
-        if sai_atual > 0:
-            df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
-            df_desp['Valor'] = df_desp['Valor'].abs()
-            top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#38bdf8', '#10b981', '#f43f5e', '#a855f7']
-            html_barras = ""
-            for i, (desc, valor) in enumerate(top_desp.items()):
-                perc_cat = (valor / sai_atual) * 100
-                cor = cores_barras[i % len(cores_barras)]
-                nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
-                html_barras += f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.92rem;">{nome_formatado}</span>
-                    <span style="color: #94a3b8; width: 15%; font-size: 0.88rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; height: 8px; margin-right: 15px;">
-                        <div style="width: {perc_cat}%; background: {cor}; height: 100%; border-radius: 999px;"></div>
+        st.markdown('<h4 style="margin-bottom: 16px; color: #ffffff; font-weight: 700;">⏱️ Próximos Horários Marcados</h4>', unsafe_allow_html=True)
+        if not df_proximos.empty:
+            for _, r in df_proximos.iterrows():
+                dt_p = pd.to_datetime(r['Data']).strftime('%d/%m') if r['Data'] else ""
+                st.markdown(f"""
+                    <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #10b981; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.95rem;">{r['Cliente']}</strong><br>
+                            <span style="color: #94a3b8; font-size: 0.85rem;">✂️ {r['Serviço']}</span>
+                        </div>
+                        <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">📅 {dt_p} às {r['Horário']}</span>
                     </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.92rem;">R$ {valor:,.2f}</span>
-                </div>
-                """
-            st.markdown(html_barras, unsafe_allow_html=True)
-        else: 
-            st.info("Nenhuma despesa registrada neste mês.")
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhum agendamento futuro encontrado.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- SEÇÃO 4: GRÁFICOS MODERNOS DE ALTO IMPACTO ---
+    col_g1, col_g2 = st.columns([1.6, 1])
+    with col_g1:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">📈 Evolução Diária do Fluxo Financeiro (Mês)</h4>', unsafe_allow_html=True)
+        if not df_mes_atual.empty:
+            df_m_chart = df_mes_atual.copy()
+            df_m_chart['DataStr'] = df_m_chart['Data'].dt.strftime('%d/%m')
+            df_grp = df_m_chart.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
+            for c in ['Entrada', 'Saída', 'Pendência']:
+                if c not in df_grp: df_grp[c] = 0
+            df_grp['Saída_Abs'] = df_grp['Saída'].abs()
+            df_grp['Lucro'] = df_grp['Entrada'] - df_grp['Saída_Abs']
+
+            fig_evo = go.Figure()
+            fig_evo.add_trace(go.Scatter(x=df_grp['DataStr'], y=df_grp['Lucro'], mode='lines+markers', name='Lucro Líquido', line=dict(color='#10b981', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.1)'))
+            fig_evo.add_trace(go.Scatter(x=df_grp['DataStr'], y=df_grp['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2, shape='spline')))
+            fig_evo.add_trace(go.Scatter(x=df_grp['DataStr'], y=df_grp['Saída_Abs'], mode='lines+markers', name='Despesas', line=dict(color='#f43f5e', width=2, shape='spline')))
+            
+            fig_evo.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#94a3b8', family='Plus Jakarta Sans'),
+                xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
+                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
+                margin=dict(l=10, r=10, t=10, b=10), height=340, hovermode="x unified"
+            )
+            st.plotly_chart(fig_evo, use_container_width=True)
+        else:
+            st.info("Insira registros para visualizar o gráfico diário.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_g2:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">📊 Comparativo de Faturamento Anual</h4>', unsafe_allow_html=True)
+        if not df_ano_atual.empty:
+            df_ano_chart = df_ano_atual[df_ano_atual['Tipo'].isin(['Entrada', 'Pendência'])].copy()
+            df_ano_chart['MesNum'] = df_ano_chart['Data'].dt.month
+            df_ano_chart['Mês'] = df_ano_chart['Data'].dt.strftime('%b')
+            df_ano_grp = df_ano_chart.groupby(['MesNum', 'Mês'])['Valor'].sum().reset_index().sort_values('MesNum')
+            
+            fig_bar_ano = px.bar(df_ano_grp, x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#38bdf8'])
+            fig_bar_ano.update_traces(marker_line_color='#0284c7', marker_line_width=1.5, opacity=0.85)
+            fig_bar_ano.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#94a3b8', family='Plus Jakarta Sans'),
+                xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
+                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
+                margin=dict(l=10, r=10, t=10, b=10), height=340
+            )
+            st.plotly_chart(fig_bar_ano, use_container_width=True)
+        else:
+            st.info("Sem dados anuais registrados.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- SEÇÃO 5: RANKINGS COMERCIAIS & SERVIÇOS MAIS VENDIDOS ---
+    col_rank1, col_rank2 = st.columns(2)
+    
+    with col_rank1:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">✂️ Serviços Mais Vendidos</h4>', unsafe_allow_html=True)
+        
+        dict_servicos_count = {s: 0 for s in servicos.keys()}
+        if not df_limpo.empty:
+            for desc in df_limpo['Descrição']:
+                for s_nome in servicos.keys():
+                    if s_nome.lower() in desc.lower():
+                        dict_servicos_count[s_nome] += 1
+        if not df_agendamentos_all.empty:
+            for s_nome in df_agendamentos_all['Serviço']:
+                if s_nome in dict_servicos_count:
+                    dict_servicos_count[s_nome] += 1
+                else:
+                    dict_servicos_count[s_nome] = 1
+
+        df_srv_top = pd.DataFrame(list(dict_servicos_count.items()), columns=['Serviço', 'Vendas']).sort_values(by='Vendas', ascending=False)
+        df_srv_top = df_srv_top[df_srv_top['Vendas'] > 0]
+
+        if not df_srv_top.empty:
+            fig_pie_srv = px.pie(df_srv_top, names='Serviço', values='Vendas', hole=0.55, color_discrete_sequence=['#38bdf8', '#10b981', '#a855f7', '#f59e0b', '#f43f5e'])
+            fig_pie_srv.update_traces(textposition='inside', textinfo='percent+label')
+            fig_pie_srv.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#ffffff', family='Plus Jakarta Sans'),
+                showlegend=False, margin=dict(l=10, r=10, t=10, b=10), height=280
+            )
+            st.plotly_chart(fig_pie_srv, use_container_width=True)
+        else:
+            st.info("Nenhum serviço contabilizado até o momento.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_rank2:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">🏆 Ranking de Faturamento de Clientes</h4>', unsafe_allow_html=True)
+        
+        mapa_fat_clientes = {}
+        if not df_clientes_m.empty:
+            for _, r in df_clientes_m.iterrows():
+                cli = r['Cliente']
+                val = float(r['Valor Devido']) + (float(r['Serviços Feitos']) * 30.0)
+                mapa_fat_clientes[cli] = mapa_fat_clientes.get(cli, 0.0) + val
+
+        if not df_limpo.empty:
+            for _, r in df_limpo.iterrows():
+                desc = r['Descrição']
+                val = abs(float(r['Valor']))
+                if "Fiado de:" in desc or "Atendimento:" in desc or "Mensalidade recebida" in desc:
+                    parts = desc.split(":")
+                    if len(parts) > 1:
+                        cli_nome = parts[1].split("(")[0].strip()
+                        if cli_nome:
+                            mapa_fat_clientes[cli_nome] = mapa_fat_clientes.get(cli_nome, 0.0) + val
+
+        df_rank_cli = pd.DataFrame(list(mapa_fat_clientes.items()), columns=['Cliente', 'Faturamento']).sort_values(by='Faturamento', ascending=False).head(5)
+
+        if not df_rank_cli.empty:
+            medals = ["🥇", "🥈", "🥉", "4º", "5º"]
+            for idx, (_, r) in enumerate(df_rank_cli.iterrows()):
+                icone = medals[idx] if idx < len(medals) else f"{idx+1}º"
+                st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.1rem;">{icone}</span>
+                            <strong style="color: #ffffff; font-size: 0.95rem;">{r['Cliente']}</strong>
+                        </div>
+                        <span style="color: #10b981; font-weight: 800; font-size: 0.95rem;">R$ {r['Faturamento']:,.2f}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Sem dados de clientes para gerar o ranking.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
