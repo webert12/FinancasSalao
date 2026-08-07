@@ -666,6 +666,69 @@ def render_clientes_mensais():
             except Exception as e:
                 st.error(f"Erro ao dar baixa: {e}")
 
+# --- USUÁRIOS PREMIUM ---
+def render_usuarios_painel():
+    st.markdown("### 👤 Gestão de Usuários")
+
+    df_users = carregar_usuarios()
+    if not df_users:
+        st.info("Nenhum usuário cadastrado.")
+    else:
+        st.markdown("#### Lista de Usuários")
+        for uid, info in df_users.items():
+            st.markdown(f"""
+                <div class="ui-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:700;">{info.get('id')}</div>
+                            <div style="color:#94a3b8;">Email: {info.get('email','')}</div>
+                            <div style="color:#94a3b8;">Tipo: {info.get('tipo','')}</div>
+                            <div style="color:#94a3b8;">Status: {info.get('status','')}</div>
+                            <div style="color:#94a3b8;">WhatsApp: {info.get('whatsapp','')}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <button style="background:#111827;color:#fff;border-radius:8px;padding:6px 12px;border:1px solid #1e293b;">Editar</button>
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("#### ➕ Cadastrar Novo Usuário")
+    with st.form("form_novo_usuario"):
+        uid = st.text_input("ID do Usuário")
+        email = st.text_input("Email")
+        senha = st.text_input("Senha", type="password")
+        tipo = st.selectbox("Tipo", ["Cliente", "Funcionário", "Administrador"])
+        status = st.selectbox("Status", ["Ativo", "Inativo"])
+        whatsapp = st.text_input("WhatsApp")
+        submitted = st.form_submit_button("Salvar Usuário")
+        if submitted:
+            if uid and senha:
+                try:
+                    usuarios_dict = carregar_usuarios()
+                    usuarios_dict[uid] = {
+                        "id": uid,
+                        "senha": hash_password(senha),
+                        "email": email,
+                        "tipo": tipo,
+                        "vencimento": datetime.now(TZ).strftime('%Y-%m-%d'),
+                        "status": status,
+                        "whatsapp": whatsapp
+                    }
+                    salvar_usuarios(usuarios_dict)
+                    st.success("Usuário cadastrado/atualizado com sucesso.")
+                except Exception as e:
+                    st.error(f"Erro ao salvar usuário: {e}")
+            else:
+                st.error("Informe ID e senha.")
+
+# Renderiza painel de usuários automaticamente
+try:
+    render_usuarios_painel()
+except Exception as e:
+    st.error(f"Erro ao renderizar Usuários Premium: {e}")
+
 def gerar_backup_json_completo():
     usuario = st.session_state.usuario_logado
     df_f = carregar_fluxo()
@@ -1670,194 +1733,69 @@ tab_inicio, tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico, 
     "⚙️ Configurações"
 ])
 
-# ==============================================================================
-# TAB 0: TELA INICIAL DE BOAS-VINDAS
-# ==============================================================================
 with tab_inicio:
-    try:
-        render_tela_inicial()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Tela Inicial: {e}")
+    render_tela_inicial()
 
-# ==============================================================================
-# TAB 1: DASHBOARD PREMIUM
-# ==============================================================================
 with tab_dashboard:
-    st.title("📊 Dashboard Premium")
+    render_financeiro_painel()
 
-    # Cálculos Dinâmicos com base nos dados do banco
-    df_fluxo = carregar_fluxo()
-    df_agendamentos = carregar_agendamentos()
-
-    # Data de Referência
-    dt_hoje = datetime.now(TZ).date()
-    dt_ontem = dt_hoje - timedelta(days=1)
-
-    receita_hoje = Decimal("0.00")
-    receita_ontem = Decimal("0.00")
-
-    if not df_fluxo.empty:
-        df_fluxo['Data_dt'] = pd.to_datetime(df_fluxo['Data']).dt.date
-        
-        # Filtrar entradas
-        df_entradas = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('entrada', na=False)]
-        
-        receita_hoje = sum(df_entradas[df_entradas['Data_dt'] == dt_hoje]['Valor'], Decimal("0.00"))
-        receita_ontem = sum(df_entradas[df_entradas['Data_dt'] == dt_ontem]['Valor'], Decimal("0.00"))
-
-    # Cálculo de variação percentual do dia
-    if receita_ontem > Decimal("0.00"):
-        var_dia = ((receita_hoje - receita_ontem) / receita_ontem) * Decimal("100.00")
-        perc_class = "perc-up" if var_dia >= 0 else "perc-down"
-        perc_str = f"<span class='{perc_class}'>{'▲' if var_dia >= 0 else '▼'} {abs(var_dia):.1f}% em relação a ontem</span>"
-    else:
-        perc_str = "<span class='perc-neutral'>• Sem dados de comparação ontem</span>"
-
-    k1, k2, k3 = st.columns(3)
-    with k1:
-        st.markdown(f"""
-            <div class="kpi-card-v2">
-                <div class="kpi-title-v2">Receita de Hoje</div>
-                <div class="kpi-value-v2 kpi-val-green">R$ {receita_hoje:,.2f}</div>
-                <div class="kpi-perc">{perc_str}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with k2:
-        total_ag_hoje = 0
-        if not df_agendamentos.empty:
-            df_agendamentos['Data_dt'] = pd.to_datetime(df_agendamentos['Data']).dt.date
-            total_ag_hoje = len(df_agendamentos[df_agendamentos['Data_dt'] == dt_hoje])
-            
-        st.markdown(f"""
-            <div class="kpi-card-v2">
-                <div class="kpi-title-v2">Agendamentos para Hoje</div>
-                <div class="kpi-value-v2 kpi-val-blue">{total_ag_hoje}</div>
-                <div class="kpi-perc"><span class="perc-neutral">• Atendimentos agendados</span></div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with k3:
-        total_fiado_pendente = Decimal("0.00")
-        if not df_fluxo.empty:
-            df_fiados = df_fluxo[df_fluxo['Tipo'].str.lower().str.contains('fiado|pendência|pendencia', na=False)]
-            total_fiado_pendente = sum(df_fiados['Valor'], Decimal("0.00"))
-
-        st.markdown(f"""
-            <div class="kpi-card-v2">
-                <div class="kpi-title-v2">Total em Fiados (A Receber)</div>
-                <div class="kpi-value-v2 kpi-val-red">R$ {total_fiado_pendente:,.2f}</div>
-                <div class="kpi-perc"><span class="perc-neutral">• Pendências ativas</span></div>
-            </div>
-        """, unsafe_allow_html=True)
-
-# ==============================================================================
-# TAB 2: SERVIÇOS
-# ==============================================================================
 with tab_servicos:
-    st.markdown("### 🚀 Catálogo & Gestão de Serviços")
-    st.write("Gerencie os serviços prestados pelo seu salão e seus respectivos valores.")
+    st.markdown("### 🚀 Gestão de Serviços")
+    servicos_atuais = carregar_servicos()
     
-    opcoes_servicos = ["➕ Cadastrar Novo Serviço"] + list(servicos.keys())
-    servico_sel = st.selectbox("Selecione um serviço para editar ou cadastre um novo:", opcoes_servicos)
-    
-    nome_serv_init = "" if servico_sel == "➕ Cadastrar Novo Serviço" else servico_sel
-    preco_serv_init = Decimal("0.00") if servico_sel == "➕ Cadastrar Novo Serviço" else Decimal(str(servicos[servico_sel]))
-    
-    with st.form("form_gestao_servicos"):
-        nome_s_input = st.text_input("Nome do Serviço:", value=nome_serv_init)
-        preco_s_input = st.number_input("Preço (R$):", min_value=0.0, value=float(preco_serv_init), step=5.0, format="%.2f")
-        btn_salvar_servico = st.form_submit_button("Salvar Serviço", type="primary")
+    col_s1, col_s2 = st.columns([2, 1])
+    with col_s1:
+        st.markdown("#### Catálogo de Serviços Cadastrados")
+        if servicos_atuais:
+            for nome_s, preco_s in servicos_atuais.items():
+                st.markdown(f"""
+                    <div class="ui-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:700; font-size:1.1rem; color:#ffffff;">{nome_s}</div>
+                            <div style="font-weight:800; font-size:1.2rem; color:#22c55e;">R$ {Decimal(str(preco_s)):.2f}</div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhum serviço cadastrado.")
+
+    with col_s2:
+        st.markdown("#### Adicionar / Editar")
+        with st.form("form_servico_tab"):
+            opcoes_s = ["➕ Cadastrar Novo Serviço"] + list(servicos_atuais.keys())
+            sel_s = st.selectbox("Selecione:", opcoes_s)
+            val_nome = "" if sel_s == "➕ Cadastrar Novo Serviço" else sel_s
+            val_preco = 0.0 if sel_s == "➕ Cadastrar Novo Serviço" else float(servicos_atuais[sel_s])
+            
+            input_nome = st.text_input("Nome do Serviço", value=val_nome)
+            input_preco = st.number_input("Preço (R$)", min_value=0.0, value=val_preco, step=5.0, format="%.2f")
+            
+            sub_s = st.form_submit_button("Salvar Serviço", type="primary", use_container_width=True)
+            if sub_s:
+                if input_nome.strip():
+                    salvar_ou_atualizar_servico(sel_s, input_nome.strip(), Decimal(str(input_preco)))
+                    st.success("Serviço salvo!")
+                    st.rerun()
+                else:
+                    st.error("Informe o nome do serviço.")
         
-        if btn_salvar_servico:
-            if nome_s_input.strip():
-                salvar_ou_atualizar_servico(servico_sel, nome_s_input.strip(), preco_s_input)
-                st.success("Serviço salvo com sucesso!")
+        if sel_s != "➕ Cadastrar Novo Serviço":
+            if st.button("🗑️ Excluir Serviço Selecionado", use_container_width=True):
+                deletar_servico_banco(sel_s)
+                st.warning("Serviço removido.")
                 st.rerun()
-            else:
-                st.error("Por favor, digite um nome válido para o serviço.")
-                
-    if servico_sel != "➕ Cadastrar Novo Serviço":
-        if st.button("🗑️ Excluir Este Serviço", type="secondary"):
-            deletar_servico_banco(servico_sel)
-            st.warning("Serviço removido com sucesso!")
-            st.rerun()
 
-# ==============================================================================
-# TAB 3: CLIENTES MENSAIS
-# ==============================================================================
 with tab_mensais:
-    try:
-        render_clientes_mensais()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Clientes Mensais: {e}")
+    render_clientes_mensais()
 
-# ==============================================================================
-# TAB 4: AGENDAMENTOS
-# ==============================================================================
 with tab_agend:
-    try:
-        render_agenda_painel()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Agendamentos: {e}")
+    render_agenda_painel()
 
-# ==============================================================================
-# TAB 5: FLUXO DE CAIXA
-# ==============================================================================
 with tab_historico:
-    try:
-        render_financeiro_painel()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Fluxo de Caixa: {e}")
+    render_financeiro_painel()
 
-# ==============================================================================
-# TAB 6: RELATÓRIOS
-# ==============================================================================
 with tab_relatorios:
-    try:
-        render_relatorios_painel()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Relatórios: {e}")
+    render_relatorios_painel()
 
-# ==============================================================================
-# TAB 7: CONFIGURAÇÕES
-# ==============================================================================
 with tab_config_app:
-    try:
-        render_configuracoes_painel()
-    except Exception as e:
-        st.error(f"Erro ao renderizar Configurações: {e}")
-
-# --- ENCERRAMENTO PREMIUM ---
-def render_encerramento_painel():
-    st.markdown("---")
-    st.markdown("### 🏁 Encerramento Premium")
-
-    col1, col2 = st.columns([2,1])
-    with col1:
-        st.markdown("""
-        <div style="padding:15px; border-radius:12px; background:linear-gradient(135deg,#0f172a,#1e293b); color:#f8fafc;">
-            <h4 style="margin:0; font-weight:800;">Fio&Caixa — Gestão & Agendamento</h4>
-            <p style="margin:5px 0;">Sistema desenvolvido para salões e barbearias com foco em simplicidade e performance.</p>
-            <p style="margin:5px 0; font-size:0.9rem; color:#94a3b8;">© 2026 WeberFilmes · Todos os direitos reservados</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown("""
-        <div style="text-align:right;">
-            <a href="https://wa.me/5531999999999" target="_blank" style="background:#25D366;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;">📲 Suporte via WhatsApp</a>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("#### 🔧 Otimizações Finais")
-    st.write("- Cache inteligente para consultas ao banco de dados")
-    st.write("- Layout responsivo para desktop e mobile")
-    st.write("- Integração com WhatsApp para confirmação de agendamentos")
-    st.write("- Exportação de relatórios em PDF e JSON")
-
-# Renderiza painel de encerramento automaticamente
-try:
-    render_encerramento_painel()
-except Exception as e:
-    st.error(f"Erro ao renderizar Encerramento Premium: {e}")
+    render_configuracoes_painel()
