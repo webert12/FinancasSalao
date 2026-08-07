@@ -76,7 +76,7 @@ def get_image_base64(image_path):
             return base64.b64encode(image_file.read()).decode()
     return ""
 
-# --- DESIGN & CSS ULTRA PREMIUM (MINIMALISTA E MODERNO) ---
+# --- DESIGN & CSS ULTRA PREMIUM (MINIMALISTA E MODERNO CORRIGIDO) ---
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
@@ -168,9 +168,9 @@ def set_background_com_logo(image_path):
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
         }}
 
-        /* === POPOVERS E DROPDOWNS === */
+        /* === POPOVERS E DROPDOWNS CORRIGIDOS === */
         div[data-testid="stPopoverBody"] {{
-            background-color: rgba(13, 19, 31, 0.95) !important;
+            background-color: rgba(13, 19, 31, 0.98) !important;
             border: 1px solid rgba(56, 189, 248, 0.3) !important;
             border-radius: 20px !important;
             box-shadow: 0 20px 50px rgba(0,0,0,0.8) !important;
@@ -183,19 +183,26 @@ def set_background_com_logo(image_path):
         }}
 
         div[data-testid="stPopover"] button,
-        [data-testid="stPopoverButton"] {{
-            background: rgba(17, 24, 39, 0.8) !important;
+        [data-testid="stPopoverButton"] button {{
+            background: rgba(17, 24, 39, 0.85) !important;
             border: 1px solid rgba(56, 189, 248, 0.4) !important;
             border-radius: 14px !important;
-            padding: 10px 20px !important;
+            padding: 10px 16px !important;
             color: #ffffff !important;
             font-weight: 700 !important;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
             transition: all 0.25s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            width: auto !important;
+            min-height: 44px !important;
         }}
 
-        div[data-testid="stPopover"] button:hover {{
-            background: rgba(31, 41, 55, 0.9) !important;
+        div[data-testid="stPopover"] button:hover,
+        [data-testid="stPopoverButton"] button:hover {{
+            background: rgba(31, 41, 55, 0.95) !important;
             border-color: #38bdf8 !important;
             box-shadow: 0 0 20px rgba(56, 189, 248, 0.4) !important;
             transform: translateY(-2px) !important;
@@ -274,13 +281,6 @@ def set_background_com_logo(image_path):
             backdrop-filter: blur(12px);
             transition: all 0.3s ease;
         }}
-        .ui-card-highlight {{ 
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%); 
-            border: 1px solid rgba(56, 189, 248, 0.4); 
-            border-radius: 22px; 
-            padding: 26px; 
-            box-shadow: 0 12px 35px rgba(56, 189, 248, 0.15); 
-        }}
 
         /* === TELA DE LOGIN PREMIUM === */
         .login-card {{ 
@@ -331,36 +331,67 @@ def set_background_com_logo(image_path):
             font-weight: 500;
         }}
 
-        /* === BOTÕES CUSTOMIZADOS === */
+        /* === CORREÇÃO COMPLETA DOS BOTÕES (ZERO TEXT OVERFLOW) === */
         .stButton > button, [data-testid="stDownloadButton"] > button {{
-            background: rgba(255, 255, 255, 0.04) !important;
+            background: rgba(255, 255, 255, 0.05) !important;
             color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
             border-radius: 14px !important;
             font-weight: 700 !important;
-            padding: 12px 22px !important;
+            padding: 10px 14px !important;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
             width: 100% !important;
+            min-height: 46px !important;
+            height: auto !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            text-align: center !important;
+            line-height: 1.2 !important;
+            font-size: 0.92rem !important;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
         }}
+
+        .stButton > button p, .stButton > button div, .stButton > button span,
+        [data-testid="stDownloadButton"] button p, [data-testid="stDownloadButton"] button div {{
+            font-size: 0.92rem !important;
+            line-height: 1.2 !important;
+            color: inherit !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }}
+
         .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{
-            background: rgba(255, 255, 255, 0.09) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
             border-color: #38bdf8 !important;
             color: #38bdf8 !important;
             transform: translateY(-2px) !important;
             box-shadow: 0 6px 20px rgba(56, 189, 248, 0.2) !important;
         }}
+
         .stButton > button[kind="primary"] {{ 
             background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; 
             color: #ffffff !important; 
             border: none !important; 
             box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important; 
         }}
+
         .stButton > button[kind="primary"]:hover {{ 
             background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%) !important; 
             color: #ffffff !important; 
             transform: translateY(-2px) !important;
             box-shadow: 0 8px 25px rgba(56, 189, 248, 0.5) !important; 
+        }}
+
+        /* Esconde ruídos de ícones nativos quebrados */
+        span[data-testid="stIconMaterial"] {{
+            font-size: 1.1rem !important;
+            margin-right: 2px !important;
         }}
 
         /* === NAVEGAÇÃO POR ABAS (SEGMENTED CONTROL MODERNO) === */
@@ -375,6 +406,7 @@ def set_background_com_logo(image_path):
             justify-content: center; 
             margin-bottom: 24px;
         }}
+
         .stTabs [data-baseweb="tab"] {{ 
             background-color: transparent !important; 
             border-radius: 12px !important; 
@@ -385,6 +417,7 @@ def set_background_com_logo(image_path):
             font-weight: 600;
             transition: all 0.2s ease !important;
         }}
+
         .stTabs [aria-selected="true"] {{ 
             background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(2, 132, 199, 0.25) 100%) !important; 
             color: #38bdf8 !important; 
@@ -1227,7 +1260,7 @@ def dialog_novo_atendimento(servicos_dict):
         servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_atend_serv_modal")
         preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos_dict[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}_modal")
         data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt_modal")
-        if st.button("Confirmar Entrada", type="primary", icon=":material/check_circle:", use_container_width=True):
+        if st.button("✅ Confirmar Entrada", type="primary", use_container_width=True):
             inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
             st.success("Atendimento registrado no caixa!")
             st.rerun()
@@ -1237,7 +1270,7 @@ def dialog_nova_despesa():
     descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc_modal", placeholder="Ex: Produto de limpeza, conta de luz...")
     valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val_modal")
     data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt_modal")
-    if st.button("Lançar Saída", type="primary", icon=":material/remove_circle:", use_container_width=True):
+    if st.button("🔴 Lançar Saída", type="primary", use_container_width=True):
         if descricao_saida and valor_saida > 0:
             inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
             st.success("Despesa lançada!")
@@ -1252,7 +1285,7 @@ def dialog_anotar_fiado(servicos_dict):
         servico_pendente = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_fiado_serv_modal")
         preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos_dict[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}_modal")
         data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt_modal")
-        if st.button("Anotar Pendência", type="primary", icon=":material/warning:", use_container_width=True):
+        if st.button("⚠️ Anotar Pendência", type="primary", use_container_width=True):
             if nome_devedor:
                 inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                 st.success("Fiado registrado!")
@@ -1266,7 +1299,7 @@ def dialog_baixar_fiado(df_fluxo):
     if not df_pendencias.empty:
         opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
         pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel_modal")
-        if st.button("Confirmar Recebimento", type="primary", icon=":material/payments:", use_container_width=True):
+        if st.button("💰 Confirmar Recebimento", type="primary", use_container_width=True):
             id_alterar = opcoes_pendentes[pendencia_selecionada]
             row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
             nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
@@ -1489,29 +1522,29 @@ with tab_dashboard:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 2: SERVIÇOS
+# TAB 2: SERVIÇOS (CORRIGIDO)
 # ==============================================================================
 with tab_servicos:
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    st.markdown('<h3 style="margin-bottom: 8px;">:material/bolt: Ações & Serviços</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 style="margin-bottom: 8px;">⚡ Ações & Serviços</h3>', unsafe_allow_html=True)
     st.markdown("<p style='color: #94a3b8 !important; margin-bottom: 20px;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
     
     col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
     
     with col_srv1:
-        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+        if st.button("✂️ Novo Atendimento", use_container_width=True, type="primary"):
             dialog_novo_atendimento(servicos)
             
     with col_srv2:
-        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+        if st.button("🛍️ Nova Despesa", use_container_width=True):
             dialog_nova_despesa()
             
     with col_srv3:
-        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+        if st.button("💳 Anotar Fiado", use_container_width=True):
             dialog_anotar_fiado(servicos)
             
     with col_srv4:
-        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+        if st.button("💸 Baixar Fiado", use_container_width=True):
             dialog_baixar_fiado(df_fluxo_caixa)
     st.markdown('</div>', unsafe_allow_html=True)
 
