@@ -105,6 +105,14 @@ def set_background_com_logo(image_path):
         @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
         @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
+        /* REMOÇÃO DEFINITIVA DO BOTÃO STOP E DO BONECO DE CARREGAMENTO */
+        [data-testid="stStatusWidget"], div[data-testid="stStatusWidget"] {{
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }}
+
         .stApp {{
             {bg_style}
             background-color: {app_bg} !important;
