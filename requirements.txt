@@ -1,7 +1,8 @@
-streamlit
-pandas
-plotly
+fastapi
+uvicorn
 sqlalchemy
 psycopg2-binary
+pandas
+plotly
 reportlab
-cryptography
+requests
