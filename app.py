@@ -30,7 +30,7 @@ SALT = st.secrets.get("SECURITY_SALT", "salao_fio_caixa_secure_default_2026")
 TZ = ZoneInfo("America/Sao_Paulo")
 
 # URL OFICIAL NO RENDER
-RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com/"
+RENDER_BASE_URL = "https://agendamentos-hexz.onrender.com"
 
 def gerar_hash(password: str) -> str:
     """Gera o hash da senha compatível com o padrão do projeto."""
