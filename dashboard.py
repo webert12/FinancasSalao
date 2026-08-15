@@ -296,13 +296,19 @@ st.markdown("""
 
 # --- CONEXÃO BANCO DE DADOS (SALÃO DE BELEZA) ---
 # Este sistema usa EXCLUSIVAMENTE DB_URL_SALAO.
-try:
-    DB_URL = st.secrets.get("DB_URL_SALAO", os.getenv("DB_URL_SALAO", ""))
-except Exception:
-    DB_URL = os.getenv("DB_URL_SALAO", "")
+# IMPORTANTE: no Render, as Environment Variables são a fonte principal.
+# Só usamos st.secrets como fallback. Assim uma chave vazia em secrets.toml
+# não impede o uso correto de DB_URL_SALAO configurada no Render.
+DB_URL = str(os.getenv("DB_URL_SALAO", "") or "").strip()
+if not DB_URL:
+    try:
+        DB_URL = str(st.secrets.get("DB_URL_SALAO", "") or "").strip()
+    except Exception:
+        DB_URL = ""
 
 if not DB_URL:
-    st.error("❌ ERRO CRÍTICO: Configure a variável/Secret 'DB_URL_SALAO' para o banco do Salão de Beleza.")
+    st.error("❌ ERRO CRÍTICO: DB_URL_SALAO não foi encontrada no ambiente do Render.")
+    st.info("No Render, abra Environment e confirme que a variável se chama exatamente DB_URL_SALAO e que possui uma URL PostgreSQL válida.")
     st.stop()
 
 @st.cache_resource

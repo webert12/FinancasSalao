@@ -423,13 +423,22 @@ if sistema_atual == "salao":
 # --- CONEXÃO BANCO DE DADOS (BARBEARIA) ---
 # Este sistema usa EXCLUSIVAMENTE o banco configurado em DB_URL_APP.
 # O dashboard de Salão de Beleza usa DB_URL_SALAO, mantendo dados e ADMs separados.
-try:
-    DB_URL = st.secrets.get("DB_URL_APP", os.getenv("DB_URL_APP", os.getenv("DB_URL", "")))
-except Exception:
-    DB_URL = os.getenv("DB_URL_APP", "")
+# IMPORTANTE: no Render, as Environment Variables são a fonte principal.
+# Só usamos st.secrets como fallback. Isso evita que uma chave vazia em
+# secrets.toml esconda uma DB_URL_APP corretamente configurada no Render.
+DB_URL = str(os.getenv("DB_URL_APP", "") or "").strip()
+if not DB_URL:
+    try:
+        DB_URL = str(st.secrets.get("DB_URL_APP", "") or "").strip()
+    except Exception:
+        DB_URL = ""
+# Compatibilidade temporária com instalações antigas da Barbearia.
+if not DB_URL:
+    DB_URL = str(os.getenv("DB_URL", "") or "").strip()
 
 if not DB_URL:
-    st.error("❌ ERRO CRÍTICO: Configure a variável/Secret 'DB_URL_APP' para o banco da Barbearia.")
+    st.error("❌ ERRO CRÍTICO: DB_URL_APP não foi encontrada no ambiente do Render.")
+    st.info("No Render, abra Environment e confirme que a variável se chama exatamente DB_URL_APP e que possui uma URL PostgreSQL válida.")
     st.stop()
 
 @st.cache_resource
