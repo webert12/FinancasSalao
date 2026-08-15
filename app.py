@@ -65,6 +65,13 @@ if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_sen
 if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
 if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
+# --- ROTEAMENTO PARA O SISTEMA DE SALÃO DE BELEZA ---
+# O app.py continua sendo o ponto de entrada do Render. Quando o cliente
+# escolhe "Salão de Beleza", a navegação é encaminhada para a página
+# que executa o dashboard.py dentro do mesmo projeto Streamlit.
+if query_params.get("sistema") == "salao":
+    st.switch_page("pages/dashboard.py")
+
 # Recupera sessão persistida pela URL se houver
 if not st.session_state.autenticado and "token_sessao" in query_params:
     token_val = query_params["token_sessao"]
@@ -863,7 +870,27 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    col_vazia, col_btn_tema = st.columns([8, 1])
+    col_adm, col_vazia, col_btn_tema = st.columns([1, 7, 1])
+    with col_adm:
+        with st.popover("⚙️ ADM", use_container_width=True):
+            st.markdown("### 🔐 Acesso Administrativo")
+            with st.form("form_login_admin_canto"):
+                admin_usuario_input = st.text_input("Usuário Admin", value="admin").strip().lower()
+                admin_senha_input = st.text_input("Senha Principal", type="password")
+                admin_senha2_input = st.text_input("Senha Secundária", type="password")
+                if st.form_submit_button("Entrar como ADM", type="primary", use_container_width=True):
+                    if (admin_usuario_input == "admin"
+                            and verificar_senha(admin_senha_input, admin_hash1)
+                            and verificar_senha(admin_senha2_input, admin_hash2)):
+                        st.session_state.autenticado = True
+                        st.session_state.usuario_logado = "Administrador"
+                        st.session_state.eh_admin = True
+                        st.query_params["token_sessao"] = "admin_master_session"
+                        if "sistema" in st.query_params:
+                            del st.query_params["sistema"]
+                        st.rerun()
+                    else:
+                        st.error("Credenciais administrativas inválidas.")
     with col_btn_tema:
         if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
             st.session_state.tema_escuro = not st.session_state.tema_escuro
@@ -883,40 +910,42 @@ if not st.session_state.autenticado:
                 </div>
         ''', unsafe_allow_html=True)
         
-        tipo_acesso = st.radio("Acesso como:", ["Salão", "Admin"], horizontal=True, label_visibility="collapsed")
+        tipo_acesso = st.radio("Acesso como:", ["Barbearia", "Salão de Beleza"], horizontal=True, label_visibility="collapsed")
 
         with st.form("form_login_moderno"):
             usuario_input = st.text_input("Usuário / Login").strip().lower()
             senha_input = st.text_input("Senha", type="password")
-            senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin" else ""
             st.markdown("<br>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("Acessar Sistema", type="primary", use_container_width=True)
             if submit_login:
-                if tipo_acesso == "Admin":
-                    if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_logado = "Administrador"
-                        st.session_state.eh_admin = True
-                        st.query_params["token_sessao"] = "admin_master_session"
-                        st.rerun()
-                    else: st.error("Credenciais inválidas.")
-                else:
-                    if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
-                        dados_user = usuarios_cadastrados[usuario_input]
-                        try:
-                            data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
-                        except Exception:
-                            data_venc = datetime.now(TZ).date() + timedelta(days=30)
+                if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
+                    dados_user = usuarios_cadastrados[usuario_input]
+                    try:
+                        data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
+                    except Exception:
+                        data_venc = datetime.now(TZ).date() + timedelta(days=30)
 
-                        if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
-                            st.error("❌ Acesso bloqueado. Licença expirada.")
-                            st.stop()
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_logado = usuario_input
-                        st.session_state.eh_admin = False
-                        st.query_params["token_sessao"] = usuario_input
+                    if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
+                        st.error("❌ Acesso bloqueado. Licença expirada.")
+                        st.stop()
+
+                    st.session_state.autenticado = True
+                    st.session_state.usuario_logado = usuario_input
+                    st.session_state.eh_admin = False
+                    st.query_params["token_sessao"] = usuario_input
+
+                    # Salão de Beleza: abre o dashboard.py através da
+                    # página interna do mesmo projeto/serviço do Render.
+                    if tipo_acesso == "Salão de Beleza":
+                        st.query_params["sistema"] = "salao"
+                        st.switch_page("pages/dashboard.py")
+                    else:
+                        # Barbearia: permanece no app.py atual.
+                        if "sistema" in st.query_params:
+                            del st.query_params["sistema"]
                         st.rerun()
-                    else: st.error("Usuário ou senha incorretos.")
+                else:
+                    st.error("Usuário ou senha incorretos.")
 
         st.markdown("<hr style='border-color: rgba(255,255,255,0.08); margin: 20px 0;'>", unsafe_allow_html=True)
 
