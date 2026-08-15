@@ -27,9 +27,9 @@ from reportlab.lib import colors
 
 # --- CONFIGURAÇÃO DE SEGURANÇA E HORÁRIO (CORRIGIDO PARA O RENDER) ---
 try:
-    SALT = st.secrets.get("SECURITY_SALT", "salao_fio_caixa_secure_default_2026")
+    SALT = st.secrets.get("SECURITY_SALT_SALAO", os.getenv("SECURITY_SALT_SALAO", "salao_fio_caixa_secure_default_2026"))
 except Exception:
-    SALT = os.getenv("SECURITY_SALT", "salao_fio_caixa_secure_default_2026")
+    SALT = os.getenv("SECURITY_SALT_SALAO", "salao_fio_caixa_secure_default_2026")
 
 TZ = ZoneInfo("America/Sao_Paulo")
 
@@ -56,7 +56,9 @@ def verificar_senha(senha_digitada, senha_no_banco):
     return hmac.compare_digest(hash_calc, str(senha_no_banco))
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Studio & Gestão - Salão de Beleza", layout="wide", page_icon="💇‍♀️")
+# Quando executado pelo app.py, a página já foi configurada pelo entrypoint.
+if not os.getenv("FIO_CAIXA_EMBEDDED_DASHBOARD"):
+    st.set_page_config(page_title="Studio & Gestão - Salão de Beleza", layout="wide", page_icon="💇‍♀️")
 
 # --- PERSISTÊNCIA DE SESSÃO VIA URL ---
 query_params = st.query_params
@@ -69,16 +71,17 @@ if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_sen
 if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = False
 if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
-# Recupera sessão persistida pela URL se houver
+# O Salão aceita somente tokens próprios (prefixo salao:).
+# Assim um token/usuário da Barbearia nunca autentica no Salão.
 if not st.session_state.autenticado and "token_sessao" in query_params:
-    token_val = query_params["token_sessao"]
-    if token_val == "admin_master_session":
+    token_val = str(query_params["token_sessao"]).strip()
+    if token_val == "salao:admin_master_session":
         st.session_state.autenticado = True
         st.session_state.usuario_logado = "Administrador"
         st.session_state.eh_admin = True
-    elif token_val:
+    elif token_val.startswith("salao:user:") and token_val[11:]:
         st.session_state.autenticado = True
-        st.session_state.usuario_logado = str(token_val).strip().lower()
+        st.session_state.usuario_logado = token_val[11:].strip().lower()
         st.session_state.eh_admin = False
 
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
@@ -291,18 +294,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO BANCO DE DADOS (CORRIGIDO PARA O RENDER) ---
-DB_URL = os.getenv("DB_URL")
+# --- CONEXÃO BANCO DE DADOS (SALÃO DE BELEZA) ---
+# Este sistema usa EXCLUSIVAMENTE DB_URL_SALAO.
+try:
+    DB_URL = st.secrets.get("DB_URL_SALAO", os.getenv("DB_URL_SALAO", ""))
+except Exception:
+    DB_URL = os.getenv("DB_URL_SALAO", "")
 
 if not DB_URL:
-    try:
-        if "DB_URL" in st.secrets:
-            DB_URL = st.secrets["DB_URL"]
-    except Exception:
-        pass
-
-if not DB_URL:
-    st.error("❌ ERRO CRÍTICO: Variável 'DB_URL' não encontrada nas Variáveis de Ambiente do Render nem nos Secrets.")
+    st.error("❌ ERRO CRÍTICO: Configure a variável/Secret 'DB_URL_SALAO' para o banco do Salão de Beleza.")
     st.stop()
 
 @st.cache_resource
@@ -831,7 +831,7 @@ if not st.session_state.autenticado:
         _, col_rec_centro, _ = st.columns([1, 2, 1])
         with col_rec_centro:
             st.markdown('<div class="login-card"><div class="login-brand-wrapper"><div class="login-badge-icon">🔐</div><h1 class="login-title">Recuperação</h1><p class="login-subtitle">Redefina a senha da sua conta</p></div>', unsafe_allow_html=True)
-            with st.form("form_recuperacao"):
+            with st.form("salao_form_recuperacao"):
                 user_recup = st.text_input("Usuário:").strip().lower()
                 email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
                 nova_senha_recup = st.text_input("Nova Senha:", type="password")
@@ -860,6 +860,15 @@ if not st.session_state.autenticado:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    if os.getenv("FIO_CAIXA_EMBEDDED_DASHBOARD"):
+        if st.button("← Voltar para escolha do sistema", key="voltar_seletor_salao"):
+            st.session_state.clear()
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
+            st.rerun()
+
     _, col_login_centro, _ = st.columns([1, 2, 1])
 
     with col_login_centro:
@@ -874,7 +883,7 @@ if not st.session_state.autenticado:
         
         tipo_acesso = st.radio("Acesso como:", ["Salão de Beleza", "Admin Mestre"], horizontal=True, label_visibility="collapsed")
 
-        with st.form("form_login_moderno"):
+        with st.form("salao_form_login"):
             usuario_input = st.text_input("Usuário / Login").strip().lower()
             senha_input = st.text_input("Senha", type="password")
             senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin Mestre" else ""
@@ -886,7 +895,7 @@ if not st.session_state.autenticado:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
-                        st.query_params["token_sessao"] = "admin_master_session"
+                        st.query_params["token_sessao"] = "salao:admin_master_session"
                         st.rerun()
                     else: st.error("Credenciais inválidas.")
                 else:
@@ -903,7 +912,7 @@ if not st.session_state.autenticado:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = usuario_input
                         st.session_state.eh_admin = False
-                        st.query_params["token_sessao"] = usuario_input
+                        st.query_params["token_sessao"] = f"salao:user:{usuario_input}"
                         st.rerun()
                     else: st.error("Usuário ou senha incorretos.")
 
@@ -940,6 +949,8 @@ if st.session_state.eh_admin:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
 
     tab_cad, tab_ger, tab_assinantes, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "📊 Painel de Assinantes", "🔧 Configurações Mestre"])
@@ -1096,6 +1107,8 @@ if st.session_state.eh_admin:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
     st.stop()
 
@@ -1174,6 +1187,8 @@ with col_top_left:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
 
 st.markdown(f'''

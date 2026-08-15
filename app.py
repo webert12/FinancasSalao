@@ -65,23 +65,17 @@ if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_sen
 if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
 if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
-# --- ROTEAMENTO PARA O SISTEMA DE SALÃO DE BELEZA ---
-# O app.py continua sendo o ponto de entrada do Render. Quando o cliente
-# escolhe "Salão de Beleza", a navegação é encaminhada para a página
-# que executa o dashboard.py dentro do mesmo projeto Streamlit.
-if query_params.get("sistema") == "salao":
-    st.switch_page("pages/dashboard.py")
-
-# Recupera sessão persistida pela URL se houver
-if not st.session_state.autenticado and "token_sessao" in query_params:
-    token_val = query_params["token_sessao"]
-    if token_val == "admin_master_session":
+# A sessão persistida da Barbearia usa tokens próprios (prefixo app:)
+# para impedir que um token do Salão seja aceito neste sistema.
+if query_params.get("sistema") != "salao" and not st.session_state.autenticado and "token_sessao" in query_params:
+    token_val = str(query_params["token_sessao"]).strip()
+    if token_val == "app:admin_master_session":
         st.session_state.autenticado = True
         st.session_state.usuario_logado = "Administrador"
         st.session_state.eh_admin = True
-    elif token_val:
+    elif token_val.startswith("app:user:") and token_val[9:]:
         st.session_state.autenticado = True
-        st.session_state.usuario_logado = str(token_val).strip().lower()
+        st.session_state.usuario_logado = token_val[9:].strip().lower()
         st.session_state.eh_admin = False
 
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
@@ -354,11 +348,78 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO BANCO DE DADOS ---
-if "DB_URL" in st.secrets:
-    DB_URL = st.secrets["DB_URL"]
-else:
-    st.error("❌ ERRO CRÍTICO: Variável 'DB_URL' não encontrada nos Secrets.")
+# ==============================================================================
+# SELETOR DE SISTEMA — PORTA DE ENTRADA ÚNICA
+# ==============================================================================
+# Nada do banco da Barbearia é inicializado antes da escolha do sistema.
+# Isso permite que cada opção use seu próprio banco, autenticação e ADM.
+
+sistema_atual = st.session_state.get("sistema_selecionado") or query_params.get("sistema")
+
+if sistema_atual not in ("barbearia", "salao"):
+    st.markdown("""
+        <div style="text-align:center; margin: 8vh auto 28px auto; max-width: 760px;">
+            <div style="font-size:58px; margin-bottom:12px;">✂️</div>
+            <h1 style="font-size:2.35rem; margin-bottom:8px;">Escolha seu sistema</h1>
+            <p style="font-size:1.05rem; opacity:.75;">Selecione como você deseja acessar a plataforma.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        st.markdown("""
+            <div style="padding:28px; border-radius:22px; border:1px solid rgba(56,189,248,.25); background:rgba(15,23,42,.72); text-align:center; min-height:190px;">
+                <div style="font-size:42px;">💈</div>
+                <h2>Barbearia</h2>
+                <p style="opacity:.72;">Acesse o sistema Fio & Caixa.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Entrar na Barbearia", type="primary", use_container_width=True, key="entrar_barbearia"):
+            # Seleção persistente apenas pela URL: a tela de login da Barbearia
+            # é independente da tela de login do Salão.
+            st.session_state.clear()
+            st.query_params["sistema"] = "barbearia"
+            st.rerun()
+
+    with col2:
+        st.markdown("""
+            <div style="padding:28px; border-radius:22px; border:1px solid rgba(244,114,182,.28); background:rgba(42,21,35,.72); text-align:center; min-height:190px;">
+                <div style="font-size:42px;">💇‍♀️</div>
+                <h2>Salão de Beleza</h2>
+                <p style="opacity:.72;">Acesse o Studio & Gestão.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Entrar no Salão de Beleza", use_container_width=True, key="entrar_salao"):
+            # O Salão possui login, ADM, sessão e banco próprios.
+            st.session_state.clear()
+            st.query_params["sistema"] = "salao"
+            st.rerun()
+
+    st.stop()
+
+# Quando Salão de Beleza é escolhido, o próprio dashboard.py assume a tela.
+# O app.py continua sendo o único entrypoint do Render.
+if sistema_atual == "salao":
+    import runpy
+    os.environ["FIO_CAIXA_EMBEDDED_DASHBOARD"] = "1"
+    dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.py")
+    runpy.run_path(dashboard_path, run_name="__main__")
+    st.stop()
+
+# ==============================================================================
+# BANCO EXCLUSIVO DA BARBEARIA
+# ==============================================================================
+
+# --- CONEXÃO BANCO DE DADOS (BARBEARIA) ---
+# Este sistema usa EXCLUSIVAMENTE o banco configurado em DB_URL_APP.
+# O dashboard de Salão de Beleza usa DB_URL_SALAO, mantendo dados e ADMs separados.
+try:
+    DB_URL = st.secrets.get("DB_URL_APP", os.getenv("DB_URL_APP", ""))
+except Exception:
+    DB_URL = os.getenv("DB_URL_APP", "")
+
+if not DB_URL:
+    st.error("❌ ERRO CRÍTICO: Configure a variável/Secret 'DB_URL_APP' para o banco da Barbearia.")
     st.stop()
 
 @st.cache_resource
@@ -870,7 +931,16 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    col_adm, col_vazia, col_btn_tema = st.columns([1, 7, 1])
+    # Retorno ao seletor nunca abre o login do sistema anterior.
+    col_back, col_adm, col_vazia, col_btn_tema = st.columns([1.8, 1, 5.2, 1])
+    with col_back:
+        if st.button("← Trocar sistema", use_container_width=True, key="app_login_back_selector"):
+            st.session_state.clear()
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
+            st.rerun()
     with col_adm:
         with st.popover("⚙️ ADM", use_container_width=True):
             st.markdown("### 🔐 Acesso Administrativo")
@@ -885,7 +955,7 @@ if not st.session_state.autenticado:
                         st.session_state.autenticado = True
                         st.session_state.usuario_logado = "Administrador"
                         st.session_state.eh_admin = True
-                        st.query_params["token_sessao"] = "admin_master_session"
+                        st.query_params["token_sessao"] = "app:admin_master_session"
                         if "sistema" in st.query_params:
                             del st.query_params["sistema"]
                         st.rerun()
@@ -910,8 +980,6 @@ if not st.session_state.autenticado:
                 </div>
         ''', unsafe_allow_html=True)
         
-        tipo_acesso = st.radio("Acesso como:", ["Barbearia", "Salão de Beleza"], horizontal=True, label_visibility="collapsed")
-
         with st.form("form_login_moderno"):
             usuario_input = st.text_input("Usuário / Login").strip().lower()
             senha_input = st.text_input("Senha", type="password")
@@ -932,18 +1000,9 @@ if not st.session_state.autenticado:
                     st.session_state.autenticado = True
                     st.session_state.usuario_logado = usuario_input
                     st.session_state.eh_admin = False
-                    st.query_params["token_sessao"] = usuario_input
-
-                    # Salão de Beleza: abre o dashboard.py através da
-                    # página interna do mesmo projeto/serviço do Render.
-                    if tipo_acesso == "Salão de Beleza":
-                        st.query_params["sistema"] = "salao"
-                        st.switch_page("pages/dashboard.py")
-                    else:
-                        # Barbearia: permanece no app.py atual.
-                        if "sistema" in st.query_params:
-                            del st.query_params["sistema"]
-                        st.rerun()
+                    st.query_params["token_sessao"] = f"app:user:{usuario_input}"
+                    st.query_params["sistema"] = "barbearia"
+                    st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
 
@@ -976,6 +1035,8 @@ if st.session_state.eh_admin:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
 
     tab_cad, tab_ger, tab_assinantes, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "📊 Painel de Assinantes", "🔧 Configurações Mestre"])
@@ -1132,6 +1193,8 @@ if st.session_state.eh_admin:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
     st.stop()
 
@@ -1210,6 +1273,8 @@ with col_top_left:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
 
 st.markdown(f'''
