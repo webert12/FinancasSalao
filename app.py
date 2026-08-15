@@ -62,7 +62,7 @@ if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
-if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
+st.session_state.tema_escuro = True
 if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
 # A sessão persistida da Barbearia usa tokens próprios (prefixo app:)
@@ -201,6 +201,156 @@ def set_background_com_logo(image_path):
     )
 
 set_background_com_logo("logo.png")
+
+
+st.markdown(r"""
+<style>
+/* ================================================================
+   FIO&CAIXA — CONTRASTE FINAL FIXO (MODO ESCURO)
+   Tudo escuro, texto claro. Nenhum componente depende do tema do browser.
+   ================================================================ */
+:root {
+  color-scheme: dark !important;
+  --fc-dark-0:#070b12; --fc-dark-1:#0b1220; --fc-dark-2:#111827;
+  --fc-dark-3:#172033; --fc-border:#334155; --fc-text:#f8fafc;
+  --fc-muted:#cbd5e1; --fc-blue:#38bdf8; --fc-pink:#f472b6;
+}
+html, body, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main,
+.stApp, .main, section.main, .block-container {
+  background:#070b12 !important; color:#f8fafc !important;
+}
+.stApp * { box-sizing:border-box; }
+.stApp p, .stApp span, .stApp label, .stApp small, .stApp strong, .stApp em,
+.stApp li, .stApp td, .stApp th, .stApp [data-testid="stMarkdownContainer"],
+.stApp [data-testid="stWidgetLabel"], .stApp [data-testid="stWidgetLabel"] * {
+  color:#f8fafc !important;
+}
+.stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] * {
+  color:#cbd5e1 !important;
+}
+.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5,.stApp h6,
+h1,h2,h3,h4,h5,h6 { color:#ffffff !important; }
+
+a { color:#7dd3fc !important; }
+
+/* Entradas */
+input, textarea, select,
+[data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
+[data-testid="stDateInput"] input, [data-testid="stTextArea"] textarea,
+div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div,
+div[data-baseweb="select"] > div {
+  background:#111827 !important; color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  border:1px solid #475569 !important; border-radius:12px !important;
+  caret-color:#ffffff !important;
+}
+input::placeholder, textarea::placeholder {
+  color:#94a3b8 !important; -webkit-text-fill-color:#94a3b8 !important; opacity:1 !important;
+}
+div[data-baseweb="input"] *, div[data-baseweb="textarea"] *, div[data-baseweb="select"] * {
+  color:#f8fafc !important; -webkit-text-fill-color:#f8fafc !important;
+}
+
+/* Menus, dropdowns, calendário, popovers */
+[data-baseweb="popover"], [data-baseweb="menu"], [role="listbox"], [role="option"],
+[data-testid="stPopoverBody"], [data-testid="stDateInputField"] {
+  background:#111827 !important; color:#f8fafc !important; border-color:#475569 !important;
+}
+[role="option"] *, [data-baseweb="menu"] *, [data-baseweb="popover"] * {
+  color:#f8fafc !important; -webkit-text-fill-color:#f8fafc !important;
+}
+[role="option"]:hover, [role="option"][aria-selected="true"] {
+  background:#243044 !important; color:#ffffff !important;
+}
+
+/* Formulários, cards, expander e diálogos */
+div[data-testid="stForm"], .login-card, .ui-card, .kpi-card-v2,
+[data-testid="stExpander"], [data-testid="stDialog"], [role="dialog"] {
+  background:#111827 !important; color:#f8fafc !important; border-color:#334155 !important;
+}
+div[data-testid="stForm"] *, .login-card *, .ui-card *, .kpi-card-v2 *,
+[data-testid="stExpander"] *, [data-testid="stDialog"] *, [role="dialog"] * {
+  color:#f8fafc !important;
+}
+
+/* Botões: escuros por padrão, claros somente no texto; primários têm cor de destaque. */
+.stButton > button, [data-testid="stDownloadButton"] > button,
+[data-testid="stFormSubmitButton"] button, [data-testid="stPopover"] button {
+  background:#1e293b !important; color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important; border:1px solid #475569 !important;
+  font-weight:800 !important; min-height:44px !important; border-radius:12px !important;
+}
+.stButton > button:hover, [data-testid="stDownloadButton"] > button:hover,
+[data-testid="stFormSubmitButton"] button:hover { background:#334155 !important; color:#ffffff !important; }
+.stButton > button[kind="primary"], [data-testid="stFormSubmitButton"] button[kind="primary"] {
+  background:linear-gradient(135deg,#0284c7,#0369a1) !important;
+  color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; border:none !important;
+}
+.stButton > button *, [data-testid="stDownloadButton"] > button *,
+[data-testid="stFormSubmitButton"] button * { color:inherit !important; -webkit-text-fill-color:inherit !important; }
+[data-testid="stNumberInput"] button {
+  background:#1e293b !important; color:#f8fafc !important; -webkit-text-fill-color:#f8fafc !important;
+  border-color:#475569 !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] { background:#0f172a !important; border:1px solid #334155 !important; }
+.stTabs [data-baseweb="tab"] { background:#0f172a !important; color:#cbd5e1 !important; }
+.stTabs [aria-selected="true"] { background:#0369a1 !important; color:#ffffff !important; }
+.stTabs [aria-selected="true"] * { color:#ffffff !important; }
+
+/* Radio / checkbox / toggle */
+[data-testid="stRadio"] label *, [data-testid="stCheckbox"] label *,
+[data-testid="stToggle"] label *, [data-testid="stSelectbox"] label * { color:#f8fafc !important; }
+
+/* Alertas e mensagens */
+[data-testid="stAlert"], [data-testid="stNotification"], [data-testid="stToast"] {
+  background:#111827 !important; color:#f8fafc !important; border-color:#475569 !important;
+}
+[data-testid="stAlert"] *, [data-testid="stNotification"] *, [data-testid="stToast"] * { color:#f8fafc !important; }
+
+/* Tabelas */
+[data-testid="stTable"], [data-testid="stTable"] table,
+[data-testid="stDataFrame"] { background:#0f172a !important; color:#f8fafc !important; }
+[data-testid="stTable"] *, [data-testid="stDataFrame"] * { color:#f8fafc !important; }
+
+/* Upload */
+[data-testid="stFileUploader"] section, [data-testid="stFileUploaderDropzone"] {
+  background:#111827 !important; color:#f8fafc !important; border-color:#475569 !important;
+}
+[data-testid="stFileUploader"] * { color:#f8fafc !important; }
+
+/* Tela inicial */
+.system-card { background:#111827 !important; color:#f8fafc !important; border-color:#334155 !important; }
+.system-card * { color:#f8fafc !important; }
+.st-key-entrar_barbearia > button { background:linear-gradient(135deg,#0284c7,#0369a1) !important; color:#fff !important; }
+.st-key-entrar_salao > button { background:linear-gradient(135deg,#ec4899,#be185d) !important; color:#fff !important; }
+.st-key-entrar_barbearia > button *, .st-key-entrar_salao > button * { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
+/* Elementos HTML com estilos inline claros do projeto */
+.stApp [style*="background: #ffffff"], .stApp [style*="background:#ffffff"],
+.stApp [style*="background: #fff"], .stApp [style*="background:#fff"],
+.stApp [style*="background: linear-gradient(135deg, #ffffff"],
+.stApp [style*="background: linear-gradient(135deg,#ffffff"],
+.stApp [style*="background: #fdf2f8"], .stApp [style*="background:#fdf2f8"],
+.stApp [style*="background: #fbcfe8"], .stApp [style*="background:#fbcfe8"] {
+  background:#111827 !important; color:#f8fafc !important;
+}
+.stApp [style*="color: #0f172a"], .stApp [style*="color:#0f172a"],
+.stApp [style*="color: #831843"], .stApp [style*="color:#831843"],
+.stApp [style*="color: #9d174d"], .stApp [style*="color:#9d174d"],
+.stApp [style*="color: #5b1737"], .stApp [style*="color:#5b1737"],
+.stApp [style*="color: #351522"], .stApp [style*="color:#351522"] {
+  color:#f8fafc !important;
+}
+.stApp [style*="color: #64748b"], .stApp [style*="color:#64748b"],
+.stApp [style*="color: #94a3b8"], .stApp [style*="color:#94a3b8"] { color:#cbd5e1 !important; }
+
+/* Nunca permita texto preto padrão do navegador em elementos internos */
+.stApp button, .stApp input, .stApp textarea, .stApp select, .stApp option { font-family:inherit !important; }
+.stApp input:-webkit-autofill { -webkit-text-fill-color:#f8fafc !important; box-shadow:0 0 0 1000px #111827 inset !important; }
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
     <style>
@@ -810,8 +960,7 @@ if not st.session_state.autenticado:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
-
-    col_adm, col_vazia, col_btn_tema = st.columns([1, 7, 1])
+    col_adm, col_vazia = st.columns([1, 8])
     with col_adm:
         with st.popover("⚙️ ADM", use_container_width=True):
             st.markdown("### 🔐 Acesso Administrativo")
@@ -832,10 +981,6 @@ if not st.session_state.autenticado:
                         st.rerun()
                     else:
                         st.error("Credenciais administrativas inválidas.")
-    with col_btn_tema:
-        if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
-            st.session_state.tema_escuro = not st.session_state.tema_escuro
-            st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
