@@ -331,6 +331,53 @@ def set_background_com_logo(image_path):
 
 set_background_com_logo("logo.png")
 
+
+# --- CONTRASTE FINAL DE INTERFACE ---
+# Reforça a legibilidade também dos elementos HTML que possuem cores inline.
+if st.session_state.tema_escuro:
+    _inline_contrast = """
+    <style>
+    /* Tema escuro: superfícies escuras + texto claro */
+    .stApp [style*="background: #ffffff"], .stApp [style*="background:#ffffff"],
+    .stApp [style*="background: linear-gradient(135deg, #ffffff"],
+    .stApp [style*="background: linear-gradient(135deg,#ffffff"] {
+        background: #2a1723 !important; color: #fff7fb !important;
+    }
+    .stApp [style*="background: #fdf2f8"], .stApp [style*="background:#fdf2f8"],
+    .stApp [style*="background: #fbcfe8"], .stApp [style*="background:#fbcfe8"] {
+        background: #432338 !important; color: #fff7fb !important;
+    }
+    .stApp [style*="color: #831843"], .stApp [style*="color:#831843"],
+    .stApp [style*="color: #9d174d"], .stApp [style*="color:#9d174d"],
+    .stApp [style*="color: #5b1737"], .stApp [style*="color:#5b1737"],
+    .stApp [style*="color: #351522"], .stApp [style*="color:#351522"] {
+        color: #fff7fb !important;
+    }
+    .stApp [style*="color: #6b4656"], .stApp [style*="color:#6b4656"],
+    .stApp [style*="color: #8b6877"], .stApp [style*="color:#8b6877"] {
+        color: #f3c7da !important;
+    }
+    .stApp [style*="background: rgba(244,114,182,0.1)"],
+    .stApp [style*="background: rgba(244,114,182,.1)"] {
+        background: rgba(244,114,182,.18) !important;
+    }
+    </style>
+    """
+else:
+    _inline_contrast = """
+    <style>
+    /* Tema claro: superfícies claras + texto escuro */
+    .stApp [style*="background: #ffffff"], .stApp [style*="background:#ffffff"] {
+        color: #0f172a !important;
+    }
+    .stApp [style*="background: #fdf2f8"], .stApp [style*="background:#fdf2f8"],
+    .stApp [style*="background: #fbcfe8"], .stApp [style*="background:#fbcfe8"] {
+        color: #5b1737 !important;
+    }
+    </style>
+    """
+st.markdown(_inline_contrast, unsafe_allow_html=True)
+
 st.markdown("""
     <style>
         footer, [data-testid="stFooter"], .stFooter, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton { display: none !important; }
@@ -932,40 +979,50 @@ if not st.session_state.autenticado:
                 </div>
         ''', unsafe_allow_html=True)
         
-        tipo_acesso = st.radio("Acesso como:", ["Salão de Beleza", "Admin Mestre"], horizontal=True, label_visibility="collapsed")
+        # ADM fica separado no canto superior esquerdo, como na Barbearia.
+        col_adm_topo, col_vazia_topo = st.columns([1, 7])
+        with col_adm_topo:
+            with st.popover("⚙️ ADM", use_container_width=True):
+                st.markdown("### 🔐 Acesso Administrativo")
+                with st.form("form_login_admin_canto_salao"):
+                    admin_usuario_input = st.text_input("Usuário Admin", value="admin").strip().lower()
+                    admin_senha_input = st.text_input("Senha Principal", type="password")
+                    admin_senha2_input = st.text_input("Senha Secundária", type="password")
+                    if st.form_submit_button("Entrar como ADM", type="primary", use_container_width=True):
+                        if (admin_usuario_input == "admin"
+                                and verificar_senha(admin_senha_input, admin_hash1)
+                                and verificar_senha(admin_senha2_input, admin_hash2)):
+                            st.session_state.autenticado = True
+                            st.session_state.usuario_logado = "Administrador"
+                            st.session_state.eh_admin = True
+                            st.query_params["token_sessao"] = "salao:admin_master_session"
+                            st.rerun()
+                        else:
+                            st.error("Credenciais administrativas inválidas.")
 
         with st.form("form_login_moderno"):
             usuario_input = st.text_input("Usuário / Login").strip().lower()
             senha_input = st.text_input("Senha", type="password")
-            senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin Mestre" else ""
             st.markdown("<br>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("Entrar no Studio ✨", type="primary", use_container_width=True)
             if submit_login:
-                if tipo_acesso == "Admin Mestre":
-                    if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_logado = "Administrador"
-                        st.session_state.eh_admin = True
-                        st.query_params["token_sessao"] = "salao:admin_master_session"
-                        st.rerun()
-                    else: st.error("Credenciais inválidas.")
-                else:
-                    if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
-                        dados_user = usuarios_cadastrados[usuario_input]
-                        try:
-                            data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
-                        except Exception:
-                            data_venc = datetime.now(TZ).date() + timedelta(days=30)
+                if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
+                    dados_user = usuarios_cadastrados[usuario_input]
+                    try:
+                        data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
+                    except Exception:
+                        data_venc = datetime.now(TZ).date() + timedelta(days=30)
 
-                        if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
-                            st.error("❌ Acesso bloqueado. Licença expirada.")
-                            st.stop()
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_logado = usuario_input
-                        st.session_state.eh_admin = False
-                        st.query_params["token_sessao"] = f"salao:user:{usuario_input}"
-                        st.rerun()
-                    else: st.error("Usuário ou senha incorretos.")
+                    if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
+                        st.error("❌ Acesso bloqueado. Licença expirada.")
+                        st.stop()
+                    st.session_state.autenticado = True
+                    st.session_state.usuario_logado = usuario_input
+                    st.session_state.eh_admin = False
+                    st.query_params["token_sessao"] = f"salao:user:{usuario_input}"
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha incorretos.")
 
         st.markdown("<hr style='border-color: rgba(244,114,182,0.2); margin: 20px 0;'>", unsafe_allow_html=True)
 

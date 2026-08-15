@@ -90,264 +90,111 @@ def get_image_base64(image_path):
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
+    # Tema claro e escuro com contraste explícito. Nenhum componente depende
+    # da cor padrão do navegador/Streamlit para decidir a cor do texto.
     if st.session_state.tema_escuro:
         bg_style = f'background-image: radial-gradient(circle at 50% 0%, rgba(14, 23, 42, 0.95) 0%, rgba(6, 9, 15, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
-        app_bg = "#06090f"
-        input_bg = "rgba(10, 15, 26, 0.85)"
+        app_bg = '#06090f'
+        surface = '#111827'
+        surface_alt = '#0f172a'
+        input_bg = '#0b1220'
+        text_color = '#f8fafc'
+        muted_color = '#cbd5e1'
+        heading_color = '#ffffff'
+        input_text = '#f8fafc'
+        placeholder = '#94a3b8'
+        border_color = 'rgba(148,163,184,.28)'
+        card_bg = 'linear-gradient(145deg, #111827 0%, #0b1220 100%)'
+        menu_bg = '#111827'
+        secondary_btn_bg = '#1e293b'
+        secondary_btn_text = '#f8fafc'
     else:
-        bg_style = 'background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
-        app_bg = "#0f172a"
-        input_bg = "rgba(10, 15, 26, 0.85)"
+        bg_style = 'background: radial-gradient(circle at 50% 0%, #f8fafc 0%, #e2e8f0 58%, #cbd5e1 100%) !important;'
+        app_bg = '#f8fafc'
+        surface = '#ffffff'
+        surface_alt = '#f1f5f9'
+        input_bg = '#ffffff'
+        text_color = '#0f172a'
+        muted_color = '#475569'
+        heading_color = '#0f172a'
+        input_text = '#0f172a'
+        placeholder = '#64748b'
+        border_color = 'rgba(15,23,42,.18)'
+        card_bg = 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)'
+        menu_bg = '#ffffff'
+        secondary_btn_bg = '#e2e8f0'
+        secondary_btn_text = '#0f172a'
 
     st.markdown(
         f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
-        @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
-        /* REMOÇÃO DEFINITIVA DO BOTÃO STOP E DO BONECO DE CARREGAMENTO */
-        [data-testid="stStatusWidget"], div[data-testid="stStatusWidget"] {{
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
+        :root {{
+            --fc-text: {text_color};
+            --fc-muted: {muted_color};
+            --fc-heading: {heading_color};
+            --fc-input: {input_text};
+            --fc-placeholder: {placeholder};
+            --fc-surface: {surface};
+            --fc-surface-alt: {surface_alt};
+            --fc-border: {border_color};
         }}
 
-        .stApp {{
-            {bg_style}
-            background-color: {app_bg} !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-attachment: fixed !important;
-            color: #f8fafc !important;
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
-        }}
+        [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {{ display:none !important; }}
+        .stApp {{ {bg_style} background-color:{app_bg} !important; color:var(--fc-text) !important; font-family:'Plus Jakarta Sans',system-ui,sans-serif !important; }}
+        .stApp p, .stApp label, .stApp small, .stApp [data-testid="stMarkdownContainer"], .stApp [data-testid="stWidgetLabel"], .stApp [data-testid="stWidgetLabel"] * {{ color:var(--fc-text) !important; }}
+        .stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] * {{ color:var(--fc-muted) !important; }}
+        h1,h2,h3,h4,h5,h6,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5,.stApp h6 {{ color:var(--fc-heading) !important; }}
 
-        html, body, p, label, div {{
-            color: #f8fafc;
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-        }}
-
-        span[data-testid="stIconMaterial"], 
-        [data-testid="stIconMaterial"],
-        i.material-icons {{
-            font-family: 'Material Symbols Outlined', 'Material Icons' !important;
-            font-weight: normal !important;
-            font-style: normal !important;
-            font-size: 1.25rem !important;
-            line-height: 1 !important;
-            display: inline-block !important;
-            text-transform: none !important;
-            letter-spacing: normal !important;
-            word-wrap: normal !important;
-            white-space: nowrap !important;
-            direction: ltr !important;
-            -webkit-font-smoothing: antialiased !important;
-        }}
-
-        h1, h2, h3, h4, h5, h6 {{
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            letter-spacing: -0.5px !important;
-        }}
-
-        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
-        ::-webkit-scrollbar-track {{ background: rgba(6, 9, 15, 0.5); }}
-        ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.15); border-radius: 999px; }}
-        ::-webkit-scrollbar-thumb:hover {{ background: #38bdf8; }}
-
-        div[data-baseweb="select"] > div,
+        input, textarea, select,
         div[data-baseweb="input"] > div,
-        input, select, textarea,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="textarea"] > div,
         [data-testid="stTextInput"] input,
         [data-testid="stNumberInput"] input,
         [data-testid="stDateInput"] input {{
-            background-color: {input_bg} !important;
-            color: #ffffff !important;
-            -webkit-text-fill-color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            border-radius: 14px !important;
-            padding: 12px 16px !important;
-            font-size: 0.95rem !important;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            backdrop-filter: blur(10px) !important;
+            background:{input_bg} !important; color:{input_text} !important; -webkit-text-fill-color:{input_text} !important;
+            border:1px solid {border_color} !important; border-radius:14px !important;
         }}
+        input::placeholder, textarea::placeholder {{ color:{placeholder} !important; -webkit-text-fill-color:{placeholder} !important; opacity:1 !important; }}
+        div[data-baseweb="input"] *, div[data-baseweb="select"] *, div[data-baseweb="textarea"] * {{ color:{input_text} !important; }}
 
-        input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
-            border-color: #38bdf8 !important;
-            box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
-            background-color: {input_bg} !important;
-        }}
+        [data-baseweb="menu"], [data-baseweb="popover"], [role="listbox"], [role="option"],
+        div[data-testid="stSelectboxVirtualDropdown"], div[data-testid="stPopoverBody"] {{ background:{menu_bg} !important; color:{text_color} !important; border:1px solid {border_color} !important; }}
+        [role="option"] *, div[data-testid="stPopoverBody"] * {{ color:{text_color} !important; }}
+        [role="option"]:hover {{ background:rgba(56,189,248,.14) !important; }}
 
-        div[data-testid="stForm"] {{
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            border-radius: 20px !important;
-            padding: 24px !important;
-            background: rgba(13, 19, 31, 0.6) !important;
-            backdrop-filter: blur(12px) !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-        }}
+        div[data-testid="stForm"] {{ background:{card_bg} !important; color:{text_color} !important; border:1px solid {border_color} !important; border-radius:20px !important; padding:24px !important; box-shadow:0 12px 35px rgba(0,0,0,.16) !important; }}
+        div[data-testid="stForm"] * {{ color:{text_color} !important; }}
+        .ui-card,.kpi-card-v2,.login-card {{ background:{card_bg} !important; color:{text_color} !important; border-color:{border_color} !important; }}
+        .ui-card *, .kpi-card-v2 * {{ color:{text_color} !important; }}
 
-        div[data-testid="stPopoverBody"] {{
-            background-color: rgba(13, 19, 31, 0.98) !important;
-            border: 1px solid rgba(56, 189, 248, 0.3) !important;
-            border-radius: 20px !important;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8) !important;
-            backdrop-filter: blur(16px) !important;
-            z-index: 999999 !important;
-            padding: 18px !important;
+        .stButton > button, [data-testid="stDownloadButton"] > button, [data-testid="stFormSubmitButton"] button {{
+            background:{secondary_btn_bg} !important; color:{secondary_btn_text} !important; -webkit-text-fill-color:{secondary_btn_text} !important;
+            border:1px solid {border_color} !important; border-radius:14px !important; font-weight:800 !important; min-height:46px !important;
         }}
-        div[data-testid="stPopoverBody"] * {{ color: #ffffff !important; }}
+        .stButton > button[kind="primary"], [data-testid="stFormSubmitButton"] button[kind="primary"] {{ background:linear-gradient(135deg,#0284c7 0%,#38bdf8 100%) !important; color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; border:none !important; }}
+        .stButton > button *, [data-testid="stDownloadButton"] > button *, [data-testid="stFormSubmitButton"] button * {{ color:inherit !important; -webkit-text-fill-color:inherit !important; }}
+        [data-testid="stNumberInput"] button {{ background:{surface_alt} !important; color:{heading_color} !important; border-color:{border_color} !important; }}
 
-        div[data-testid="stPopover"] button,
-        [data-testid="stPopoverButton"] button {{
-            background: rgba(17, 24, 39, 0.85) !important;
-            border: 1px solid rgba(56, 189, 248, 0.4) !important;
-            border-radius: 14px !important;
-            padding: 10px 16px !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
-            transition: all 0.25s ease !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 8px !important;
-            width: auto !important;
-            min-height: 44px !important;
-        }}
+        .login-card {{ border-radius:28px !important; padding:42px 36px !important; box-shadow:0 25px 60px rgba(0,0,0,.22) !important; max-width:480px; margin:0 auto; }}
+        .login-title {{ color:{heading_color} !important; font-size:2.4rem !important; font-weight:800 !important; text-align:center; }}
+        .login-subtitle {{ color:{muted_color} !important; font-size:.95rem !important; text-align:center; font-weight:600; }}
+        .login-card [data-testid="stWidgetLabel"], .login-card [data-testid="stWidgetLabel"] * {{ color:{text_color} !important; }}
 
-        ul[data-baseweb="menu"],
-        li[role="option"],
-        div[data-testid="stSelectboxVirtualDropdown"] {{
-            background-color: #0d131f !important;
-            color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            border-radius: 14px !important;
-        }}
-        li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
-            background-color: rgba(56, 189, 248, 0.15) !important;
-            color: #38bdf8 !important;
-        }}
+        .stTabs [data-baseweb="tab-list"] {{ background:{surface_alt} !important; border:1px solid {border_color} !important; border-radius:18px !important; }}
+        .stTabs [data-baseweb="tab"] {{ color:{muted_color} !important; }}
+        .stTabs [aria-selected="true"] {{ background:linear-gradient(135deg,#0284c7,#0369a1) !important; color:#fff !important; }}
+        .stTabs [aria-selected="true"] * {{ color:#fff !important; }}
+        [data-testid="stDataFrame"] *, [data-testid="stTable"] * {{ color:{text_color} !important; }}
 
-        .kpi-card-v2 {{ 
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 26, 0.9) 100%); 
-            border: 1px solid rgba(255, 255, 255, 0.07); 
-            border-radius: 20px; 
-            padding: 22px; 
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); 
-            backdrop-filter: blur(12px);
-            height: 100%; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between; 
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-            overflow: hidden;
-        }}
-        .kpi-title-v2 {{ font-size: 0.88rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px; }}
-        .kpi-value-v2 {{ font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.8px; }}
-        .kpi-val-green {{ color: #10b981 !important; }}
-        .kpi-val-red {{ color: #f43f5e !important; }}
-        .kpi-val-blue {{ color: #38bdf8 !important; }}
-        .kpi-val-purple {{ color: #a855f7 !important; }}
-        .kpi-val-orange {{ color: #f59e0b !important; }}
-        .kpi-perc {{ font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }}
-        .perc-up {{ color: #10b981 !important; }}
-        .perc-down {{ color: #f43f5e !important; }}
-        .perc-neutral {{ color: #94a3b8 !important; }}
-
-        .ui-card {{ 
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 26, 0.85) 100%); 
-            border: 1px solid rgba(255, 255, 255, 0.07); 
-            border-radius: 22px; 
-            padding: 26px; 
-            margin-bottom: 20px; 
-            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5); 
-            backdrop-filter: blur(12px);
-            transition: all 0.3s ease;
-        }}
-
-        .login-card {{ 
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 12, 20, 0.95) 100%); 
-            border: 1px solid rgba(56, 189, 248, 0.25); 
-            border-radius: 28px; 
-            padding: 48px 38px; 
-            box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(56, 189, 248, 0.12); 
-            max-width: 480px; 
-            margin: 0 auto; 
-            backdrop-filter: blur(20px);
-        }}
-        .login-brand-wrapper {{ text-align: center; margin-bottom: 28px; }}
-        .login-badge-icon {{
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 70px; height: 70px;
-            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
-            border-radius: 22px; font-size: 32px; margin-bottom: 18px;
-            box-shadow: 0 12px 28px rgba(56, 189, 248, 0.4);
-        }}
-        .login-title {{ 
-            color: #ffffff !important; font-size: 2.4rem !important; font-weight: 800 !important; 
-            letter-spacing: -1.2px !important; margin-bottom: 8px !important; line-height: 1.1; text-align: center; 
-            background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }}
-        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem !important; text-align: center; margin-bottom: 30px; font-weight: 500; }}
-
-        .stButton > button, [data-testid="stDownloadButton"] > button {{
-            background: rgba(255, 255, 255, 0.05) !important;
-            color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.12) !important;
-            border-radius: 14px !important;
-            font-weight: 700 !important;
-            padding: 10px 14px !important;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            width: 100% !important;
-            min-height: 46px !important;
-            height: auto !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
-            font-size: 0.92rem !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-        }}
-
-        .stButton > button[kind="primary"] {{ 
-            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; 
-            color: #ffffff !important; border: none !important; 
-            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important; 
-        }}
-
-        /* Botão exclusivo do Salão de Beleza no seletor inicial */
-        .st-key-entrar_salao .stButton > button,
-        .st-key-entrar_salao button {{
-            background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%) !important;
-            color: #ffffff !important;
-            border: none !important;
-            box-shadow: 0 8px 24px rgba(236, 72, 153, 0.28) !important;
-        }}
-        .st-key-entrar_salao .stButton > button:hover,
-        .st-key-entrar_salao button:hover {{
-            background: linear-gradient(135deg, #db2777 0%, #ec4899 100%) !important;
-            color: #ffffff !important;
-            transform: translateY(-1px);
-        }}
-
-        .stTabs [data-baseweb="tab-list"] {{ 
-            gap: 12px; background: rgba(15, 23, 42, 0.6); padding: 8px; border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.06); backdrop-filter: blur(12px);
-            display: flex; justify-content: center; margin-bottom: 24px;
-        }}
-        .stTabs [data-baseweb="tab"] {{ 
-            background-color: transparent !important; border-radius: 12px !important; border: none !important; 
-            padding: 12px 24px !important; color: #94a3b8 !important; font-size: 0.98rem; font-weight: 600;
-        }}
-        .stTabs [aria-selected="true"] {{ 
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(2, 132, 199, 0.25) 100%) !important; 
-            color: #38bdf8 !important; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.3) !important; 
-        }}
+        .system-card {{ padding:28px; border-radius:22px; min-height:190px; text-align:center; border:1px solid var(--fc-border); background:{card_bg} !important; color:{text_color} !important; box-shadow:0 12px 30px rgba(0,0,0,.12); }}
+        .system-card * {{ color:{text_color} !important; }}
+        .system-card.barbearia-card {{ border-color:rgba(56,189,248,.35) !important; }}
+        .system-card.salao-card {{ border-color:rgba(244,114,182,.40) !important; }}
+        .st-key-entrar_salao > button {{ background:linear-gradient(135deg,#ec4899 0%,#be185d 100%) !important; color:#fff !important; -webkit-text-fill-color:#fff !important; border:none !important; }}
+        .st-key-entrar_salao > button * {{ color:#fff !important; -webkit-text-fill-color:#fff !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -383,7 +230,7 @@ if sistema_atual not in ("barbearia", "salao"):
     col1, col2 = st.columns(2, gap="large")
     with col1:
         st.markdown("""
-            <div style="padding:28px; border-radius:22px; border:1px solid rgba(56,189,248,.25); background:rgba(15,23,42,.72); text-align:center; min-height:190px;">
+            <div class="system-card barbearia-card">
                 <div style="font-size:42px;">💈</div>
                 <h2>Barbearia</h2>
                 <p style="opacity:.72;">Acesse o sistema Fio & Caixa.</p>
@@ -402,7 +249,7 @@ if sistema_atual not in ("barbearia", "salao"):
 
     with col2:
         st.markdown("""
-            <div style="padding:28px; border-radius:22px; border:1px solid rgba(244,114,182,.28); background:rgba(42,21,35,.72); text-align:center; min-height:190px;">
+            <div class="system-card salao-card">
                 <div style="font-size:42px;">💇‍♀️</div>
                 <h2>Salão de Beleza</h2>
                 <p style="opacity:.72;">Acesse o Studio & Gestão.</p>
