@@ -320,6 +320,21 @@ def set_background_com_logo(image_path):
             box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important; 
         }}
 
+        /* Botão exclusivo do Salão de Beleza no seletor inicial */
+        .st-key-entrar_salao .stButton > button,
+        .st-key-entrar_salao button {{
+            background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%) !important;
+            color: #ffffff !important;
+            border: none !important;
+            box-shadow: 0 8px 24px rgba(236, 72, 153, 0.28) !important;
+        }}
+        .st-key-entrar_salao .stButton > button:hover,
+        .st-key-entrar_salao button:hover {{
+            background: linear-gradient(135deg, #db2777 0%, #ec4899 100%) !important;
+            color: #ffffff !important;
+            transform: translateY(-1px);
+        }}
+
         .stTabs [data-baseweb="tab-list"] {{ 
             gap: 12px; background: rgba(15, 23, 42, 0.6); padding: 8px; border-radius: 18px;
             border: 1px solid rgba(255, 255, 255, 0.06); backdrop-filter: blur(12px);
@@ -379,11 +394,10 @@ if sistema_atual not in ("barbearia", "salao"):
             st.session_state.autenticado = False
             st.session_state.usuario_logado = None
             st.session_state.eh_admin = False
+            st.session_state.recuperando_senha = False
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
-            st.session_state.pop("sistema_selecionado", None)
-            if "sistema" in st.query_params:
-                del st.query_params["sistema"]
+            st.query_params["sistema"] = "barbearia"
             st.rerun()
 
     with col2:
@@ -394,7 +408,7 @@ if sistema_atual not in ("barbearia", "salao"):
                 <p style="opacity:.72;">Acesse o Studio & Gestão.</p>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("Entrar no Salão de Beleza", use_container_width=True, key="entrar_salao"):
+        if st.button("Entrar no Salão de Beleza", type="primary", use_container_width=True, key="entrar_salao"):
             st.session_state.sistema_selecionado = "salao"
             st.session_state.autenticado = False
             st.session_state.usuario_logado = None

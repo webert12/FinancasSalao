@@ -96,26 +96,58 @@ def get_image_base64(image_path):
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
+    # O painel pode ter tema claro/escuro, mas ambos usam contraste alto.
+    # No tema claro, texto escuro sobre superfícies claras; no escuro, texto claro
+    # sobre superfícies escuras. Isso evita o problema de texto rosa claro quase
+    # invisível em cards e modais brancos.
     if st.session_state.tema_escuro:
-        bg_style = 'background: linear-gradient(135deg, #1f111a 0%, #2a1523 50%, #150a12 100%) !important;'
-        app_bg = "#1f111a"
-        input_bg = "rgba(42, 21, 35, 0.85)"
-        text_color = "#fce7f3"
-        card_bg = "linear-gradient(145deg, rgba(42, 21, 35, 0.85) 0%, rgba(26, 12, 21, 0.95) 100%)"
-        border_color = "rgba(244, 114, 182, 0.2)"
+        bg_style = 'background: linear-gradient(135deg, #1b1018 0%, #2b1724 52%, #120a10 100%) !important;'
+        app_bg = '#1b1018'
+        surface = '#2a1723'
+        surface_alt = '#351d2c'
+        input_bg = '#24131e'
+        text_color = '#fff7fb'
+        muted_color = '#f3c7da'
+        heading_color = '#ffffff'
+        input_text = '#fff7fb'
+        placeholder = '#d9a9bf'
+        border_color = 'rgba(244,114,182,.38)'
+        card_bg = 'linear-gradient(145deg, rgba(53,29,44,.96) 0%, rgba(34,18,28,.98) 100%)'
+        select_menu_bg = '#2a1723'
+        secondary_btn_bg = '#f9d7e8'
+        secondary_btn_text = '#4a1730'
     else:
-        bg_style = 'background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 40%, #fbcfe8 100%) !important;'
-        app_bg = "#fdf2f8"
-        input_bg = "rgba(255, 255, 255, 0.9)"
-        text_color = "#831843"
-        card_bg = "linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(253, 242, 248, 0.98) 100%)"
-        border_color = "rgba(244, 114, 182, 0.3)"
+        bg_style = 'background: linear-gradient(135deg, #fff7fb 0%, #fdf2f8 45%, #fce7f3 100%) !important;'
+        app_bg = '#fff7fb'
+        surface = '#ffffff'
+        surface_alt = '#fff5fa'
+        input_bg = '#ffffff'
+        text_color = '#351522'
+        muted_color = '#6b4656'
+        heading_color = '#5b1737'
+        input_text = '#2b1420'
+        placeholder = '#8b6877'
+        border_color = 'rgba(190,24,93,.22)'
+        card_bg = 'linear-gradient(145deg, rgba(255,255,255,.98) 0%, rgba(255,247,251,.98) 100%)'
+        select_menu_bg = '#ffffff'
+        secondary_btn_bg = '#f8d8e8'
+        secondary_btn_text = '#5b1737'
 
     st.markdown(
         f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+        :root {{
+            --fc-text: {text_color};
+            --fc-muted: {muted_color};
+            --fc-heading: {heading_color};
+            --fc-input: {input_text};
+            --fc-placeholder: {placeholder};
+            --fc-surface: {surface};
+            --fc-surface-alt: {surface_alt};
+            --fc-border: {border_color};
+        }}
 
         .stApp {{
             {bg_style}
@@ -125,160 +157,173 @@ def set_background_com_logo(image_path):
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
         }}
 
-        html, body, p, label, div {{
-            color: {text_color};
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        /* Texto geral e labels dos componentes */
+        .stApp, .stApp p, .stApp span, .stApp label,
+        .stApp [data-testid="stMarkdownContainer"],
+        .stApp [data-testid="stWidgetLabel"],
+        .stApp [data-testid="stWidgetLabel"] p,
+        .stApp [data-testid="stCaptionContainer"],
+        .stApp small {{
+            color: var(--fc-text) !important;
         }}
 
-        h1, h2, h3, h4, h5, h6 {{
-            color: #831843 !important;
+        .stApp [data-testid="stCaptionContainer"],
+        .stApp [data-testid="stCaptionContainer"] * {{
+            color: var(--fc-muted) !important;
+        }}
+
+        h1, h2, h3, h4, h5, h6,
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {{
+            color: var(--fc-heading) !important;
             font-family: 'Playfair Display', Georgia, serif !important;
             font-weight: 700 !important;
-            letter-spacing: -0.3px !important;
+            letter-spacing: -.3px !important;
         }}
 
-        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
-        ::-webkit-scrollbar-track {{ background: rgba(251, 207, 232, 0.3); }}
-        ::-webkit-scrollbar-thumb {{ background: #f472b6; border-radius: 999px; }}
-        ::-webkit-scrollbar-thumb:hover {{ background: #db2777; }}
-
-        div[data-baseweb="select"] > div,
+        /* Inputs, selectboxes, number/date inputs e textareas */
         div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="textarea"] > div,
         input, select, textarea,
         [data-testid="stTextInput"] input,
         [data-testid="stNumberInput"] input,
         [data-testid="stDateInput"] input {{
-            background-color: {input_bg} !important;
-            color: #831843 !important;
-            -webkit-text-fill-color: #831843 !important;
+            background: {input_bg} !important;
+            color: {input_text} !important;
+            -webkit-text-fill-color: {input_text} !important;
             border: 1px solid {border_color} !important;
             border-radius: 14px !important;
-            padding: 10px 14px !important;
-            font-size: 0.95rem !important;
-            transition: all 0.25s ease !important;
-            box-shadow: 0 2px 8px rgba(244, 114, 182, 0.08) !important;
+            font-size: .95rem !important;
         }}
 
-        input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
-            border-color: #ec4899 !important;
-            box-shadow: 0 0 14px rgba(236, 72, 153, 0.25) !important;
+        input::placeholder, textarea::placeholder {{
+            color: {placeholder} !important;
+            -webkit-text-fill-color: {placeholder} !important;
+            opacity: 1 !important;
         }}
 
+        div[data-baseweb="select"] *,
+        div[data-baseweb="input"] *,
+        div[data-baseweb="textarea"] * {{
+            color: {input_text} !important;
+        }}
+
+        /* Menus/popovers do not inherit the page contrast reliably */
+        [data-baseweb="popover"],
+        [data-baseweb="menu"],
+        [role="listbox"],
+        [role="option"],
+        div[data-testid="stPopoverBody"] {{
+            background: {select_menu_bg} !important;
+            color: {input_text} !important;
+        }}
+        [role="option"] * {{ color: {input_text} !important; }}
+        [role="option"][aria-selected="true"] {{ background: rgba(236,72,153,.16) !important; }}
+
+        /* Botões: texto sempre contrastante */
+        .stButton > button,
+        [data-testid="stDownloadButton"] > button,
+        [data-testid="stFormSubmitButton"] button {{
+            background: linear-gradient(135deg, #fbcfe8 0%, #f472b6 100%) !important;
+            color: {secondary_btn_text} !important;
+            -webkit-text-fill-color: {secondary_btn_text} !important;
+            border: none !important;
+            border-radius: 14px !important;
+            font-weight: 800 !important;
+            min-height: 46px !important;
+            padding: 10px 16px !important;
+            font-size: .92rem !important;
+            box-shadow: 0 5px 16px rgba(190,24,93,.18) !important;
+        }}
+        .stButton > button[kind="primary"],
+        [data-testid="stFormSubmitButton"] button[kind="primary"] {{
+            background: linear-gradient(135deg, #ec4899 0%, #be185d 100%) !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            border: none !important;
+        }}
+        .stButton > button *,
+        [data-testid="stDownloadButton"] > button *,
+        [data-testid="stFormSubmitButton"] button * {{
+            color: inherit !important;
+            -webkit-text-fill-color: inherit !important;
+        }}
+
+        /* Botões +/- do number input */
+        [data-testid="stNumberInput"] button {{
+            color: var(--fc-heading) !important;
+            background: {surface_alt} !important;
+            border-color: {border_color} !important;
+        }}
+
+        /* Forms e cards */
         div[data-testid="stForm"] {{
-            border: 1px solid rgba(244, 114, 182, 0.3) !important;
+            border: 1px solid {border_color} !important;
             border-radius: 22px !important;
             padding: 24px !important;
             background: {card_bg} !important;
-            backdrop-filter: blur(12px) !important;
-            box-shadow: 0 12px 35px rgba(219, 39, 119, 0.08) !important;
+            box-shadow: 0 12px 35px rgba(80,20,50,.10) !important;
         }}
+        .ui-card, .kpi-card-v2 {{
+            background: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        .ui-card *, .kpi-card-v2 * {{ color: {text_color} !important; }}
 
-        div[data-testid="stPopoverBody"] {{
-            background-color: #fff0f6 !important;
-            border: 1px solid rgba(236, 72, 153, 0.4) !important;
-            border-radius: 20px !important;
-            box-shadow: 0 20px 50px rgba(131, 24, 67, 0.18) !important;
-            z-index: 999999 !important;
-            padding: 18px !important;
-        }}
-        div[data-testid="stPopoverBody"] * {{ color: #831843 !important; }}
-
-        .kpi-card-v2 {{ 
-            background: {card_bg}; 
-            border: 1px solid rgba(244, 114, 182, 0.25); 
-            border-radius: 20px; 
-            padding: 22px; 
-            box-shadow: 0 10px 25px -5px rgba(219, 39, 119, 0.08); 
-            backdrop-filter: blur(12px);
-            height: 100%; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between; 
-            transition: all 0.3s ease;
-        }}
-        .kpi-title-v2 {{ font-size: 0.88rem; color: #9d174d !important; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }}
-        .kpi-value-v2 {{ font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.8px; color: #831843 !important; }}
+        .kpi-title-v2 {{ color: {muted_color} !important; font-size: .88rem; font-weight: 700; margin-bottom: 8px; }}
+        .kpi-value-v2 {{ color: {heading_color} !important; font-size: 1.85rem; font-weight: 800; }}
         .kpi-val-green {{ color: #059669 !important; }}
         .kpi-val-red {{ color: #e11d48 !important; }}
         .kpi-val-pink {{ color: #db2777 !important; }}
         .kpi-val-purple {{ color: #9333ea !important; }}
         .kpi-val-gold {{ color: #d97706 !important; }}
-        .kpi-perc {{ font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }}
         .perc-up {{ color: #059669 !important; }}
         .perc-down {{ color: #e11d48 !important; }}
-        .perc-neutral {{ color: #9d174d !important; }}
+        .perc-neutral {{ color: {muted_color} !important; }}
 
-        .ui-card {{ 
-            background: {card_bg}; 
-            border: 1px solid rgba(244, 114, 182, 0.25); 
-            border-radius: 22px; 
-            padding: 26px; 
-            margin-bottom: 20px; 
-            box-shadow: 0 12px 30px -5px rgba(219, 39, 119, 0.08); 
-            backdrop-filter: blur(12px);
+        /* Login: contraste alto nos dois temas */
+        .login-card {{
+            background: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 28px;
+            padding: 42px 36px;
+            box-shadow: 0 25px 60px rgba(80,20,50,.16);
+            max-width: 480px;
+            margin: 0 auto;
         }}
+        .login-card .login-title {{ color: {heading_color} !important; font-size: 2.3rem !important; font-weight: 800 !important; text-align: center; }}
+        .login-card .login-subtitle {{ color: {muted_color} !important; font-size: .95rem !important; text-align: center; font-weight: 600; }}
+        .login-card [data-testid="stWidgetLabel"],
+        .login-card [data-testid="stWidgetLabel"] * {{ color: {text_color} !important; }}
 
-        .login-card {{ 
-            background: linear-gradient(180deg, #ffffff 0%, #fdf2f8 100%); 
-            border: 1px solid rgba(236, 72, 153, 0.3); 
-            border-radius: 28px; 
-            padding: 42px 36px; 
-            box-shadow: 0 25px 60px -10px rgba(219, 39, 119, 0.2); 
-            max-width: 480px; 
-            margin: 0 auto; 
-        }}
-        .login-brand-wrapper {{ text-align: center; margin-bottom: 24px; }}
-        .login-badge-icon {{
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 75px; height: 75px;
-            background: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
-            border-radius: 24px; font-size: 36px; margin-bottom: 16px;
-            box-shadow: 0 12px 28px rgba(219, 39, 119, 0.35);
-        }}
-        .login-title {{ 
-            color: #831843 !important; font-size: 2.3rem !important; font-weight: 800 !important; 
-            letter-spacing: -1px !important; margin-bottom: 6px !important; text-align: center; 
-        }}
-        .login-subtitle {{ color: #9d174d !important; font-size: 0.95rem !important; text-align: center; margin-bottom: 26px; font-weight: 500; }}
+        /* Radio buttons */
+        [data-testid="stRadio"] label,
+        [data-testid="stRadio"] label * {{ color: {text_color} !important; }}
 
-        .stButton > button, [data-testid="stDownloadButton"] > button {{
-            background: linear-gradient(135deg, #fbcfe8 0%, #f472b6 100%) !important;
-            color: #831843 !important;
-            border: none !important;
-            border-radius: 14px !important;
-            font-weight: 700 !important;
-            padding: 10px 16px !important;
-            transition: all 0.25s ease !important;
-            width: 100% !important;
-            min-height: 46px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
-            font-size: 0.92rem !important;
-            box-shadow: 0 4px 14px rgba(244, 114, 182, 0.3) !important;
+        /* Tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 8px; background: {surface_alt} !important; padding: 8px; border-radius: 18px;
+            border: 1px solid {border_color};
         }}
+        .stTabs [data-baseweb="tab"] {{
+            color: {muted_color} !important; background: transparent !important; border-radius: 12px !important;
+            font-weight: 800 !important; padding: 10px 16px !important;
+        }}
+        .stTabs [data-baseweb="tab"] * {{ color: inherit !important; }}
+        .stTabs [aria-selected="true"] {{
+            background: linear-gradient(135deg, #f472b6 0%, #db2777 100%) !important;
+            color: #ffffff !important;
+        }}
+        .stTabs [aria-selected="true"] * {{ color: #ffffff !important; }}
 
-        .stButton > button[kind="primary"] {{ 
-            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important; 
-            color: #ffffff !important; border: none !important; 
-            box-shadow: 0 6px 20px rgba(219, 39, 119, 0.4) !important; 
-        }}
+        /* Dataframes/tabelas */
+        [data-testid="stDataFrame"] *,
+        [data-testid="stTable"] * {{ color: {text_color} !important; }}
 
-        .stTabs [data-baseweb="tab-list"] {{ 
-            gap: 10px; background: rgba(253, 242, 248, 0.8); padding: 8px; border-radius: 20px;
-            border: 1px solid rgba(244, 114, 182, 0.3); backdrop-filter: blur(12px);
-            display: flex; justify-content: center; margin-bottom: 24px;
-        }}
-        .stTabs [data-baseweb="tab"] {{ 
-            background-color: transparent !important; border-radius: 14px !important; border: none !important; 
-            padding: 10px 20px !important; color: #9d174d !important; font-size: 0.95rem; font-weight: 600;
-        }}
-        .stTabs [aria-selected="true"] {{ 
-            background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%) !important; 
-            color: #ffffff !important; font-weight: 700; 
-            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3) !important;
-        }}
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: rgba(244,114,182,.12); }}
+        ::-webkit-scrollbar-thumb {{ background: #f472b6; border-radius: 999px; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -867,7 +912,7 @@ if not st.session_state.autenticado:
     st.markdown("<br>", unsafe_allow_html=True)
 
     if os.getenv("FIO_CAIXA_EMBEDDED_DASHBOARD"):
-        if st.button("← Voltar para Barbearia", key="voltar_barbearia_dashboard"):
+        if st.button("← Voltar para escolha do sistema", key="voltar_escolha_dashboard", use_container_width=True):
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
