@@ -375,10 +375,15 @@ if sistema_atual not in ("barbearia", "salao"):
             </div>
         """, unsafe_allow_html=True)
         if st.button("Entrar na Barbearia", type="primary", use_container_width=True, key="entrar_barbearia"):
-            # Seleção persistente apenas pela URL: a tela de login da Barbearia
-            # é independente da tela de login do Salão.
-            st.session_state.clear()
-            st.query_params["sistema"] = "barbearia"
+            st.session_state.sistema_selecionado = "barbearia"
+            st.session_state.autenticado = False
+            st.session_state.usuario_logado = None
+            st.session_state.eh_admin = False
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
+            st.session_state.pop("sistema_selecionado", None)
+            if "sistema" in st.query_params:
+                del st.query_params["sistema"]
             st.rerun()
 
     with col2:
@@ -390,8 +395,13 @@ if sistema_atual not in ("barbearia", "salao"):
             </div>
         """, unsafe_allow_html=True)
         if st.button("Entrar no Salão de Beleza", use_container_width=True, key="entrar_salao"):
-            # O Salão possui login, ADM, sessão e banco próprios.
-            st.session_state.clear()
+            st.session_state.sistema_selecionado = "salao"
+            st.session_state.autenticado = False
+            st.session_state.usuario_logado = None
+            st.session_state.eh_admin = False
+            st.session_state.recuperando_senha = False
+            if "token_sessao" in st.query_params:
+                del st.query_params["token_sessao"]
             st.query_params["sistema"] = "salao"
             st.rerun()
 
@@ -414,7 +424,7 @@ if sistema_atual == "salao":
 # Este sistema usa EXCLUSIVAMENTE o banco configurado em DB_URL_APP.
 # O dashboard de Salão de Beleza usa DB_URL_SALAO, mantendo dados e ADMs separados.
 try:
-    DB_URL = st.secrets.get("DB_URL_APP", os.getenv("DB_URL_APP", ""))
+    DB_URL = st.secrets.get("DB_URL_APP", os.getenv("DB_URL_APP", os.getenv("DB_URL", "")))
 except Exception:
     DB_URL = os.getenv("DB_URL_APP", "")
 
@@ -931,16 +941,7 @@ if not st.session_state.autenticado:
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 
-    # Retorno ao seletor nunca abre o login do sistema anterior.
-    col_back, col_adm, col_vazia, col_btn_tema = st.columns([1.8, 1, 5.2, 1])
-    with col_back:
-        if st.button("← Trocar sistema", use_container_width=True, key="app_login_back_selector"):
-            st.session_state.clear()
-            if "token_sessao" in st.query_params:
-                del st.query_params["token_sessao"]
-            if "sistema" in st.query_params:
-                del st.query_params["sistema"]
-            st.rerun()
+    col_adm, col_vazia, col_btn_tema = st.columns([1, 7, 1])
     with col_adm:
         with st.popover("⚙️ ADM", use_container_width=True):
             st.markdown("### 🔐 Acesso Administrativo")

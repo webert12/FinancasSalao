@@ -831,7 +831,7 @@ if not st.session_state.autenticado:
         _, col_rec_centro, _ = st.columns([1, 2, 1])
         with col_rec_centro:
             st.markdown('<div class="login-card"><div class="login-brand-wrapper"><div class="login-badge-icon">🔐</div><h1 class="login-title">Recuperação</h1><p class="login-subtitle">Redefina a senha da sua conta</p></div>', unsafe_allow_html=True)
-            with st.form("salao_form_recuperacao"):
+            with st.form("form_recuperacao"):
                 user_recup = st.text_input("Usuário:").strip().lower()
                 email_recup = st.text_input("E-mail Cadastrado:").strip().lower()
                 nova_senha_recup = st.text_input("Nova Senha:", type="password")
@@ -861,7 +861,7 @@ if not st.session_state.autenticado:
     st.markdown("<br>", unsafe_allow_html=True)
 
     if os.getenv("FIO_CAIXA_EMBEDDED_DASHBOARD"):
-        if st.button("← Voltar para escolha do sistema", key="voltar_seletor_salao"):
+        if st.button("← Voltar para Barbearia", key="voltar_barbearia_dashboard"):
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
@@ -883,7 +883,7 @@ if not st.session_state.autenticado:
         
         tipo_acesso = st.radio("Acesso como:", ["Salão de Beleza", "Admin Mestre"], horizontal=True, label_visibility="collapsed")
 
-        with st.form("salao_form_login"):
+        with st.form("form_login_moderno"):
             usuario_input = st.text_input("Usuário / Login").strip().lower()
             senha_input = st.text_input("Senha", type="password")
             senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin Mestre" else ""
