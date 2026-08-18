@@ -7,11 +7,13 @@ from zoneinfo import ZoneInfo
 import os
 import json
 import hashlib
+import hmac
 from io import BytesIO
 import urllib.parse
 import re
 import decimal
 import base64
+import requests
 import streamlit.components.v1 as components
 
 # --- Bibliotecas de Conexão Direta SQL ---
@@ -30,23 +32,29 @@ TZ = ZoneInfo("America/Sao_Paulo")
 # URL OFICIAL NO RENDER
 RENDER_BASE_URL = "https://agendamentos-doy4.onrender.com/"
 
-def hash_password(password):
-    return hashlib.sha256((password + SALT).encode()).hexdigest()
+def gerar_hash(password: str) -> str:
+    """Gera o hash da senha compatível com o padrão do projeto."""
+    if not password:
+        return ""
+    salt_bytes = str(SALT).encode('utf-8')
+    senha_bytes = str(password).encode('utf-8')
+    return hmac.new(salt_bytes, senha_bytes, hashlib.sha256).hexdigest()
 
-# LÓGICA HÍBRIDA DE SENHA: Aceita texto puro ou hash criptografado
+def hash_password(password):
+    return gerar_hash(password)
+
 def verificar_senha(senha_digitada, senha_no_banco):
-    if not senha_no_banco:
+    if not senha_no_banco or not senha_digitada:
         return False
-    if senha_digitada == senha_no_banco:
+    if hmac.compare_digest(str(senha_digitada), str(senha_no_banco)):
         return True
-    if hash_password(senha_digitada) == senha_no_banco:
-        return True
-    return False
+    hash_calc = gerar_hash(senha_digitada)
+    return hmac.compare_digest(hash_calc, str(senha_no_banco))
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fio&Caixa - Gestão & Agendamento", layout="wide", page_icon="✂️")
 
-# --- PERSISTÊNCIA DE SESSÃO VIA URL (Evita logout no F5) ---
+# --- PERSISTÊNCIA DE SESSÃO VIA URL ---
 query_params = st.query_params
 
 # ESTADOS DE SESSÃO INICIAIS
@@ -55,6 +63,7 @@ if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = N
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
 if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
+if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
 # Recupera sessão persistida pela URL se houver
 if not st.session_state.autenticado and "token_sessao" in query_params:
@@ -65,7 +74,7 @@ if not st.session_state.autenticado and "token_sessao" in query_params:
         st.session_state.eh_admin = True
     elif token_val:
         st.session_state.autenticado = True
-        st.session_state.usuario_logado = token_val
+        st.session_state.usuario_logado = str(token_val).strip().lower()
         st.session_state.eh_admin = False
 
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
@@ -81,19 +90,29 @@ def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
     if st.session_state.tema_escuro:
-        bg_style = f'background-image: linear-gradient(135deg, rgba(8, 12, 20, 0.96) 0%, rgba(3, 5, 8, 0.99) 100%), url("data:image/png;base64,{encoded_string}") !important;'
-        app_bg = "#030508"
-        card_bg = "#0d131f"
-        input_bg = "#080c14"
+        bg_style = f'background-image: radial-gradient(circle at 50% 0%, rgba(14, 23, 42, 0.95) 0%, rgba(6, 9, 15, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
+        app_bg = "#06090f"
+        input_bg = "rgba(10, 15, 26, 0.85)"
     else:
-        bg_style = 'background: radial-gradient(circle at top, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
+        bg_style = 'background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
         app_bg = "#0f172a"
-        card_bg = "#1e293b"
-        input_bg = "#0f172a"
+        input_bg = "rgba(10, 15, 26, 0.85)"
 
     st.markdown(
         f"""
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+        @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+        /* REMOÇÃO DEFINITIVA DO BOTÃO STOP E DO BONECO DE CARREGAMENTO */
+        [data-testid="stStatusWidget"], div[data-testid="stStatusWidget"] {{
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }}
+
         .stApp {{
             {bg_style}
             background-color: {app_bg} !important;
@@ -101,18 +120,41 @@ def set_background_com_logo(image_path):
             background-position: center !important;
             background-attachment: fixed !important;
             color: #f8fafc !important;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
         }}
 
-        html, body, p, span, label, div, [class*="css"] {{
-            color: #f8fafc !important;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        html, body, p, label, div {{
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        }}
+
+        span[data-testid="stIconMaterial"], 
+        [data-testid="stIconMaterial"],
+        i.material-icons {{
+            font-family: 'Material Symbols Outlined', 'Material Icons' !important;
+            font-weight: normal !important;
+            font-style: normal !important;
+            font-size: 1.25rem !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+            word-wrap: normal !important;
+            white-space: nowrap !important;
+            direction: ltr !important;
+            -webkit-font-smoothing: antialiased !important;
         }}
 
         h1, h2, h3, h4, h5, h6 {{
             color: #ffffff !important;
             font-weight: 700 !important;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.5px !important;
         }}
+
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: rgba(6, 9, 15, 0.5); }}
+        ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.15); border-radius: 999px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: #38bdf8; }}
 
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div,
@@ -123,191 +165,172 @@ def set_background_com_logo(image_path):
             background-color: {input_bg} !important;
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
-            border: 1.5px solid #1e293b !important;
-            border-radius: 12px !important;
-            padding: 12px 14px !important;
-            font-size: 1rem !important;
-            transition: all 0.2s ease-in-out !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 14px !important;
+            padding: 12px 16px !important;
+            font-size: 0.95rem !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            backdrop-filter: blur(10px) !important;
         }}
 
         input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
             border-color: #38bdf8 !important;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25) !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
             background-color: {input_bg} !important;
         }}
 
+        div[data-testid="stForm"] {{
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 20px !important;
+            padding: 24px !important;
+            background: rgba(13, 19, 31, 0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        }}
+
         div[data-testid="stPopoverBody"] {{
-            background-color: {card_bg} !important;
-            border: 2px solid #38bdf8 !important;
-            border-radius: 16px !important;
-            box-shadow: 0 20px 45px rgba(0,0,0,0.85) !important;
+            background-color: rgba(13, 19, 31, 0.98) !important;
+            border: 1px solid rgba(56, 189, 248, 0.3) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8) !important;
+            backdrop-filter: blur(16px) !important;
             z-index: 999999 !important;
+            padding: 18px !important;
         }}
-        div[data-testid="stPopoverBody"] * {{
-            color: #ffffff !important;
-        }}
+        div[data-testid="stPopoverBody"] * {{ color: #ffffff !important; }}
 
         div[data-testid="stPopover"] button,
-        [data-testid="stPopoverButton"] {{
-            background-color: #111827 !important;
-            border: 1.5px solid #38bdf8 !important;
-            border-radius: 12px !important;
-            padding: 8px 18px !important;
+        [data-testid="stPopoverButton"] button {{
+            background: rgba(17, 24, 39, 0.85) !important;
+            border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            border-radius: 14px !important;
+            padding: 10px 16px !important;
             color: #ffffff !important;
-            font-weight: 800 !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-        }}
-
-        div[data-testid="stPopover"] button:hover {{
-            background-color: #1f2937 !important;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5) !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+            transition: all 0.25s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            width: auto !important;
+            min-height: 44px !important;
         }}
 
         ul[data-baseweb="menu"],
         li[role="option"],
         div[data-testid="stSelectboxVirtualDropdown"] {{
-            background-color: {card_bg} !important;
+            background-color: #0d131f !important;
             color: #ffffff !important;
-            border: 1px solid #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 14px !important;
         }}
         li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
-            background-color: #111827 !important;
+            background-color: rgba(56, 189, 248, 0.15) !important;
             color: #38bdf8 !important;
         }}
 
-        div[data-baseweb="calendar"],
-        div[data-baseweb="calendar"] > div,
-        div[role="application"] {{
-            background-color: {input_bg} !important;
-            color: #ffffff !important;
-            border: 1px solid #1e293b !important;
+        .kpi-card-v2 {{ 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 26, 0.9) 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            border-radius: 20px; 
+            padding: 22px; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(12px);
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
         }}
-        div[data-baseweb="calendar"] * {{ color: #ffffff !important; background-color: transparent !important; }}
-        div[data-baseweb="calendar"] [aria-selected="true"] {{ background-color: #38bdf8 !important; color: #ffffff !important; border-radius: 50% !important; }}
-
-        .kpi-card-v2 {{ background-color: {card_bg}; border: 1px solid #1e293b; border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.4); height: 100%; display: flex; flex-direction: column; justify-content: space-between; }}
-        .kpi-title-v2 {{ font-size: 0.95rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 5px; }}
-        .kpi-value-v2 {{ font-size: 1.9rem; font-weight: 800; margin-bottom: 10px; }}
-        .kpi-val-green {{ color: #22c55e !important; }}
-        .kpi-val-red {{ color: #ef4444 !important; }}
+        .kpi-title-v2 {{ font-size: 0.88rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px; }}
+        .kpi-value-v2 {{ font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.8px; }}
+        .kpi-val-green {{ color: #10b981 !important; }}
+        .kpi-val-red {{ color: #f43f5e !important; }}
         .kpi-val-blue {{ color: #38bdf8 !important; }}
-        .kpi-perc {{ font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 5px; }}
-        .perc-up {{ color: #22c55e !important; }}
-        .perc-down {{ color: #ef4444 !important; }}
+        .kpi-val-purple {{ color: #a855f7 !important; }}
+        .kpi-val-orange {{ color: #f59e0b !important; }}
+        .kpi-perc {{ font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }}
+        .perc-up {{ color: #10b981 !important; }}
+        .perc-down {{ color: #f43f5e !important; }}
         .perc-neutral {{ color: #94a3b8 !important; }}
 
-        .ui-card {{ background: {card_bg}; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }}
-        .ui-card-highlight {{ background: linear-gradient(145deg, {card_bg} 0%, #111827 100%); border: 1px solid #38bdf8; border-radius: 16px; padding: 24px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.15); }}
+        .ui-card {{ 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 26, 0.85) 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            border-radius: 22px; 
+            padding: 26px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }}
 
         .login-card {{ 
-            background: linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(11, 17, 32, 0.98) 100%); 
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 12, 20, 0.95) 100%); 
             border: 1px solid rgba(56, 189, 248, 0.25); 
-            border-radius: 24px; 
-            padding: 45px 36px; 
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.1); 
+            border-radius: 28px; 
+            padding: 48px 38px; 
+            box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(56, 189, 248, 0.12); 
             max-width: 480px; 
             margin: 0 auto; 
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
         }}
-        .login-brand-wrapper {{
-            text-align: center;
-            margin-bottom: 25px;
-        }}
+        .login-brand-wrapper {{ text-align: center; margin-bottom: 28px; }}
         .login-badge-icon {{
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 64px;
-            height: 64px;
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 70px; height: 70px;
             background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
-            border-radius: 18px;
-            font-size: 30px;
-            margin-bottom: 16px;
-            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4);
+            border-radius: 22px; font-size: 32px; margin-bottom: 18px;
+            box-shadow: 0 12px 28px rgba(56, 189, 248, 0.4);
         }}
         .login-title {{ 
-            color: #ffffff !important; 
-            font-size: 2.3rem !important; 
-            font-weight: 800 !important; 
-            letter-spacing: -1px;
-            margin-bottom: 8px !important; 
-            line-height: 1.1; 
-            text-align: center; 
+            color: #ffffff !important; font-size: 2.4rem !important; font-weight: 800 !important; 
+            letter-spacing: -1.2px !important; margin-bottom: 8px !important; line-height: 1.1; text-align: center; 
             background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }}
-        .login-subtitle {{
-            color: #94a3b8 !important;
-            font-size: 0.95rem !important;
-            text-align: center;
-            margin-bottom: 30px;
-            font-weight: 500;
-        }}
+        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem !important; text-align: center; margin-bottom: 30px; font-weight: 500; }}
 
         .stButton > button, [data-testid="stDownloadButton"] > button {{
-            background-color: #111827 !important;
+            background: rgba(255, 255, 255, 0.05) !important;
             color: #ffffff !important;
-            border: 1px solid #1f2937 !important;
-            border-radius: 12px !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 14px !important;
             font-weight: 700 !important;
-            padding: 12px 20px !important;
-            transition: all 0.2s ease !important;
+            padding: 10px 14px !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
             width: 100% !important;
+            min-height: 46px !important;
+            height: auto !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            font-size: 0.92rem !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
         }}
-        .stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {{
-            background-color: #1f2937 !important;
-            border-color: #38bdf8 !important;
-            color: #38bdf8 !important;
+
+        .stButton > button[kind="primary"] {{ 
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; 
+            color: #ffffff !important; border: none !important; 
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important; 
         }}
-        .stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; color: #ffffff !important; border: none !important; box-shadow: 0 6px 20px rgba(56,189,248,0.4) !important; }}
-        .stButton > button[kind="primary"]:hover {{ background: linear-gradient(135deg, #0369a1 100%, #0284c7 0%) !important; color: #ffffff !important; box-shadow: 0 8px 25px rgba(56,189,248,0.6) !important; }}
 
         .stTabs [data-baseweb="tab-list"] {{ 
-            gap: 15px; 
-            background-color: transparent; 
-            display: flex; 
-            justify-content: center; 
+            gap: 12px; background: rgba(15, 23, 42, 0.6); padding: 8px; border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.06); backdrop-filter: blur(12px);
+            display: flex; justify-content: center; margin-bottom: 24px;
         }}
         .stTabs [data-baseweb="tab"] {{ 
-            background-color: {card_bg}; 
-            border-radius: 12px 12px 0 0; 
-            border: 1px solid #1e293b; 
-            padding: 14px 28px; 
-            color: #94a3b8 !important; 
-            font-size: 1.05rem;
-            font-weight: 600;
+            background-color: transparent !important; border-radius: 12px !important; border: none !important; 
+            padding: 12px 24px !important; color: #94a3b8 !important; font-size: 0.98rem; font-weight: 600;
         }}
         .stTabs [aria-selected="true"] {{ 
-            background-color: #111827 !important; 
-            color: #38bdf8 !important; 
-            font-weight: bold; 
-            border-top: 3px solid #38bdf8 !important; 
-            box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
-        }}
-        
-        /* CORREÇÃO DO TAMANHO DAS ABAS E ESPAÇAMENTO PARA DISPOSITIVOS MÓVEIS (MODO COMPUTADOR) */
-        @media screen and (max-width: 1024px) {{
-            .stTabs [data-baseweb="tab-list"] {{
-                gap: 10px !important;
-                overflow-x: auto !important;
-                justify-content: flex-start !important;
-                padding-bottom: 5px !important;
-            }}
-            .stTabs [data-baseweb="tab"] {{
-                font-size: 1.15rem !important;
-                padding: 14px 22px !important;
-                margin-right: 10px !important;
-                flex-shrink: 0 !important;
-            }}
-        }}
-
-        @media(min-width: 1024px) {{
-            .main .block-container {{
-                max-width: 82% !important;
-                padding-left: 3rem !important;
-                padding-right: 3rem !important;
-            }}
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(2, 132, 199, 0.25) 100%) !important; 
+            color: #38bdf8 !important; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.3) !important; 
         }}
         </style>
         """,
@@ -318,8 +341,7 @@ set_background_com_logo("logo.png")
 
 st.markdown("""
     <style>
-        footer, [data-testid="stFooter"], .stFooter,
-        #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton { display: none !important; }
+        footer, [data-testid="stFooter"], .stFooter, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton { display: none !important; }
         [data-testid="collapsedControl"] { display: none !important; }
         .main .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; }
     </style>
@@ -354,7 +376,6 @@ def inicializar_banco():
         conn.execute(text("CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);"))
         conn.execute(text("CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);"))
-        # NOVA TABELA PARA CLIENTES MENSAIS / MENSALIDADE
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS clientes_mensais (
                 id SERIAL PRIMARY KEY,
@@ -374,7 +395,11 @@ except Exception as e:
     st.error(f"Erro na criação de tabelas: {e}")
     st.stop()
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
+# --- FUNÇÕES DE PERSISTÊNCIA & CACHE ---
+def limpar_cache_sessao():
+    if "dados_carregados_sessao" in st.session_state:
+        del st.session_state["dados_carregados_sessao"]
+
 @st.cache_data(ttl=600)
 def carregar_admin_hashes():
     try:
@@ -411,8 +436,8 @@ def carregar_usuarios():
             rows = result.fetchall()
             if rows: 
                 return {
-                    row[0]: {
-                        "id": row[0], 
+                    str(row[0]).strip().lower(): {
+                        "id": str(row[0]).strip().lower(), 
                         "senha": row[1], 
                         "email": row[2], 
                         "tipo": row[3], 
@@ -429,11 +454,16 @@ def salvar_usuarios(usuarios_dict):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         for k, v in usuarios_dict.items():
+            user_clean = str(k).strip().lower()
             venc_val = v["vencimento"]
             if hasattr(venc_val, 'strftime'):
                 venc_str = venc_val.strftime('%Y-%m-%d')
             else:
                 venc_str = str(venc_val) if venc_val else datetime.now(TZ).strftime('%Y-%m-%d')
+
+            senha_val = str(v["senha"])
+            if not senha_val.startswith("pbkdf2_sha256$") and len(senha_val) < 60:
+                senha_val = gerar_hash(senha_val)
 
             conn.execute(text("""
                 INSERT INTO usuarios (id, senha, email, tipo, vencimento, status, whatsapp) 
@@ -446,8 +476,8 @@ def salvar_usuarios(usuarios_dict):
                     status = EXCLUDED.status,
                     whatsapp = EXCLUDED.whatsapp
             """), {
-                "id": k, 
-                "senha": v["senha"], 
+                "id": user_clean, 
+                "senha": senha_val, 
                 "email": v.get("email", ""), 
                 "tipo": v["tipo"], 
                 "vencimento": venc_str, 
@@ -461,18 +491,18 @@ def carregar_servicos_por_salao(salao_id):
     salao_id_clean = urllib.parse.unquote(str(salao_id)).strip().lower() if salao_id else "padrao"
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user"), {"user": salao_id_clean})
+            result = conn.execute(text("SELECT nome, preco FROM servicos WHERE usuario_id = :user ORDER BY nome ASC"), {"user": salao_id_clean})
             rows = result.fetchall()
             if rows: return {row[0]: float(row[1]) for row in rows}
     except Exception: pass
     return {"Corte de Cabelo": 30.00, "Barba": 30.00, "Combo Cabelo e Barba": 50.00, "Mensalidade": 100.00}
 
-def carregar_servicos():
-    usuario = st.session_state.usuario_logado if st.session_state.get("usuario_logado") else "padrao"
+def carregar_servicos(usuario_logado=None):
+    usuario = usuario_logado or st.session_state.get("usuario_logado", "padrao")
     return carregar_servicos_por_salao(usuario)
 
 def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         if nome_antigo and nome_antigo != "➕ Cadastrar Novo Serviço":
@@ -480,19 +510,22 @@ def salvar_ou_atualizar_servico(nome_antigo, nome_novo, preco):
         else:
             conn.execute(text("INSERT INTO servicos (usuario_id, nome, preco) VALUES (:user, :nome, :preco)"), {"user": usuario, "nome": nome_novo, "preco": float(preco)})
     carregar_servicos_por_salao.clear()
+    limpar_cache_sessao()
 
 def deletar_servico_banco(nome):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM servicos WHERE usuario_id = :user AND nome = :nome"), {"user": usuario, "nome": nome})
     carregar_servicos_por_salao.clear()
+    limpar_cache_sessao()
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=180)
 def carregar_fluxo_por_usuario(usuario):
+    usuario_clean = str(usuario).strip().lower()
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
+            result = conn.execute(text("SELECT id, data, tipo, descricao, valor FROM fluxo_caixa WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario_clean})
             rows = result.fetchall()
             if rows:
                 df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
@@ -501,58 +534,82 @@ def carregar_fluxo_por_usuario(usuario):
     except Exception: pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
 
-def carregar_fluxo():
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+def carregar_fluxo(usuario_logado=None):
+    usuario = usuario_logado or st.session_state.get("usuario_logado", "padrao")
     return carregar_fluxo_por_usuario(usuario)
 
 def inserir_movimentacao_direta(tipo, descricao, valor, data_input):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     data_str = data_input.strftime('%Y-%m-%d') if hasattr(data_input, 'strftime') else str(data_input)
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("INSERT INTO fluxo_caixa (usuario_id, data, tipo, descricao, valor) VALUES (:user, :data, :tipo, :descricao, :valor)"), {"user": usuario, "data": data_str, "tipo": tipo, "descricao": descricao, "valor": float(valor)})
     carregar_fluxo_por_usuario.clear()
+    limpar_cache_sessao()
 
 def dar_baixa_fiado_direta(id_registro, nova_descricao):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     data_hoje = datetime.now(TZ).strftime('%Y-%m-%d')
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("UPDATE fluxo_caixa SET tipo = 'Entrada', data = :data, descricao = :desc WHERE id = :id AND usuario_id = :user"), {"data": data_hoje, "desc": nova_descricao, "id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
+    limpar_cache_sessao()
 
 def deletar_movimentacao_fluxo(id_registro):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM fluxo_caixa WHERE id = :id AND usuario_id = :user"), {"id": int(id_registro), "user": usuario})
     carregar_fluxo_por_usuario.clear()
+    limpar_cache_sessao()
 
+@st.cache_data(ttl=120)
 def carregar_agendamentos_por_usuario_direto(usuario):
+    usuario_clean = str(usuario).strip().lower()
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), {"user": usuario})
+            result = conn.execute(text("SELECT id, cliente_nome, cliente_contato, servico_nome, data, hora FROM agendamentos WHERE usuario_id = :user ORDER BY data ASC, hora ASC"), {"user": usuario_clean})
             rows = result.fetchall()
             if rows: return pd.DataFrame(rows, columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
     except Exception: pass
     return pd.DataFrame(columns=["id", "Cliente", "Contato/WhatsApp", "Serviço", "Data", "Horário"])
 
-def carregar_agendamentos():
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+def carregar_agendamentos(usuario_logado=None):
+    usuario = usuario_logado or st.session_state.get("usuario_logado", "padrao")
     return carregar_agendamentos_por_usuario_direto(usuario)
 
 def deletar_agendamento(id_agendamento):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("DELETE FROM agendamentos WHERE id = :id AND usuario_id = :user"), {"id": int(id_agendamento), "user": usuario})
+    carregar_agendamentos_por_usuario_direto.clear()
+    limpar_cache_sessao()
 
-# --- FUNÇÕES PARA CLIENTES MENSAIS / MENSALIDADE ---
-def carregar_clientes_mensais_banco():
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+def enviar_alerta_servidor_whatsapp(numero_barbeiro, texto_mensagem):
+    wa_api_url = st.secrets.get("WA_API_URL", "")
+    wa_api_token = st.secrets.get("WA_API_TOKEN", "")
+    
+    if wa_api_url and wa_api_token and numero_barbeiro:
+        try:
+            num_limpo = re.sub(r'\D', '', str(numero_barbeiro))
+            if not num_limpo.startswith('55') and len(num_limpo) <= 11:
+                num_limpo = '55' + num_limpo
+                
+            payload = { "number": num_limpo, "message": texto_mensagem }
+            headers = { "Content-Type": "application/json", "apikey": wa_api_token }
+            requests.post(wa_api_url, json=payload, headers=headers, timeout=5)
+        except Exception:
+            pass
+
+@st.cache_data(ttl=180)
+def carregar_clientes_mensais_banco(usuario_logado=None):
+    usuario = usuario_logado or st.session_state.get("usuario_logado", "padrao")
+    usuario_clean = str(usuario).strip().lower()
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, nome_cliente, telefone, servicos_feitos, valor_devido, status_divida FROM clientes_mensais WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario})
+            result = conn.execute(text("SELECT id, nome_cliente, telefone, servicos_feitos, valor_devido, status_divida FROM clientes_mensais WHERE usuario_id = :user ORDER BY id DESC"), {"user": usuario_clean})
             rows = result.fetchall()
             if rows:
                 return pd.DataFrame(rows, columns=["id", "Cliente", "Telefone", "Serviços Feitos", "Valor Devido", "Status"])
@@ -560,13 +617,15 @@ def carregar_clientes_mensais_banco():
     return pd.DataFrame(columns=["id", "Cliente", "Telefone", "Serviços Feitos", "Valor Devido", "Status"])
 
 def cadastrar_cliente_mensal_banco(nome, telefone):
-    usuario = str(st.session_state.usuario_logado).strip().lower() if st.session_state.get("usuario_logado") else "padrao"
+    usuario = str(st.session_state.get("usuario_logado", "padrao")).strip().lower()
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
         conn.execute(text("""
             INSERT INTO clientes_mensais (usuario_id, nome_cliente, telefone, servicos_feitos, valor_devido, status_divida)
             VALUES (:user, :nome, :tel, 0, 0.0, 'Pendente')
         """), {"user": usuario, "nome": nome.strip(), "tel": telefone.strip()})
+    carregar_clientes_mensais_banco.clear()
+    limpar_cache_sessao()
 
 def atualizar_cortes_cliente_mensal(id_cliente, qtd_adicionar, valor_por_servico):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
@@ -580,6 +639,8 @@ def atualizar_cortes_cliente_mensal(id_cliente, qtd_adicionar, valor_por_servico
                 SET servicos_feitos = :s, valor_devido = :v, status_divida = 'Pendente'
                 WHERE id = :id
             """), {"s": novos_servicos, "v": novo_valor, "id": int(id_cliente)})
+    carregar_clientes_mensais_banco.clear()
+    limpar_cache_sessao()
 
 def dar_baixa_divida_mensalista(id_cliente, valor_baixa):
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
@@ -594,10 +655,12 @@ def dar_baixa_divida_mensalista(id_cliente, valor_baixa):
                 SET valor_devido = :v, status_divida = :st
                 WHERE id = :id
             """), {"v": novo_valor_devido, "st": novo_status, "id": int(id_cliente)})
+    carregar_clientes_mensais_banco.clear()
+    limpar_cache_sessao()
 
-def gerar_backup_json_completo():
-    usuario = st.session_state.usuario_logado
-    df_f = carregar_fluxo()
+def gerar_backup_json_completo(usuario_logado=None):
+    usuario = usuario_logado or st.session_state.get("usuario_logado", "padrao")
+    df_f = carregar_fluxo(usuario)
     fluxo_dict = []
     if not df_f.empty:
         df_copy = df_f.copy()
@@ -607,7 +670,7 @@ def gerar_backup_json_completo():
         if isinstance(obj, (decimal.Decimal, float)): return float(obj)
         if isinstance(obj, (datetime, pd.Timestamp)): return obj.strftime('%Y-%m-%d')
         return str(obj)
-    dados_backup = {"sistema": "Fio&Caixa", "usuario_dono": usuario, "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'), "catalogo_servicos": carregar_servicos(), "historico_financeiro": fluxo_dict}
+    dados_backup = {"sistema": "Fio&Caixa", "usuario_dono": usuario, "data_geracao": datetime.now(TZ).strftime('%d/%m/%Y %H:%M:%S'), "catalogo_servicos": carregar_servicos(usuario), "historico_financeiro": fluxo_dict}
     return json.dumps(dados_backup, indent=4, ensure_ascii=False, default=custom_serializer)
 
 def gerar_pdf_contabilidade(df, mes_ref):
@@ -642,9 +705,9 @@ def renderizar_whatsapp_flutuante():
     support_phone = st.secrets.get("SUPPORT_PHONE", "5537991598179")
     st.markdown(f"""
         <style>
-        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background-color: #22c55e; border-radius: 50px; text-align: center; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.3s ease; }}
-        .floating-wa:hover {{ transform: scale(1.1); }}
-        .floating-wa svg {{ width: 32px; height: 32px; fill: white; }}
+        .floating-wa {{ position: fixed; width: 55px; height: 55px; bottom: 30px; right: 30px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50px; text-align: center; box-shadow: 0px 8px 25px rgba(16,185,129,0.4); z-index: 9999999; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }}
+        .floating-wa:hover {{ transform: scale(1.1) translateY(-3px); box-shadow: 0px 12px 30px rgba(16,185,129,0.6); }}
+        .floating-wa svg {{ width: 30px; height: 30px; fill: white; }}
         </style>
         <a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_msg}" class="floating-wa" target="_blank" title="Falar com Suporte">
             <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
@@ -667,7 +730,7 @@ if salao_url:
     dados_dono = todos_usuarios.get(salao_id_clean, {})
     wa_dono = dados_dono.get("whatsapp", "")
 
-    st.markdown(f'<div style="text-align: center; margin-bottom: 20px;"><h1 style="margin: 0; color: #ffffff;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 5px;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align: center; margin-bottom: 25px;"><h1 style="margin: 0; color: #ffffff; font-size: 2.2rem;">✂️ {nome_salao_formatado}</h1><p style="color: #38bdf8 !important; font-weight: 600; margin-top: 6px; font-size: 0.95rem;">Agendamento Online Rápido e Simples</p></div>', unsafe_allow_html=True)
 
     if st.session_state.get("agendamento_sucesso"):
         dados_ag = st.session_state.agendamento_sucesso
@@ -680,7 +743,7 @@ if salao_url:
                 wa_dono_clean = '55' + wa_dono_clean
             
             msg_wa = urllib.parse.quote(
-                f"Olá! Acabei de realizar um agendamento pelo site:\n\n"
+                f"🚨 *NOVO AGENDAMENTO RECEBIDO!*\n\n"
                 f"👤 *Cliente:* {dados_ag['nome']}\n"
                 f"📱 *Contato:* {dados_ag['contato']}\n"
                 f"✂️ *Serviço:* {dados_ag['servico']}\n"
@@ -689,10 +752,18 @@ if salao_url:
             )
             link_wa_dono = f"https://api.whatsapp.com/send?phone={wa_dono_clean}&text={msg_wa}"
             
+            components.html(f'''
+                <script>
+                    setTimeout(function() {{
+                        window.top.location.href = "{link_wa_dono}";
+                    }}, 800);
+                </script>
+            ''', height=0, width=0)
+
             st.markdown(f'''
-                <a href="{link_wa_dono}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:1rem; border-radius:12px; text-decoration:none; font-weight:800; font-size:1.1rem; margin-top:15px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);">
+                <a href="{link_wa_dono}" target="_top" style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:1.1rem; border-radius:16px; text-decoration:none; font-weight:800; font-size:1.05rem; margin-top:18px; margin-bottom:18px; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;">
                     <svg viewBox="0 0 32 32" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>
-                    Confirmar e Enviar no WhatsApp do Salão
+                    Clique aqui se não abrir o WhatsApp automaticamente
                 </a>
             ''', unsafe_allow_html=True)
 
@@ -729,6 +800,10 @@ if salao_url:
                     conn.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;"))
                     conn.execute(text("INSERT INTO agendamentos (usuario_id, cliente_nome, cliente_contato, servico_nome, data, hora) VALUES (:user, :nome, :contato, :servico, :data, :hora)"), {"user": salao_id_clean, "nome": nome_cliente.strip(), "contato": telefone_cliente.strip(), "servico": servico_escolhido, "data": data_str, "hora": horario_escolhido})
                 
+                if wa_dono:
+                    texto_alerta_api = f"🚨 NOVO AGENDAMENTO RECEBIDO!\n\nCliente: {nome_cliente.strip()}\nContato: {telefone_cliente.strip()}\nServiço: {servico_escolhido}\nData: {data_formatada}\nHorário: {horario_escolhido}"
+                    enviar_alerta_servidor_whatsapp(wa_dono, texto_alerta_api)
+
                 st.session_state.agendamento_sucesso = {
                     "nome": nome_cliente.strip(),
                     "contato": telefone_cliente.strip(),
@@ -737,6 +812,7 @@ if salao_url:
                     "data_formatada": data_formatada,
                     "wa_dono": wa_dono
                 }
+                limpar_cache_sessao()
                 st.rerun()
         except Exception as e: st.error(f"Erro ao registrar agendamento: {e}")
     st.stop()
@@ -852,7 +928,7 @@ if not st.session_state.autenticado:
                 st.rerun()
         with col_whats:
             wa_login_msg = urllib.parse.quote("Olá! Gostaria de falar sobre o sistema Fio&Caixa.")
-            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #22c55e; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px;"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="https://api.whatsapp.com/send?phone={support_phone}&text={wa_login_msg}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; height: 46px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);"><svg viewBox="0 0 32 32" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16 2a13 13 0 0 0-10.85 20.24L3.6 28.5l6.43-1.5A13 13 0 1 0 16 2zm0 24a10.9 10.9 0 0 1-5.54-1.5l-.4-.24-4.14 1 .97-4.04-.26-.4A11 11 0 1 1 16 26zm6-8.2c-.33-.16-1.95-.96-2.25-1.07-.3-.1-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.28-.2.22-.39.25-.72.09-.33-.16-1.4-.52-2.65-1.64-1-1-1.68-2.22-1.88-2.55-.2-.33-.02-.51.15-.67.15-.15.33-.39.5-.59.16-.2.22-.33.32-.55.1-.22.05-.42-.03-.58-.08-.16-.74-1.78-1-2.43-.27-.64-.53-.55-.74-.56h-.63c-.22 0-.58.08-.88.42-.3.33-1.15 1.12-1.15 2.73s1.18 3.16 1.34 3.37c.16.22 2.3 3.51 5.56 4.92 2.22.95 3.02 1.02 4.1 1.02s1.95-.8 2.25-1.57c.3-.77.3-1.43.22-1.57-.1-.13-.33-.2-.66-.36z"/></svg>Suporte</a>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -940,7 +1016,7 @@ if st.session_state.eh_admin:
 
     with tab_assinantes:
         st.markdown("### 📊 Painel de Monitoramento de Assinantes")
-        st.markdown("Acompanhe o status das assinaturas, verifique quem está em dia ou vencido, e bloqueie ou desbloqueie acessos automaticamente ou manualmente.")
+        st.markdown("<p style='color: #94a3b8;'>Acompanhe o status das assinaturas, verifique quem está em dia ou vencido, e bloqueie ou desbloqueie acessos automaticamente ou manualmente.</p>", unsafe_allow_html=True)
 
         if usuarios_cadastrados:
             data_hoje = datetime.now(TZ).date()
@@ -984,34 +1060,34 @@ if st.session_state.eh_admin:
                 status_atual = u_info.get("status", "Ativo")
                 esta_vencido = dt_venc < data_hoje
 
-                cor_status = "#22c55e" if (status_atual == "Ativo" and not esta_vencido) else "#ef4444"
+                cor_status = "#10b981" if (status_atual == "Ativo" and not esta_vencido) else "#f43f5e"
                 texto_status = "Em Dia (Ativo)" if (status_atual == "Ativo" and not esta_vencido) else "Vencido / Bloqueado"
 
                 with st.container():
+                    st.markdown('<div class="ui-card" style="padding: 16px 20px; margin-bottom: 12px;">', unsafe_allow_html=True)
                     c_info, c_venc, c_status_lbl, c_btn = st.columns([2.5, 1.5, 2, 2])
                     with c_info:
                         st.markdown(f"**👤 Salão:** `{u_id}`<br><span style='color: #94a3b8; font-size: 0.85rem;'>{u_info.get('email', 'Sem e-mail')}</span>", unsafe_allow_html=True)
                     with c_venc:
                         st.markdown(f"**Vencimento:**<br>{dt_venc.strftime('%d/%m/%Y')}", unsafe_allow_html=True)
                     with c_status_lbl:
-                        st.markdown(f"**Status:**<br><span style='color: {cor_status}; font-weight: bold;'>● {texto_status}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Status:**<br><span style='color: {cor_status}; font-weight: 700;'>● {texto_status}</span>", unsafe_allow_html=True)
                     with c_btn:
-                        st.markdown("<br>", unsafe_allow_html=True)
                         if status_atual == "Ativo" and not esta_vencido:
-                            if st.button("🔒 Bloquear Acesso", key=f"bloquear_{u_id}", use_container_width=True):
+                            if st.button("🔒 Bloquear", key=f"bloquear_{u_id}", use_container_width=True):
                                 usuarios_cadastrados[u_id]["status"] = "Suspenso"
                                 salvar_usuarios(usuarios_cadastrados)
                                 st.success(f"Acesso de {u_id} bloqueado!")
                                 st.rerun()
                         else:
-                            if st.button("🔓 Desbloquear / Renovar", key=f"desbloquear_{u_id}", type="primary", use_container_width=True):
+                            if st.button("🔓 Desbloquear", key=f"desbloquear_{u_id}", type="primary", use_container_width=True):
                                 novo_venc_renovado = (data_hoje + timedelta(days=30)).strftime("%Y-%m-%d")
                                 usuarios_cadastrados[u_id]["status"] = "Ativo"
                                 usuarios_cadastrados[u_id]["vencimento"] = novo_venc_renovado
                                 salvar_usuarios(usuarios_cadastrados)
                                 st.success(f"Acesso de {u_id} desbloqueado e renovado!")
                                 st.rerun()
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("Nenhum assinante cadastrado no momento.")
 
@@ -1031,10 +1107,22 @@ if st.session_state.eh_admin:
     st.stop()
 
 # ==============================================================================
-# PAINEL PRINCIPAL DO SALÃO (USUÁRIO LOGADO)
+# PAINEL PRINCIPAL DO SALÃO (USUÁRIO LOGADO - COM OTIMIZAÇÃO DE MEMÓRIA)
 # ==============================================================================
-df_fluxo_caixa = carregar_fluxo()
-servicos = carregar_servicos()
+usuario_logado_atual = st.session_state.usuario_logado
+
+if "dados_carregados_sessao" not in st.session_state:
+    st.session_state["df_fluxo_caixa"] = carregar_fluxo(usuario_logado_atual)
+    st.session_state["servicos"] = carregar_servicos(usuario_logado_atual)
+    st.session_state["df_agendamentos_all"] = carregar_agendamentos(usuario_logado_atual)
+    st.session_state["df_clientes_m"] = carregar_clientes_mensais_banco(usuario_logado_atual)
+    st.session_state["dados_carregados_sessao"] = True
+
+df_fluxo_caixa = st.session_state["df_fluxo_caixa"]
+servicos = st.session_state["servicos"]
+df_agendamentos_all = st.session_state["df_agendamentos_all"]
+df_clientes_m = st.session_state["df_clientes_m"]
+
 _, _, url_sistema_salva = carregar_admin_hashes()
 
 hoje = pd.Timestamp(datetime.now(TZ).date())
@@ -1047,14 +1135,16 @@ if not df_fluxo_caixa.empty:
     df_limpo = df_fluxo_caixa.dropna(subset=['Data']).copy()
     df_mes_atual = df_limpo[(df_limpo['Data'].dt.month == mes_atual) & (df_limpo['Data'].dt.year == ano_atual)]
     df_mes_passado = df_limpo[(df_limpo['Data'].dt.month == mes_passado) & (df_limpo['Data'].dt.year == ano_passado)]
+    df_ano_atual = df_limpo[df_limpo['Data'].dt.year == ano_atual]
 else:
     df_limpo = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
     df_mes_passado = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
+    df_ano_atual = pd.DataFrame(columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
 
 base_url = RENDER_BASE_URL.rstrip('/')
 link_clientes = f"{base_url}/?salao={st.session_state.usuario_logado}"
-nome_salao_titulo = st.session_state.usuario_logado.replace('_', ' ').replace('-', ' ').title()
+nome_salao_titulo = str(st.session_state.usuario_logado).replace('_', ' ').replace('-', ' ').title()
 wa_url_geral = f"https://api.whatsapp.com/send?text={urllib.parse.quote(f'Olá! 👋 Agende seu horário no *{nome_salao_titulo}* de forma prática: {link_clientes}')}"
 
 col_top_left, _ = st.columns([1, 4])
@@ -1085,7 +1175,7 @@ with col_top_left:
                     st.rerun()
 
         st.markdown("---")
-        renderizar_botao_download_apk(gerar_backup_json_completo().encode('utf-8'), f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", "application/json", "📥 Baixar Backup JSON")
+        renderizar_botao_download_apk(gerar_backup_json_completo(usuario_logado_atual).encode('utf-8'), f"backup_{st.session_state.usuario_logado}_{datetime.now(TZ).strftime('%d_%m_%Y')}.json", "application/json", "📥 Baixar Backup JSON")
         st.markdown("---")
         if st.button("🚪 Sair do Sistema", use_container_width=True, type="secondary", key="top_logout_btn"):
             st.session_state.clear()
@@ -1093,7 +1183,14 @@ with col_top_left:
                 del st.query_params["token_sessao"]
             st.rerun()
 
-st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 20px;"><div><h2 style="margin: 0; color: #ffffff;">✂️ {nome_salao_titulo}</h2><p style="margin: 0; color: #38bdf8 !important; font-size: 0.9rem;">Painel de Controle Financeiro & Agendamentos</p></div></div>', unsafe_allow_html=True)
+st.markdown(f'''
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 28px; background: linear-gradient(145deg, rgba(15, 23, 42, 0.7) 0%, rgba(10, 15, 26, 0.8) 100%); border: 1px solid rgba(255,255,255,0.06); border-radius: 22px; margin-bottom: 24px; backdrop-filter: blur(12px);">
+        <div>
+            <h2 style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 800;">✂️ {nome_salao_titulo}</h2>
+            <p style="margin: 4px 0 0 0; color: #38bdf8 !important; font-size: 0.9rem; font-weight: 500;">Painel de Controle Financeiro & Agendamentos</p>
+        </div>
+    </div>
+''', unsafe_allow_html=True)
 
 # ==============================================================================
 # FUNÇÕES DE DIÁLOGO (MODAIS PARA AÇÕES RÁPIDAS)
@@ -1105,7 +1202,7 @@ def dialog_novo_atendimento(servicos_dict):
         servico_selecionado = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_atend_serv_modal")
         preco_final = st.number_input("Valor Recebido (R$):", value=float(servicos_dict[servico_selecionado]), step=1.0, key=f"prc_atend_din_{servico_selecionado}_modal")
         data_entrada = st.date_input("Data do Atendimento:", datetime.now(TZ).date(), key="f_atend_dt_modal")
-        if st.button("Confirmar Entrada", type="primary", icon=":material/check_circle:", use_container_width=True):
+        if st.button("✅ Confirmar Entrada", type="primary", use_container_width=True):
             inserir_movimentacao_direta("Entrada", f"Atendimento: {servico_selecionado}", preco_final, data_entrada)
             st.success("Atendimento registrado no caixa!")
             st.rerun()
@@ -1115,7 +1212,7 @@ def dialog_nova_despesa():
     descricao_saida = st.text_input("Descrição da Despesa:", key="f_venda_desc_modal", placeholder="Ex: Produto de limpeza, conta de luz...")
     valor_saida = st.number_input("Valor Pago (R$):", min_value=0.0, step=5.0, key="f_venda_val_modal")
     data_saida = st.date_input("Data do Pagamento:", datetime.now(TZ).date(), key="f_venda_dt_modal")
-    if st.button("Lançar Saída", type="primary", icon=":material/remove_circle:", use_container_width=True):
+    if st.button("🔴 Lançar Saída", type="primary", use_container_width=True):
         if descricao_saida and valor_saida > 0:
             inserir_movimentacao_direta("Saída", descricao_saida, -valor_saida, data_saida)
             st.success("Despesa lançada!")
@@ -1130,7 +1227,7 @@ def dialog_anotar_fiado(servicos_dict):
         servico_pendente = st.selectbox("Serviço Realizado:", list(servicos_dict.keys()), key="f_fiado_serv_modal")
         preco_final_p = st.number_input("Valor a Pagar (R$):", value=float(servicos_dict[servico_pendente]), key=f"prc_fiado_din_{servico_pendente}_modal")
         data_pendencia = st.date_input("Data do Serviço:", datetime.now(TZ).date(), key="f_fiado_dt_modal")
-        if st.button("Anotar Pendência", type="primary", icon=":material/warning:", use_container_width=True):
+        if st.button("⚠️ Anotar Pendência", type="primary", use_container_width=True):
             if nome_devedor:
                 inserir_movimentacao_direta("Pendência", f"Fiado de: {nome_devedor} ({servico_pendente})", preco_final_p, data_pendencia)
                 st.success("Fiado registrado!")
@@ -1144,7 +1241,7 @@ def dialog_baixar_fiado(df_fluxo):
     if not df_pendencias.empty:
         opcoes_pendentes = {f"{row['Descrição']} - R$ {abs(row['Valor']):.2f}": row['id'] for _, row in df_pendencias.iterrows()}
         pendencia_selecionada = st.selectbox("Selecione o Fiado a Baixar:", list(opcoes_pendentes.keys()), key="f_pago_sel_modal")
-        if st.button("Confirmar Recebimento", type="primary", icon=":material/payments:", use_container_width=True):
+        if st.button("💰 Confirmar Recebimento", type="primary", use_container_width=True):
             id_alterar = opcoes_pendentes[pendencia_selecionada]
             row_atual = df_pendencias[df_pendencias['id'] == id_alterar].iloc[0]
             nova_desc = row_atual['Descrição'].replace("Fiado de:", "Recebido Fiado:") + " [PAGO]"
@@ -1155,165 +1252,364 @@ def dialog_baixar_fiado(df_fluxo):
         st.info("Nenhum fiado pendente no momento.")
 
 # ==============================================================================
-# ABAS ATUALIZADAS (Com a nova aba de Clientes Mensais inclusa)
+# ABAS DO PAINEL PRINCIPAL
 # ==============================================================================
-tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "💸 Fluxo de Caixa"])
+tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["📊 Dashboard Premium", "🚀 Serviços", "👥 Clientes Mensais", "📅 Agendamentos", "💸 Fluxo de Caixa"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD
+# TAB 1: DASHBOARD PREMIUM
 # ==============================================================================
 with tab_dashboard:
-    def agg_valores(df_m):
-        entradas = df_m[df_m['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias = df_m[df_m['Tipo'] == 'Pendência']['Valor'].sum()
-        saidas = df_m[df_m['Tipo'] == 'Saída']['Valor'].sum()
-        faturamento = entradas + pendencias
-        lucro = entradas + saidas
-        return faturamento, entradas, abs(saidas), lucro
-
-    def agg_valores_dia(df_m, data_ref):
-        if df_m.empty:
-            return 0.0
-        df_dia = df_m[df_m['Data'].dt.date == data_ref]
-        entradas_dia = df_dia[df_dia['Tipo'] == 'Entrada']['Valor'].sum()
-        pendencias_dia = df_dia[df_dia['Tipo'] == 'Pendência']['Valor'].sum()
-        return entradas_dia + pendencias_dia
-
-    fat_dia_atual = agg_valores_dia(df_limpo, hoje.date())
-    fat_atual, ent_atual, sai_atual, lucro_atual = agg_valores(df_mes_atual)
-    fat_ant, ent_ant, sai_ant, lucro_ant = agg_valores(df_mes_passado)
-
     def calc_perc(atual, anterior):
         if anterior == 0: return 0 if atual == 0 else 100
         return ((atual - anterior) / anterior) * 100
-
-    perc_ent = calc_perc(ent_atual, ent_ant)
-    perc_sai = calc_perc(sai_atual, sai_ant)
-    perc_luc = calc_perc(lucro_atual, lucro_ant)
 
     def render_perc(val, reverse_colors=False):
         if val == 0: return f'<span class="kpi-perc perc-neutral">0% vs mês anterior</span>'
         seta = "▲" if val > 0 else "▼"
         cor = "perc-up" if (val > 0 and not reverse_colors) or (val < 0 and reverse_colors) else "perc-down"
-        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.0f}% vs mês anterior</span>'
+        return f'<span class="kpi-perc {cor}">{seta} {abs(val):.1f}% vs mês ant.</span>'
 
+    dt_hoje = hoje.date()
+    dt_hoje_str = dt_hoje.strftime('%Y-%m-%d')
+
+    rec_dia = df_limpo[(df_limpo['Data'].dt.date == dt_hoje) & (df_limpo['Tipo'].isin(['Entrada', 'Pendência']))]['Valor'].sum() if not df_limpo.empty else 0.0
+    rec_mes = df_mes_atual[df_mes_atual['Tipo'].isin(['Entrada', 'Pendência'])]['Valor'].sum() if not df_mes_atual.empty else 0.0
+    rec_ano = df_ano_atual[df_ano_atual['Tipo'].isin(['Entrada', 'Pendência'])]['Valor'].sum() if not df_ano_atual.empty else 0.0
+    
+    ent_mes = df_mes_atual[df_mes_atual['Tipo'] == 'Entrada']['Valor'].sum() if not df_mes_atual.empty else 0.0
+    sai_mes = abs(df_mes_atual[df_mes_atual['Tipo'] == 'Saída']['Valor'].sum()) if not df_mes_atual.empty else 0.0
+    lucro_mes = ent_mes - sai_mes
+
+    rec_mes_passado = df_mes_passado[df_mes_passado['Tipo'].isin(['Entrada', 'Pendência'])]['Valor'].sum() if not df_mes_passado.empty else 0.0
+    ent_mes_passado = df_mes_passado[df_mes_passado['Tipo'] == 'Entrada']['Valor'].sum() if not df_mes_passado.empty else 0.0
+    sai_mes_passado = abs(df_mes_passado[df_mes_passado['Tipo'] == 'Saída']['Valor'].sum()) if not df_mes_passado.empty else 0.0
+    lucro_mes_passado = ent_mes_passado - sai_mes_passado
+
+    perc_rec_mes = calc_perc(rec_mes, rec_mes_passado)
+    perc_lucro_mes = calc_perc(lucro_mes, lucro_mes_passado)
+
+    qtd_atendimentos_mes = len(df_mes_atual[df_mes_atual['Tipo'] == 'Entrada']) if not df_mes_atual.empty else 0
+    ticket_medio = (ent_mes / qtd_atendimentos_mes) if qtd_atendimentos_mes > 0 else 0.0
+
+    agendamentos_hoje = df_agendamentos_all[df_agendamentos_all['Data'] == dt_hoje_str] if not df_agendamentos_all.empty else pd.DataFrame()
+    qtd_agend_hoje = len(agendamentos_hoje)
+
+    if not df_agendamentos_all.empty:
+        df_proximos = df_agendamentos_all[df_agendamentos_all['Data'] >= dt_hoje_str].sort_values(by=['Data', 'Horário']).head(5)
+    else:
+        df_proximos = pd.DataFrame()
+
+    set_clientes = set(df_clientes_m['Cliente'].unique()) if not df_clientes_m.empty else set()
+    if not df_agendamentos_all.empty:
+        set_clientes.update(df_agendamentos_all['Cliente'].unique())
+    total_clientes_cadastrados = len(set_clientes)
+    if total_clientes_cadastrados == 0 and not df_limpo.empty:
+        total_clientes_cadastrados = len(df_limpo['Descrição'].unique())
+
+    # BARRA DE META MENSAL
+    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    c_meta_input, c_meta_bar = st.columns([1, 2.5])
+    with c_meta_input:
+        meta_val = st.number_input("🎯 Sua Meta Mensal (R$):", min_value=100.0, value=float(st.session_state.meta_mensal), step=500.0, key="input_meta_dinamica")
+        st.session_state.meta_mensal = meta_val
+    with c_meta_bar:
+        pct_meta = min(100.0, (float(rec_mes) / meta_val) * 100) if meta_val > 0 else 0.0
+        restante_meta = max(0.0, meta_val - float(rec_mes))
+        cor_barra = "#10b981" if pct_meta >= 100 else "#38bdf8"
+        
+        st.markdown(f"""
+            <div style="margin-top: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 700; color: #ffffff; font-size: 1rem;">Progresso da Meta Mensal</span>
+                    <span style="font-weight: 800; color: {cor_barra}; font-size: 1.1rem;">{pct_meta:.1f}% ({'Meta Atingida! 🎉' if pct_meta >= 100 else f'Faltam R$ {restante_meta:,.2f}'})</span>
+                </div>
+                <div style="width: 100%; background: rgba(255,255,255,0.08); border-radius: 999px; height: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="width: {pct_meta}%; background: linear-gradient(90deg, #0284c7 0%, {cor_barra} 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: #94a3b8; margin-top: 6px;">
+                    <span>Realizado: <strong>R$ {rec_mes:,.2f}</strong></span>
+                    <span>Meta: <strong>R$ {meta_val:,.2f}</strong></span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # GRID DE KPIS
     col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-    with col_k1: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Faturamento do Dia</div><div class="kpi-value-v2 kpi-val-green">R$ {fat_dia_atual:,.2f}</div></div>', unsafe_allow_html=True)
-    with col_k2: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Entradas</div><div class="kpi-value-v2 kpi-val-green">R$ {ent_atual:,.2f}</div>{render_perc(perc_ent)}</div>', unsafe_allow_html=True)
-    with col_k3: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Saídas</div><div class="kpi-value-v2 kpi-val-red">R$ {sai_atual:,.2f}</div>{render_perc(perc_sai, reverse_colors=True)}</div>', unsafe_allow_html=True)
-    with col_k4: st.markdown(f'<div class="kpi-card-v2"><div class="kpi-title-v2">Lucro Líquido</div><div class="kpi-value-v2 kpi-val-blue">R$ {lucro_atual:,.2f}</div>{render_perc(perc_luc)}</div>', unsafe_allow_html=True)
+    with col_k1:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">⚡ Receita do Dia</div>
+                <div class="kpi-value-v2 kpi-val-green">R$ {rec_dia:,.2f}</div>
+                <span class="kpi-perc perc-neutral">Hoje ({dt_hoje.strftime('%d/%m')})</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k2:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">💰 Receita do Mês</div>
+                <div class="kpi-value-v2 kpi-val-green">R$ {rec_mes:,.2f}</div>
+                {render_perc(perc_rec_mes)}
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k3:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">📅 Receita Anual</div>
+                <div class="kpi-value-v2 kpi-val-blue">R$ {rec_ano:,.2f}</div>
+                <span class="kpi-perc perc-neutral">Acumulado {ano_atual}</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k4:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">📈 Lucro Líquido (Mês)</div>
+                <div class="kpi-value-v2 kpi-val-purple">R$ {lucro_mes:,.2f}</div>
+                {render_perc(perc_lucro_mes)}
+            </div>
+        ''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h4 style="margin-bottom: 15px;">Fluxo de Caixa</h4>', unsafe_allow_html=True)
 
-    if not df_mes_atual.empty:
-        df_mes_atual['DataStr'] = df_mes_atual['Data'].dt.strftime('%d/%m')
-        df_group = df_mes_atual.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
-        for col in ['Entrada', 'Saída', 'Pendência']:
-            if col not in df_group: df_group[col] = 0
+    col_k5, col_k6, col_k7, col_k8 = st.columns(4)
+    with col_k5:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">🎯 Ticket Médio</div>
+                <div class="kpi-value-v2 kpi-val-blue">R$ {ticket_medio:,.2f}</div>
+                <span class="kpi-perc perc-neutral">Por atendimento no mês</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k6:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">👥 Total de Clientes</div>
+                <div class="kpi-value-v2 kpi-val-purple">{total_clientes_cadastrados}</div>
+                <span class="kpi-perc perc-neutral">Base ativa cadastrada</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k7:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">📅 Agendamentos Hoje</div>
+                <div class="kpi-value-v2 kpi-val-orange">{qtd_agend_hoje}</div>
+                <span class="kpi-perc perc-neutral">Marcados para {dt_hoje.strftime('%d/%m')}</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_k8:
+        st.markdown(f'''
+            <div class="kpi-card-v2">
+                <div class="kpi-title-v2">📊 Comparativo Mês Ant.</div>
+                <div class="kpi-value-v2 {'kpi-val-green' if perc_rec_mes >= 0 else 'kpi-val-red'}">{'+' if perc_rec_mes > 0 else ''}{perc_rec_mes:.1f}%</div>
+                <span class="kpi-perc perc-neutral">Var. Receita ({'Mês Passado: R$ ' + f'{rec_mes_passado:,.2f}'})</span>
+            </div>
+        ''', unsafe_allow_html=True)
 
-        df_group['Saída_Abs'] = df_group['Saída'].abs()
-        df_group['Lucro'] = df_group['Entrada'] - df_group['Saída_Abs']
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        fig_area = go.Figure()
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Lucro'], mode='lines+markers', name='Lucro', line=dict(color='#22c55e', width=2), fill='tozeroy', fillcolor='rgba(34, 197, 94, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.1)', marker=dict(size=6)))
-        fig_area.add_trace(go.Scatter(x=df_group['DataStr'], y=df_group['Saída_Abs'], mode='lines+markers', name='Saídas', line=dict(color='#ef4444', width=2), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)', marker=dict(size=6)))
-
-        fig_area.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8'),
-            xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
-            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
-            margin=dict(l=10, r=10, t=10, b=10), height=350, hovermode="x unified"
-        )
-        st.plotly_chart(fig_area, use_container_width=True)
-    else: st.info("Lance movimentações no caixa neste mês para preencher o gráfico.")
-
-    col_bottom1, col_bottom2 = st.columns(2)
-    with col_bottom1:
-        st.markdown('<h4 style="margin-bottom: 20px;">Resumo financeiro</h4>', unsafe_allow_html=True)
-        if ent_atual > 0 or sai_atual > 0:
-            total_op = ent_atual + sai_atual
-            perc_ent_donut = (ent_atual / total_op) * 100 if total_op > 0 else 0
-            perc_sai_donut = (sai_atual / total_op) * 100 if total_op > 0 else 0
-
-            col_donut_img, col_donut_leg = st.columns([1, 1.2])
-            with col_donut_img:
-                fig_donut = go.Figure(data=[go.Pie(labels=['Entradas', 'Saídas'], values=[ent_atual, sai_atual], hole=.65, marker=dict(colors=['#38bdf8', '#ef4444']), textinfo='none', hoverinfo='label+percent')])
-                fig_donut.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=180)
-                st.plotly_chart(fig_donut, use_container_width=True)
-            with col_donut_leg:
-                st.markdown("<br>", unsafe_allow_html=True)
+    # AGENDA DO DIA E PRÓXIMOS HORÁRIOS
+    c_ag_hoje, c_ag_prox = st.columns(2)
+    with c_ag_hoje:
+        st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 16px; color: #ffffff; font-weight: 700;">📌 Agendamentos de Hoje</h4>', unsafe_allow_html=True)
+        if not agendamentos_hoje.empty:
+            for _, r in agendamentos_hoje.iterrows():
                 st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #38bdf8; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Entradas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_ent_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">R$ {ent_atual:,.2f}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%;"></div><span style="font-weight: bold; color: #ffffff;">Saídas</span>
-                    </div><span style="font-weight: bold; color: #ffffff;">{perc_sai_donut:.0f}%</span>
-                </div>
-                <div style="color: #94a3b8; font-size: 0.9rem; margin-left: 20px;">R$ {sai_atual:,.2f}</div>
-                """, unsafe_allow_html=True)
-        else: st.info("Sem dados suficientes neste mês.")
-
-    with col_bottom2:
-        st.markdown('<h4 style="margin-bottom: 25px;">Categorias de despesas</h4>', unsafe_allow_html=True)
-        if sai_atual > 0:
-            df_desp = df_mes_atual[df_mes_atual['Tipo'] == 'Saída'].copy()
-            df_desp['Valor'] = df_desp['Valor'].abs()
-            top_desp = df_desp.groupby('Descrição')['Valor'].sum().sort_values(ascending=False).head(4)
-            cores_barras = ['#38bdf8', '#22c55e', '#ef4444', '#94a3b8']
-            html_barras = ""
-            for i, (desc, valor) in enumerate(top_desp.items()):
-                perc_cat = (valor / sai_atual) * 100
-                cor = cores_barras[i % len(cores_barras)]
-                nome_formatado = (desc[:15] + '..') if len(desc) > 15 else desc
-                html_barras += f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <span style="color: #cbd5e1; font-weight: 600; width: 30%; font-size: 0.95rem;">{nome_formatado}</span>
-                    <span style="color: #94a3b8; width: 15%; font-size: 0.9rem;">{perc_cat:.0f}%</span>
-                    <div style="width: 25%; background: #111827; border-radius: 10px; overflow: hidden; height: 10px; margin-right: 15px;">
-                        <div style="width: {perc_cat}%; background: linear-gradient(90deg, {cor}, transparent); height: 100%;"></div>
+                    <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #38bdf8; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.95rem;">{r['Cliente']}</strong><br>
+                            <span style="color: #94a3b8; font-size: 0.85rem;">✂️ {r['Serviço']}</span>
+                        </div>
+                        <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 0.9rem;">⏰ {r['Horário']}</span>
                     </div>
-                    <span style="color: #ffffff; width: 30%; text-align: right; font-weight: 700; font-size: 0.95rem;">R$ {valor:,.2f}</span>
-                </div>
-                """
-            st.markdown(html_barras, unsafe_allow_html=True)
-        else: st.info("Nenhuma despesa registrada neste mês.")
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhum agendamento para hoje.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c_ag_prox:
+        st.markdown('<div class="ui-card" style="height: 100%;">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 16px; color: #ffffff; font-weight: 700;">⏱️ Próximos Horários Marcados</h4>', unsafe_allow_html=True)
+        if not df_proximos.empty:
+            for _, r in df_proximos.iterrows():
+                dt_p = pd.to_datetime(r['Data']).strftime('%d/%m') if r['Data'] else ""
+                st.markdown(f"""
+                    <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #10b981; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.95rem;">{r['Cliente']}</strong><br>
+                            <span style="color: #94a3b8; font-size: 0.85rem;">✂️ {r['Serviço']}</span>
+                        </div>
+                        <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">📅 {dt_p} às {r['Horário']}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhum agendamento futuro encontrado.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # GRÁFICOS PLOTLY
+    col_g1, col_g2 = st.columns([1.6, 1])
+    with col_g1:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">📈 Evolução Diária do Fluxo Financeiro (Mês)</h4>', unsafe_allow_html=True)
+        if not df_mes_atual.empty:
+            df_m_chart = df_mes_atual.copy()
+            df_m_chart['DataStr'] = df_m_chart['Data'].dt.strftime('%d/%m')
+            df_grp = df_m_chart.groupby(['DataStr', 'Tipo'])['Valor'].sum().unstack(fill_value=0).reset_index()
+            for c in ['Entrada', 'Saída', 'Pendência']:
+                if c not in df_grp: df_grp[c] = 0
+            df_grp['Saída_Abs'] = df_grp['Saída'].abs()
+            df_grp['Lucro'] = df_grp['Entrada'] - df_grp['Saída_Abs']
+
+            fig_evo = go.Figure()
+            fig_evo.add_trace(go.Scatter(x=df_grp['DataStr'], y=df_grp['Lucro'], mode='lines+markers', name='Lucro Líquido', line=dict(color='#10b981', width=3, shape='spline'), fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.1)'))
+            fig_evo.add_trace(go.Scatter(x=df_grp['DataStr'], y=df_grp['Entrada'], mode='lines+markers', name='Entradas', line=dict(color='#38bdf8', width=2, shape='spline')))
+            fig_evo.add_trace(go.Scatter(x=df_grp['DataStr'], y=df_grp['Saída_Abs'], mode='lines+markers', name='Despesas', line=dict(color='#f43f5e', width=2, shape='spline')))
+            
+            fig_evo.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#94a3b8', family='Plus Jakarta Sans'),
+                xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
+                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(color='#ffffff')),
+                margin=dict(l=10, r=10, t=10, b=10), height=340, hovermode="x unified"
+            )
+            st.plotly_chart(fig_evo, use_container_width=True)
+        else:
+            st.info("Insira registros para visualizar o gráfico diário.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_g2:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">📊 Comparativo de Faturamento Anual</h4>', unsafe_allow_html=True)
+        if not df_ano_atual.empty:
+            df_ano_chart = df_ano_atual[df_ano_atual['Tipo'].isin(['Entrada', 'Pendência'])].copy()
+            df_ano_chart['MesNum'] = df_ano_chart['Data'].dt.month
+            df_ano_chart['Mês'] = df_ano_chart['Data'].dt.strftime('%b')
+            df_ano_grp = df_ano_chart.groupby(['MesNum', 'Mês'])['Valor'].sum().reset_index().sort_values('MesNum')
+            
+            fig_bar_ano = px.bar(df_ano_grp, x='Mês', y='Valor', text_auto='.2s', color_discrete_sequence=['#38bdf8'])
+            fig_bar_ano.update_traces(marker_line_color='#0284c7', marker_line_width=1.5, opacity=0.85)
+            fig_bar_ano.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#94a3b8', family='Plus Jakarta Sans'),
+                xaxis=dict(showgrid=False, tickfont=dict(color='#94a3b8')),
+                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', tickfont=dict(color='#94a3b8')),
+                margin=dict(l=10, r=10, t=10, b=10), height=340
+            )
+            st.plotly_chart(fig_bar_ano, use_container_width=True)
+        else:
+            st.info("Sem dados anuais registrados.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # RANKINGS DE SERVIÇOS E CLIENTES
+    col_rank1, col_rank2 = st.columns(2)
+    
+    with col_rank1:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">✂️ Serviços Mais Vendidos</h4>', unsafe_allow_html=True)
+        
+        dict_servicos_count = {s: 0 for s in servicos.keys()}
+        if not df_limpo.empty:
+            for desc in df_limpo['Descrição']:
+                for s_nome in servicos.keys():
+                    if s_nome.lower() in desc.lower():
+                        dict_servicos_count[s_nome] += 1
+        if not df_agendamentos_all.empty:
+            for s_nome in df_agendamentos_all['Serviço']:
+                if s_nome in dict_servicos_count:
+                    dict_servicos_count[s_nome] += 1
+                else:
+                    dict_servicos_count[s_nome] = 1
+
+        df_srv_top = pd.DataFrame(list(dict_servicos_count.items()), columns=['Serviço', 'Vendas']).sort_values(by='Vendas', ascending=False)
+        df_srv_top = df_srv_top[df_srv_top['Vendas'] > 0]
+
+        if not df_srv_top.empty:
+            fig_pie_srv = px.pie(df_srv_top, names='Serviço', values='Vendas', hole=0.55, color_discrete_sequence=['#38bdf8', '#10b981', '#a855f7', '#f59e0b', '#f43f5e'])
+            fig_pie_srv.update_traces(textposition='inside', textinfo='percent+label')
+            fig_pie_srv.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#ffffff', family='Plus Jakarta Sans'),
+                showlegend=False, margin=dict(l=10, r=10, t=10, b=10), height=280
+            )
+            st.plotly_chart(fig_pie_srv, use_container_width=True)
+        else:
+            st.info("Nenhum serviço contabilizado até o momento.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_rank2:
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown('<h4 style="margin-bottom: 18px; color: #ffffff; font-weight: 700;">🏆 Ranking de Faturamento de Clientes</h4>', unsafe_allow_html=True)
+        
+        mapa_fat_clientes = {}
+        if not df_clientes_m.empty:
+            for _, r in df_clientes_m.iterrows():
+                cli = r['Cliente']
+                val = float(r['Valor Devido']) + (float(r['Serviços Feitos']) * 30.0)
+                mapa_fat_clientes[cli] = mapa_fat_clientes.get(cli, 0.0) + val
+
+        if not df_limpo.empty:
+            for _, r in df_limpo.iterrows():
+                desc = r['Descrição']
+                val = abs(float(r['Valor']))
+                if "Fiado de:" in desc or "Atendimento:" in desc or "Mensalidade recebida" in desc:
+                    parts = desc.split(":")
+                    if len(parts) > 1:
+                        cli_nome = parts[1].split("(")[0].strip()
+                        if cli_nome:
+                            mapa_fat_clientes[cli_nome] = mapa_fat_clientes.get(cli_nome, 0.0) + val
+
+        df_rank_cli = pd.DataFrame(list(mapa_fat_clientes.items()), columns=['Cliente', 'Faturamento']).sort_values(by='Faturamento', ascending=False).head(5)
+
+        if not df_rank_cli.empty:
+            medals = ["🥇", "🥈", "🥉", "4º", "5º"]
+            for idx, (_, r) in enumerate(df_rank_cli.iterrows()):
+                icone = medals[idx] if idx < len(medals) else f"{idx+1}º"
+                st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.1rem;">{icone}</span>
+                            <strong style="color: #ffffff; font-size: 0.95rem;">{r['Cliente']}</strong>
+                        </div>
+                        <span style="color: #10b981; font-weight: 800; font-size: 0.95rem;">R$ {r['Faturamento']:,.2f}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Sem dados de clientes para gerar o ranking.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 2: SERVIÇOS
 # ==============================================================================
 with tab_servicos:
-    st.markdown('### :material/bolt: Ações & Serviços')
-    st.markdown("<p style='color: #94a3b8 !important;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    st.markdown('<h3 style="margin-bottom: 8px;">⚡ Ações & Serviços</h3>', unsafe_allow_html=True)
+    st.markdown("<p style='color: #94a3b8 !important; margin-bottom: 20px;'>Utilize os botões abaixo para gerenciar o caixa e lançamentos do seu estabelecimento.</p>", unsafe_allow_html=True)
     
     col_srv1, col_srv2, col_srv3, col_srv4 = st.columns(4)
     
     with col_srv1:
-        if st.button("Novo Atendimento", icon=":material/content_cut:", use_container_width=True, type="primary"):
+        if st.button("✂️ Novo Atendimento", use_container_width=True, type="primary"):
             dialog_novo_atendimento(servicos)
             
     with col_srv2:
-        if st.button("Nova Despesa", icon=":material/shopping_cart:", use_container_width=True):
+        if st.button("🛍️ Nova Despesa", use_container_width=True):
             dialog_nova_despesa()
             
     with col_srv3:
-        if st.button("Anotar Fiado", icon=":material/credit_score:", use_container_width=True):
+        if st.button("💳 Anotar Fiado", use_container_width=True):
             dialog_anotar_fiado(servicos)
             
     with col_srv4:
-        if st.button("Baixar Fiado", icon=":material/price_check:", use_container_width=True):
+        if st.button("💸 Baixar Fiado", use_container_width=True):
             dialog_baixar_fiado(df_fluxo_caixa)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 3: CLIENTES MENSAIS / MENSALIDADE (COM AS ALTERAÇÕES REQUISITADAS)
+# TAB 3: CLIENTES MENSAIS / MENSALIDADE
 # ==============================================================================
 with tab_mensais:
     st.markdown('### 👥 Gestão de Clientes Mensais (Mensalidade)')
@@ -1338,8 +1634,9 @@ with tab_mensais:
                     st.warning("⚠️ Informe o nome do cliente.")
 
     with tab_m_lanc:
-        st.markdown("#### Registrar Corte para Cliente Mensal")
-        df_mensalistas = carregar_clientes_mensais_banco()
+        st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+        st.markdown("<h4 style='margin-bottom: 15px;'>Registrar Corte para Cliente Mensal</h4>", unsafe_allow_html=True)
+        df_mensalistas = carregar_clientes_mensais_banco(usuario_logado_atual)
         if not df_mensalistas.empty:
             mapa_clientes = {row['Cliente']: row['id'] for _, row in df_mensalistas.iterrows()}
             cliente_escolhido_l = st.selectbox("Selecione o Cliente Mensal:", list(mapa_clientes.keys()))
@@ -1348,16 +1645,18 @@ with tab_mensais:
             qtd_cortes = st.number_input("Quantos serviços/cortes foram feitos?", min_value=1, value=1, step=1)
             preco_serv_mensal = st.number_input("Valor unitário cobrado por este serviço (R$):", min_value=0.0, value=30.0, step=5.0)
 
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Adicionar Serviço à Dívida do Cliente", type="primary", use_container_width=True):
                 atualizar_cortes_cliente_mensal(id_cli_sel, qtd_cortes, preco_serv_mensal)
                 st.success(f"Adicionado {qtd_cortes} serviço(s) para `{cliente_escolhido_l}`. O sistema atualizou a dívida automaticamente!")
                 st.rerun()
         else:
             st.info("Nenhum cliente mensal cadastrado ainda. Cadastre na aba anterior.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with tab_m_lista:
         st.markdown("#### Status de Dívidas e Baixas")
-        df_mensalistas = carregar_clientes_mensais_banco()
+        df_mensalistas = carregar_clientes_mensais_banco(usuario_logado_atual)
         if not df_mensalistas.empty:
             for _, row in df_mensalistas.iterrows():
                 c_id = row['id']
@@ -1367,18 +1666,17 @@ with tab_mensais:
                 c_val = float(row['Valor Devido'])
                 c_status = row['Status']
 
-                cor_st = "#22c55e" if c_status == "Quitado" or c_val == 0 else "#ef4444"
+                cor_st = "#10b981" if c_status == "Quitado" or c_val == 0 else "#f43f5e"
                 
                 with st.container():
+                    st.markdown('<div class="ui-card" style="padding: 18px 24px; margin-bottom: 14px;">', unsafe_allow_html=True)
                     col_info_m, col_val_m, col_action_m = st.columns([3, 2, 2])
                     with col_info_m:
                         st.markdown(f"**👤 {c_nome}** (`{c_tel if c_tel else 'Sem Tel'}`)<br><span style='color: #94a3b8; font-size: 0.85rem;'>Serviços realizados: {c_serv}</span>", unsafe_allow_html=True)
                     with col_val_m:
-                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.1rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Devendo:**<br><span style='color: {cor_st}; font-weight: 800; font-size: 1.15rem;'>R$ {c_val:,.2f}</span>", unsafe_allow_html=True)
                     with col_action_m:
-                        st.markdown("<br>", unsafe_allow_html=True)
                         if c_val > 0:
-                            # Popover/Formulário para escolha do tipo de baixa
                             with st.popover(f"💸 Dar Baixa ({c_nome})", use_container_width=True):
                                 st.markdown(f"**Dívida atual:** R$ {c_val:,.2f}")
                                 tipo_baixa = st.radio("Escolha o tipo de baixa:", ["Baixa total da dívida", "Baixa parcial (escolher valor)"], key=f"tipo_baixa_{c_id}")
@@ -1393,8 +1691,8 @@ with tab_mensais:
                                     st.success(f"Baixa de R$ {valor_a_baixar:,.2f} registrada com sucesso!")
                                     st.rerun()
                         else:
-                            st.markdown("<span style='color: #22c55e; font-weight: bold;'>✔ Quitado</span>", unsafe_allow_html=True)
-                    st.markdown("<hr style='margin: 10px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                            st.markdown("<span style='color: #10b981; font-weight: 700;'>✔ Quitado</span>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("Nenhum cliente mensal cadastrado no momento.")
 
@@ -1408,17 +1706,37 @@ with tab_agend:
         st.markdown("<p style='color: #94a3b8 !important; margin: 0;'>Gerencie os clientes marcados em tempo real.</p>", unsafe_allow_html=True)
     with col_ag_btn:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): st.rerun()
+        if st.button("🔄 Atualizar Lista", type="primary", use_container_width=True): 
+            limpar_cache_sessao()
+            st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background-color:#22c55e; color:#ffffff; padding:0.85rem; border-radius:12px; text-decoration:none; font-weight:700; margin-bottom:20px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{wa_url_geral}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; text-align:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#ffffff; padding:0.95rem; border-radius:14px; text-decoration:none; font-weight:700; margin-bottom:24px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35); transition: all 0.3s ease;">📲 Enviar Link de Agendamento por WhatsApp para Clientes</a>', unsafe_allow_html=True)
     
-    df_agendamentos = carregar_agendamentos()
+    df_agendamentos = carregar_agendamentos(usuario_logado_atual)
 
     if not df_agendamentos.empty:
-        st.markdown('<h4>📋 Clientes Agendados</h4>', unsafe_allow_html=True)
+        total_agendamentos = len(df_agendamentos)
+        data_hoje_str = datetime.now(TZ).strftime('%Y-%m-%d')
+        df_hoje = df_agendamentos[df_agendamentos['Data'] == data_hoje_str]
+        qtd_hoje = len(df_hoje)
+
+        texto_alerta = f"Você possui <strong>{total_agendamentos}</strong> agendamento(s) marcado(s) na sua lista!"
+        if qtd_hoje > 0:
+            texto_alerta += f" (Sendo <strong>{qtd_hoje}</strong> para o dia de hoje)."
+
+        st.markdown(f'''
+            <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(2, 132, 199, 0.3) 100%); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 16px; padding: 16px 22px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <span style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">🔔 ALERTA DE AGENDAMENTOS</span>
+                    <p style="margin: 4px 0 0 0; color: #f8fafc; font-size: 0.95rem;">{texto_alerta}</p>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+
+        st.markdown('<h4 style="margin-bottom: 16px;">📋 Clientes Agendados</h4>', unsafe_allow_html=True)
         
-        servicos_salao = carregar_servicos()
+        servicos_salao = carregar_servicos(usuario_logado_atual)
 
         for index, row in df_agendamentos.iterrows():
             id_ag = row['id']
@@ -1433,38 +1751,39 @@ with tab_agend:
             except:
                 data_formatada = data_bd
 
-            col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
-            
-            with col_info:
-                st.markdown(f"<div style='margin-top: 5px;'><strong>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>{data_formatada} às {hora} | {servico}</span></div>", unsafe_allow_html=True)
-            
-            with col_zap:
-                num_clean = re.sub(r'\D', '', str(contato))
-                if num_clean:
-                    if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
-                    msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
-                    wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
-                    st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:8px;text-decoration:none;font-weight:700; font-size: 14px;" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
-                else:
-                    st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
+            with st.container():
+                st.markdown('<div class="ui-card" style="padding: 18px 24px; margin-bottom: 14px;">', unsafe_allow_html=True)
+                col_info, col_zap, col_conf, col_canc = st.columns([3, 1, 2.5, 1.5])
+                
+                with col_info:
+                    st.markdown(f"<div><strong style='font-size: 1.05rem;'>{cliente}</strong><br><span style='color:#94a3b8; font-size:0.85rem;'>📅 {data_formatada} às {hora} | ✂️ {servico}</span></div>", unsafe_allow_html=True)
+                
+                with col_zap:
+                    num_clean = re.sub(r'\D', '', str(contato))
+                    if num_clean:
+                        if not num_clean.startswith('55') and len(num_clean) <= 11: num_clean = '55' + num_clean
+                        msg_cli = urllib.parse.quote(f"Olá {cliente}! Confirmando seu agendamento no {nome_salao_titulo} para {data_formatada} às {hora}.")
+                        wa_direct = f"https://api.whatsapp.com/send?phone={num_clean}&text={msg_cli}"
+                        st.markdown(f'<a href="{wa_direct}" target="_blank" style="display:inline-block;width:100%;text-align:center;background-color:#38bdf8;color:white;padding:10px;border-radius:10px;text-decoration:none;font-weight:700; font-size: 14px; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);" title="Chamar no WhatsApp">💬 Zap</a>', unsafe_allow_html=True)
+                    else:
+                        st.markdown("<p style='text-align:center; color:#64748b; font-size:12px; margin-top:10px;'>Sem Nº</p>", unsafe_allow_html=True)
 
-            with col_conf:
-                if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
-                    preco_servico = float(servicos_salao.get(servico, 0.0))
-                    inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
-                    deletar_agendamento(id_ag)
-                    st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
-                    st.rerun()
-            
-            with col_canc:
-                if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
-                    deletar_agendamento(id_ag)
-                    st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
-                    st.rerun()
-            
-            st.markdown("<hr style='margin: 15px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                with col_conf:
+                    if st.button("✅ Confirmar & Faturar", key=f"conf_{id_ag}", type="primary", use_container_width=True):
+                        preco_servico = float(servicos_salao.get(servico, 0.0))
+                        inserir_movimentacao_direta("Entrada", f"Agendamento: {cliente} ({servico})", preco_servico, datetime.now(TZ).date())
+                        deletar_agendamento(id_ag)
+                        st.success(f"Atendimento de {cliente} faturado com sucesso no valor de R$ {preco_servico:.2f}!")
+                        st.rerun()
+                
+                with col_canc:
+                    if st.button("❌ Cancelar", key=f"canc_{id_ag}", use_container_width=True):
+                        deletar_agendamento(id_ag)
+                        st.warning(f"Agendamento de {cliente} removido da lista (Sem cobrança).")
+                        st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="ui-card" style="text-align: center; padding: 40px;"><h4 style="color: #94a3b8; margin: 0;">Nenhum cliente agendado no momento.</h4><p style="color: #64748b; font-size: 0.9rem; margin-top: 6px;">Compartilhe seu link pelo botão verde acima para receber novos agendamentos.</p></div>', unsafe_allow_html=True)
 
 # ==============================================================================
 # TAB 5: MOVIMENTAÇÃO (FLUXO DE CAIXA / HISTÓRICO)
@@ -1472,7 +1791,6 @@ with tab_agend:
 with tab_historico:
     st.subheader("💸 Movimentação")
     
-    # Botão para ocultar/mostrar todo o histórico
     if "mostrar_movimentacao" not in st.session_state:
         st.session_state.mostrar_movimentacao = False
 
@@ -1508,7 +1826,6 @@ with tab_historico:
                 st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_bytes, file_name=f"{nome_arq}.pdf", mime="application/pdf", use_container_width=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # Separar os serviços/movimentações por cada data
                 df_exibicao['DataApenas'] = df_exibicao['Data'].dt.date
                 datas_unicas = sorted(df_exibicao['DataApenas'].unique(), reverse=True)
 
@@ -1524,28 +1841,29 @@ with tab_historico:
                         desc = row['Descrição']
                         val = row['Valor']
 
-                        # Cores: verde para entradas, vermelho para saídas, amarelo para pendentes
                         if tipo == 'Entrada':
-                            cor_val = "#22c55e"
+                            cor_val = "#10b981"
                             sinal = "+"
                         elif tipo == 'Saída':
-                            cor_val = "#ef4444"
+                            cor_val = "#f43f5e"
                             sinal = "-"
-                        else: # Pendência
+                        else:
                             cor_val = "#f59e0b"
                             sinal = "⏳"
 
                         val_formatado = f"{sinal} R$ {abs(val):,.2f}"
 
-                        col_reg_info, col_reg_btn = st.columns([5, 1])
-                        with col_reg_info:
-                            st.markdown(f"*{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: bold; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
-                        with col_reg_btn:
-                            if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
-                                deletar_movimentacao_fluxo(id_reg)
-                                st.warning("Movimentação excluída!")
-                                st.rerun()
-                        st.markdown("<hr style='margin: 8px 0; border-color: #1e293b;'>", unsafe_allow_html=True)
+                        with st.container():
+                            st.markdown('<div class="ui-card" style="padding: 14px 20px; margin-bottom: 10px;">', unsafe_allow_html=True)
+                            col_reg_info, col_reg_btn = st.columns([5, 1])
+                            with col_reg_info:
+                                st.markdown(f"*{tipo}* — {desc} <br><span style='color: {cor_val}; font-weight: 700; font-size: 1.05rem;'>{val_formatado}</span>", unsafe_allow_html=True)
+                            with col_reg_btn:
+                                if st.button("🗑️ Excluir", key=f"del_mov_{id_reg}", use_container_width=True):
+                                    deletar_movimentacao_fluxo(id_reg)
+                                    st.warning("Movimentação excluída!")
+                                    st.rerun()
+                            st.markdown('</div>', unsafe_allow_html=True)
                     
                     st.markdown("<br>", unsafe_allow_html=True)
             else:
