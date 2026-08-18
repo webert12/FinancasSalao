@@ -62,20 +62,19 @@ if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'usuario_logado' not in st.session_state: st.session_state.usuario_logado = None
 if 'eh_admin' not in st.session_state: st.session_state.eh_admin = False
 if 'recuperando_senha' not in st.session_state: st.session_state.recuperando_senha = False
-st.session_state.tema_escuro = True
+if 'tema_escuro' not in st.session_state: st.session_state.tema_escuro = True
 if 'meta_mensal' not in st.session_state: st.session_state.meta_mensal = 5000.00
 
-# A sessão persistida da Barbearia usa tokens próprios (prefixo app:)
-# para impedir que um token do Salão seja aceito neste sistema.
-if query_params.get("sistema") != "salao" and not st.session_state.autenticado and "token_sessao" in query_params:
-    token_val = str(query_params["token_sessao"]).strip()
-    if token_val == "app:admin_master_session":
+# Recupera sessão persistida pela URL se houver
+if not st.session_state.autenticado and "token_sessao" in query_params:
+    token_val = query_params["token_sessao"]
+    if token_val == "admin_master_session":
         st.session_state.autenticado = True
         st.session_state.usuario_logado = "Administrador"
         st.session_state.eh_admin = True
-    elif token_val.startswith("app:user:") and token_val[9:]:
+    elif token_val:
         st.session_state.autenticado = True
-        st.session_state.usuario_logado = token_val[9:].strip().lower()
+        st.session_state.usuario_logado = str(token_val).strip().lower()
         st.session_state.eh_admin = False
 
 # --- OTIMIZAÇÃO DE VELOCIDADE: CACHE DA IMAGEM DE FUNDO ---
@@ -90,267 +89,255 @@ def get_image_base64(image_path):
 def set_background_com_logo(image_path):
     encoded_string = get_image_base64(image_path)
 
-    # Tema claro e escuro com contraste explícito. Nenhum componente depende
-    # da cor padrão do navegador/Streamlit para decidir a cor do texto.
     if st.session_state.tema_escuro:
         bg_style = f'background-image: radial-gradient(circle at 50% 0%, rgba(14, 23, 42, 0.95) 0%, rgba(6, 9, 15, 0.98) 100%), url("data:image/png;base64,{encoded_string}") !important;'
-        app_bg = '#06090f'
-        surface = '#111827'
-        surface_alt = '#0f172a'
-        input_bg = '#0b1220'
-        text_color = '#f8fafc'
-        muted_color = '#cbd5e1'
-        heading_color = '#ffffff'
-        input_text = '#f8fafc'
-        placeholder = '#94a3b8'
-        border_color = 'rgba(148,163,184,.28)'
-        card_bg = 'linear-gradient(145deg, #111827 0%, #0b1220 100%)'
-        menu_bg = '#111827'
-        secondary_btn_bg = '#1e293b'
-        secondary_btn_text = '#f8fafc'
+        app_bg = "#06090f"
+        input_bg = "rgba(10, 15, 26, 0.85)"
     else:
-        bg_style = 'background: radial-gradient(circle at 50% 0%, #f8fafc 0%, #e2e8f0 58%, #cbd5e1 100%) !important;'
-        app_bg = '#f8fafc'
-        surface = '#ffffff'
-        surface_alt = '#f1f5f9'
-        input_bg = '#ffffff'
-        text_color = '#0f172a'
-        muted_color = '#475569'
-        heading_color = '#0f172a'
-        input_text = '#0f172a'
-        placeholder = '#64748b'
-        border_color = 'rgba(15,23,42,.18)'
-        card_bg = 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)'
-        menu_bg = '#ffffff'
-        secondary_btn_bg = '#e2e8f0'
-        secondary_btn_text = '#0f172a'
+        bg_style = 'background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%) !important;'
+        app_bg = "#0f172a"
+        input_bg = "rgba(10, 15, 26, 0.85)"
 
     st.markdown(
         f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+        @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
-        :root {{
-            --fc-text: {text_color};
-            --fc-muted: {muted_color};
-            --fc-heading: {heading_color};
-            --fc-input: {input_text};
-            --fc-placeholder: {placeholder};
-            --fc-surface: {surface};
-            --fc-surface-alt: {surface_alt};
-            --fc-border: {border_color};
+        /* REMOÇÃO DEFINITIVA DO BOTÃO STOP E DO BONECO DE CARREGAMENTO */
+        [data-testid="stStatusWidget"], div[data-testid="stStatusWidget"] {{
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }}
 
-        [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"], .stDeployButton {{ display:none !important; }}
-        .stApp {{ {bg_style} background-color:{app_bg} !important; color:var(--fc-text) !important; font-family:'Plus Jakarta Sans',system-ui,sans-serif !important; }}
-        .stApp p, .stApp label, .stApp small, .stApp [data-testid="stMarkdownContainer"], .stApp [data-testid="stWidgetLabel"], .stApp [data-testid="stWidgetLabel"] * {{ color:var(--fc-text) !important; }}
-        .stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] * {{ color:var(--fc-muted) !important; }}
-        h1,h2,h3,h4,h5,h6,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5,.stApp h6 {{ color:var(--fc-heading) !important; }}
+        .stApp {{
+            {bg_style}
+            background-color: {app_bg} !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-attachment: fixed !important;
+            color: #f8fafc !important;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+        }}
 
-        input, textarea, select,
-        div[data-baseweb="input"] > div,
+        html, body, p, label, div {{
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        }}
+
+        span[data-testid="stIconMaterial"], 
+        [data-testid="stIconMaterial"],
+        i.material-icons {{
+            font-family: 'Material Symbols Outlined', 'Material Icons' !important;
+            font-weight: normal !important;
+            font-style: normal !important;
+            font-size: 1.25rem !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+            word-wrap: normal !important;
+            white-space: nowrap !important;
+            direction: ltr !important;
+            -webkit-font-smoothing: antialiased !important;
+        }}
+
+        h1, h2, h3, h4, h5, h6 {{
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.5px !important;
+        }}
+
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: rgba(6, 9, 15, 0.5); }}
+        ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.15); border-radius: 999px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: #38bdf8; }}
+
         div[data-baseweb="select"] > div,
-        div[data-baseweb="textarea"] > div,
+        div[data-baseweb="input"] > div,
+        input, select, textarea,
         [data-testid="stTextInput"] input,
         [data-testid="stNumberInput"] input,
         [data-testid="stDateInput"] input {{
-            background:{input_bg} !important; color:{input_text} !important; -webkit-text-fill-color:{input_text} !important;
-            border:1px solid {border_color} !important; border-radius:14px !important;
+            background-color: {input_bg} !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 14px !important;
+            padding: 12px 16px !important;
+            font-size: 0.95rem !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            backdrop-filter: blur(10px) !important;
         }}
-        input::placeholder, textarea::placeholder {{ color:{placeholder} !important; -webkit-text-fill-color:{placeholder} !important; opacity:1 !important; }}
-        div[data-baseweb="input"] *, div[data-baseweb="select"] *, div[data-baseweb="textarea"] * {{ color:{input_text} !important; }}
 
-        [data-baseweb="menu"], [data-baseweb="popover"], [role="listbox"], [role="option"],
-        div[data-testid="stSelectboxVirtualDropdown"], div[data-testid="stPopoverBody"] {{ background:{menu_bg} !important; color:{text_color} !important; border:1px solid {border_color} !important; }}
-        [role="option"] *, div[data-testid="stPopoverBody"] * {{ color:{text_color} !important; }}
-        [role="option"]:hover {{ background:rgba(56,189,248,.14) !important; }}
-
-        div[data-testid="stForm"] {{ background:{card_bg} !important; color:{text_color} !important; border:1px solid {border_color} !important; border-radius:20px !important; padding:24px !important; box-shadow:0 12px 35px rgba(0,0,0,.16) !important; }}
-        div[data-testid="stForm"] * {{ color:{text_color} !important; }}
-        .ui-card,.kpi-card-v2,.login-card {{ background:{card_bg} !important; color:{text_color} !important; border-color:{border_color} !important; }}
-        .ui-card *, .kpi-card-v2 * {{ color:{text_color} !important; }}
-
-        .stButton > button, [data-testid="stDownloadButton"] > button, [data-testid="stFormSubmitButton"] button {{
-            background:{secondary_btn_bg} !important; color:{secondary_btn_text} !important; -webkit-text-fill-color:{secondary_btn_text} !important;
-            border:1px solid {border_color} !important; border-radius:14px !important; font-weight:800 !important; min-height:46px !important;
+        input:focus, div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {{
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
+            background-color: {input_bg} !important;
         }}
-        .stButton > button[kind="primary"], [data-testid="stFormSubmitButton"] button[kind="primary"] {{ background:linear-gradient(135deg,#0284c7 0%,#38bdf8 100%) !important; color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; border:none !important; }}
-        .stButton > button *, [data-testid="stDownloadButton"] > button *, [data-testid="stFormSubmitButton"] button * {{ color:inherit !important; -webkit-text-fill-color:inherit !important; }}
-        [data-testid="stNumberInput"] button {{ background:{surface_alt} !important; color:{heading_color} !important; border-color:{border_color} !important; }}
 
-        .login-card {{ border-radius:28px !important; padding:42px 36px !important; box-shadow:0 25px 60px rgba(0,0,0,.22) !important; max-width:480px; margin:0 auto; }}
-        .login-title {{ color:{heading_color} !important; font-size:2.4rem !important; font-weight:800 !important; text-align:center; }}
-        .login-subtitle {{ color:{muted_color} !important; font-size:.95rem !important; text-align:center; font-weight:600; }}
-        .login-card [data-testid="stWidgetLabel"], .login-card [data-testid="stWidgetLabel"] * {{ color:{text_color} !important; }}
+        div[data-testid="stForm"] {{
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 20px !important;
+            padding: 24px !important;
+            background: rgba(13, 19, 31, 0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        }}
 
-        .stTabs [data-baseweb="tab-list"] {{ background:{surface_alt} !important; border:1px solid {border_color} !important; border-radius:18px !important; }}
-        .stTabs [data-baseweb="tab"] {{ color:{muted_color} !important; }}
-        .stTabs [aria-selected="true"] {{ background:linear-gradient(135deg,#0284c7,#0369a1) !important; color:#fff !important; }}
-        .stTabs [aria-selected="true"] * {{ color:#fff !important; }}
-        [data-testid="stDataFrame"] *, [data-testid="stTable"] * {{ color:{text_color} !important; }}
+        div[data-testid="stPopoverBody"] {{
+            background-color: rgba(13, 19, 31, 0.98) !important;
+            border: 1px solid rgba(56, 189, 248, 0.3) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8) !important;
+            backdrop-filter: blur(16px) !important;
+            z-index: 999999 !important;
+            padding: 18px !important;
+        }}
+        div[data-testid="stPopoverBody"] * {{ color: #ffffff !important; }}
 
-        .system-card {{ padding:28px; border-radius:22px; min-height:190px; text-align:center; border:1px solid var(--fc-border); background:{card_bg} !important; color:{text_color} !important; box-shadow:0 12px 30px rgba(0,0,0,.12); }}
-        .system-card * {{ color:{text_color} !important; }}
-        .system-card.barbearia-card {{ border-color:rgba(56,189,248,.35) !important; }}
-        .system-card.salao-card {{ border-color:rgba(244,114,182,.40) !important; }}
-        .st-key-entrar_salao > button {{ background:linear-gradient(135deg,#ec4899 0%,#be185d 100%) !important; color:#fff !important; -webkit-text-fill-color:#fff !important; border:none !important; }}
-        .st-key-entrar_salao > button * {{ color:#fff !important; -webkit-text-fill-color:#fff !important; }}
+        div[data-testid="stPopover"] button,
+        [data-testid="stPopoverButton"] button {{
+            background: rgba(17, 24, 39, 0.85) !important;
+            border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            border-radius: 14px !important;
+            padding: 10px 16px !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+            transition: all 0.25s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            width: auto !important;
+            min-height: 44px !important;
+        }}
+
+        ul[data-baseweb="menu"],
+        li[role="option"],
+        div[data-testid="stSelectboxVirtualDropdown"] {{
+            background-color: #0d131f !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 14px !important;
+        }}
+        li[role="option"]:hover, [data-baseweb="menu"] li:hover {{
+            background-color: rgba(56, 189, 248, 0.15) !important;
+            color: #38bdf8 !important;
+        }}
+
+        .kpi-card-v2 {{ 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 26, 0.9) 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            border-radius: 20px; 
+            padding: 22px; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(12px);
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }}
+        .kpi-title-v2 {{ font-size: 0.88rem; color: #94a3b8 !important; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px; }}
+        .kpi-value-v2 {{ font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.8px; }}
+        .kpi-val-green {{ color: #10b981 !important; }}
+        .kpi-val-red {{ color: #f43f5e !important; }}
+        .kpi-val-blue {{ color: #38bdf8 !important; }}
+        .kpi-val-purple {{ color: #a855f7 !important; }}
+        .kpi-val-orange {{ color: #f59e0b !important; }}
+        .kpi-perc {{ font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }}
+        .perc-up {{ color: #10b981 !important; }}
+        .perc-down {{ color: #f43f5e !important; }}
+        .perc-neutral {{ color: #94a3b8 !important; }}
+
+        .ui-card {{ 
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 26, 0.85) 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.07); 
+            border-radius: 22px; 
+            padding: 26px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }}
+
+        .login-card {{ 
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 12, 20, 0.95) 100%); 
+            border: 1px solid rgba(56, 189, 248, 0.25); 
+            border-radius: 28px; 
+            padding: 48px 38px; 
+            box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(56, 189, 248, 0.12); 
+            max-width: 480px; 
+            margin: 0 auto; 
+            backdrop-filter: blur(20px);
+        }}
+        .login-brand-wrapper {{ text-align: center; margin-bottom: 28px; }}
+        .login-badge-icon {{
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 70px; height: 70px;
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+            border-radius: 22px; font-size: 32px; margin-bottom: 18px;
+            box-shadow: 0 12px 28px rgba(56, 189, 248, 0.4);
+        }}
+        .login-title {{ 
+            color: #ffffff !important; font-size: 2.4rem !important; font-weight: 800 !important; 
+            letter-spacing: -1.2px !important; margin-bottom: 8px !important; line-height: 1.1; text-align: center; 
+            background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }}
+        .login-subtitle {{ color: #94a3b8 !important; font-size: 0.95rem !important; text-align: center; margin-bottom: 30px; font-weight: 500; }}
+
+        .stButton > button, [data-testid="stDownloadButton"] > button {{
+            background: rgba(255, 255, 255, 0.05) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 14px !important;
+            font-weight: 700 !important;
+            padding: 10px 14px !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            width: 100% !important;
+            min-height: 46px !important;
+            height: auto !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            font-size: 0.92rem !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        }}
+
+        .stButton > button[kind="primary"] {{ 
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important; 
+            color: #ffffff !important; border: none !important; 
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important; 
+        }}
+
+        .stTabs [data-baseweb="tab-list"] {{ 
+            gap: 12px; background: rgba(15, 23, 42, 0.6); padding: 8px; border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.06); backdrop-filter: blur(12px);
+            display: flex; justify-content: center; margin-bottom: 24px;
+        }}
+        .stTabs [data-baseweb="tab"] {{ 
+            background-color: transparent !important; border-radius: 12px !important; border: none !important; 
+            padding: 12px 24px !important; color: #94a3b8 !important; font-size: 0.98rem; font-weight: 600;
+        }}
+        .stTabs [aria-selected="true"] {{ 
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(2, 132, 199, 0.25) 100%) !important; 
+            color: #38bdf8 !important; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.3) !important; 
+        }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
 set_background_com_logo("logo.png")
-
-
-st.markdown(r"""
-<style>
-/* ================================================================
-   FIO&CAIXA — CONTRASTE FINAL FIXO (MODO ESCURO)
-   Tudo escuro, texto claro. Nenhum componente depende do tema do browser.
-   ================================================================ */
-:root {
-  color-scheme: dark !important;
-  --fc-dark-0:#070b12; --fc-dark-1:#0b1220; --fc-dark-2:#111827;
-  --fc-dark-3:#172033; --fc-border:#334155; --fc-text:#f8fafc;
-  --fc-muted:#cbd5e1; --fc-blue:#38bdf8; --fc-pink:#f472b6;
-}
-html, body, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main,
-.stApp, .main, section.main, .block-container {
-  background:#070b12 !important; color:#f8fafc !important;
-}
-.stApp * { box-sizing:border-box; }
-.stApp p, .stApp span, .stApp label, .stApp small, .stApp strong, .stApp em,
-.stApp li, .stApp td, .stApp th, .stApp [data-testid="stMarkdownContainer"],
-.stApp [data-testid="stWidgetLabel"], .stApp [data-testid="stWidgetLabel"] * {
-  color:#f8fafc !important;
-}
-.stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] * {
-  color:#cbd5e1 !important;
-}
-.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5,.stApp h6,
-h1,h2,h3,h4,h5,h6 { color:#ffffff !important; }
-
-a { color:#7dd3fc !important; }
-
-/* Entradas */
-input, textarea, select,
-[data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
-[data-testid="stDateInput"] input, [data-testid="stTextArea"] textarea,
-div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div,
-div[data-baseweb="select"] > div {
-  background:#111827 !important; color:#f8fafc !important;
-  -webkit-text-fill-color:#f8fafc !important;
-  border:1px solid #475569 !important; border-radius:12px !important;
-  caret-color:#ffffff !important;
-}
-input::placeholder, textarea::placeholder {
-  color:#94a3b8 !important; -webkit-text-fill-color:#94a3b8 !important; opacity:1 !important;
-}
-div[data-baseweb="input"] *, div[data-baseweb="textarea"] *, div[data-baseweb="select"] * {
-  color:#f8fafc !important; -webkit-text-fill-color:#f8fafc !important;
-}
-
-/* Menus, dropdowns, calendário, popovers */
-[data-baseweb="popover"], [data-baseweb="menu"], [role="listbox"], [role="option"],
-[data-testid="stPopoverBody"], [data-testid="stDateInputField"] {
-  background:#111827 !important; color:#f8fafc !important; border-color:#475569 !important;
-}
-[role="option"] *, [data-baseweb="menu"] *, [data-baseweb="popover"] * {
-  color:#f8fafc !important; -webkit-text-fill-color:#f8fafc !important;
-}
-[role="option"]:hover, [role="option"][aria-selected="true"] {
-  background:#243044 !important; color:#ffffff !important;
-}
-
-/* Formulários, cards, expander e diálogos */
-div[data-testid="stForm"], .login-card, .ui-card, .kpi-card-v2,
-[data-testid="stExpander"], [data-testid="stDialog"], [role="dialog"] {
-  background:#111827 !important; color:#f8fafc !important; border-color:#334155 !important;
-}
-div[data-testid="stForm"] *, .login-card *, .ui-card *, .kpi-card-v2 *,
-[data-testid="stExpander"] *, [data-testid="stDialog"] *, [role="dialog"] * {
-  color:#f8fafc !important;
-}
-
-/* Botões: escuros por padrão, claros somente no texto; primários têm cor de destaque. */
-.stButton > button, [data-testid="stDownloadButton"] > button,
-[data-testid="stFormSubmitButton"] button, [data-testid="stPopover"] button {
-  background:#1e293b !important; color:#f8fafc !important;
-  -webkit-text-fill-color:#f8fafc !important; border:1px solid #475569 !important;
-  font-weight:800 !important; min-height:44px !important; border-radius:12px !important;
-}
-.stButton > button:hover, [data-testid="stDownloadButton"] > button:hover,
-[data-testid="stFormSubmitButton"] button:hover { background:#334155 !important; color:#ffffff !important; }
-.stButton > button[kind="primary"], [data-testid="stFormSubmitButton"] button[kind="primary"] {
-  background:linear-gradient(135deg,#0284c7,#0369a1) !important;
-  color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; border:none !important;
-}
-.stButton > button *, [data-testid="stDownloadButton"] > button *,
-[data-testid="stFormSubmitButton"] button * { color:inherit !important; -webkit-text-fill-color:inherit !important; }
-[data-testid="stNumberInput"] button {
-  background:#1e293b !important; color:#f8fafc !important; -webkit-text-fill-color:#f8fafc !important;
-  border-color:#475569 !important;
-}
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] { background:#0f172a !important; border:1px solid #334155 !important; }
-.stTabs [data-baseweb="tab"] { background:#0f172a !important; color:#cbd5e1 !important; }
-.stTabs [aria-selected="true"] { background:#0369a1 !important; color:#ffffff !important; }
-.stTabs [aria-selected="true"] * { color:#ffffff !important; }
-
-/* Radio / checkbox / toggle */
-[data-testid="stRadio"] label *, [data-testid="stCheckbox"] label *,
-[data-testid="stToggle"] label *, [data-testid="stSelectbox"] label * { color:#f8fafc !important; }
-
-/* Alertas e mensagens */
-[data-testid="stAlert"], [data-testid="stNotification"], [data-testid="stToast"] {
-  background:#111827 !important; color:#f8fafc !important; border-color:#475569 !important;
-}
-[data-testid="stAlert"] *, [data-testid="stNotification"] *, [data-testid="stToast"] * { color:#f8fafc !important; }
-
-/* Tabelas */
-[data-testid="stTable"], [data-testid="stTable"] table,
-[data-testid="stDataFrame"] { background:#0f172a !important; color:#f8fafc !important; }
-[data-testid="stTable"] *, [data-testid="stDataFrame"] * { color:#f8fafc !important; }
-
-/* Upload */
-[data-testid="stFileUploader"] section, [data-testid="stFileUploaderDropzone"] {
-  background:#111827 !important; color:#f8fafc !important; border-color:#475569 !important;
-}
-[data-testid="stFileUploader"] * { color:#f8fafc !important; }
-
-/* Tela inicial */
-.system-card { background:#111827 !important; color:#f8fafc !important; border-color:#334155 !important; }
-.system-card * { color:#f8fafc !important; }
-.st-key-entrar_barbearia > button { background:linear-gradient(135deg,#0284c7,#0369a1) !important; color:#fff !important; }
-.st-key-entrar_salao > button { background:linear-gradient(135deg,#ec4899,#be185d) !important; color:#fff !important; }
-.st-key-entrar_barbearia > button *, .st-key-entrar_salao > button * { color:#fff !important; -webkit-text-fill-color:#fff !important; }
-
-/* Elementos HTML com estilos inline claros do projeto */
-.stApp [style*="background: #ffffff"], .stApp [style*="background:#ffffff"],
-.stApp [style*="background: #fff"], .stApp [style*="background:#fff"],
-.stApp [style*="background: linear-gradient(135deg, #ffffff"],
-.stApp [style*="background: linear-gradient(135deg,#ffffff"],
-.stApp [style*="background: #fdf2f8"], .stApp [style*="background:#fdf2f8"],
-.stApp [style*="background: #fbcfe8"], .stApp [style*="background:#fbcfe8"] {
-  background:#111827 !important; color:#f8fafc !important;
-}
-.stApp [style*="color: #0f172a"], .stApp [style*="color:#0f172a"],
-.stApp [style*="color: #831843"], .stApp [style*="color:#831843"],
-.stApp [style*="color: #9d174d"], .stApp [style*="color:#9d174d"],
-.stApp [style*="color: #5b1737"], .stApp [style*="color:#5b1737"],
-.stApp [style*="color: #351522"], .stApp [style*="color:#351522"] {
-  color:#f8fafc !important;
-}
-.stApp [style*="color: #64748b"], .stApp [style*="color:#64748b"],
-.stApp [style*="color: #94a3b8"], .stApp [style*="color:#94a3b8"] { color:#cbd5e1 !important; }
-
-/* Nunca permita texto preto padrão do navegador em elementos internos */
-.stApp button, .stApp input, .stApp textarea, .stApp select, .stApp option { font-family:inherit !important; }
-.stApp input:-webkit-autofill { -webkit-text-fill-color:#f8fafc !important; box-shadow:0 0 0 1000px #111827 inset !important; }
-</style>
-""", unsafe_allow_html=True)
 
 st.markdown("""
     <style>
@@ -360,96 +347,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# SELETOR DE SISTEMA — PORTA DE ENTRADA ÚNICA
-# ==============================================================================
-# Nada do banco da Barbearia é inicializado antes da escolha do sistema.
-# Isso permite que cada opção use seu próprio banco, autenticação e ADM.
-
-sistema_atual = st.session_state.get("sistema_selecionado") or query_params.get("sistema")
-
-if sistema_atual not in ("barbearia", "salao"):
-    st.markdown("""
-        <div style="text-align:center; margin: 8vh auto 28px auto; max-width: 760px;">
-            <div style="font-size:58px; margin-bottom:12px;">✂️</div>
-            <h1 style="font-size:2.35rem; margin-bottom:8px;">Escolha seu sistema</h1>
-            <p style="font-size:1.05rem; opacity:.75;">Selecione como você deseja acessar a plataforma.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2, gap="large")
-    with col1:
-        st.markdown("""
-            <div class="system-card barbearia-card">
-                <div style="font-size:42px;">💈</div>
-                <h2>Barbearia</h2>
-                <p style="opacity:.72;">Acesse o sistema Fio & Caixa.</p>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("Entrar na Barbearia", type="primary", use_container_width=True, key="entrar_barbearia"):
-            st.session_state.sistema_selecionado = "barbearia"
-            st.session_state.autenticado = False
-            st.session_state.usuario_logado = None
-            st.session_state.eh_admin = False
-            st.session_state.recuperando_senha = False
-            if "token_sessao" in st.query_params:
-                del st.query_params["token_sessao"]
-            st.query_params["sistema"] = "barbearia"
-            st.rerun()
-
-    with col2:
-        st.markdown("""
-            <div class="system-card salao-card">
-                <div style="font-size:42px;">💇‍♀️</div>
-                <h2>Salão de Beleza</h2>
-                <p style="opacity:.72;">Acesse o Studio & Gestão.</p>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("Entrar no Salão de Beleza", type="primary", use_container_width=True, key="entrar_salao"):
-            st.session_state.sistema_selecionado = "salao"
-            st.session_state.autenticado = False
-            st.session_state.usuario_logado = None
-            st.session_state.eh_admin = False
-            st.session_state.recuperando_senha = False
-            if "token_sessao" in st.query_params:
-                del st.query_params["token_sessao"]
-            st.query_params["sistema"] = "salao"
-            st.rerun()
-
-    st.stop()
-
-# Quando Salão de Beleza é escolhido, o próprio dashboard.py assume a tela.
-# O app.py continua sendo o único entrypoint do Render.
-if sistema_atual == "salao":
-    import runpy
-    os.environ["FIO_CAIXA_EMBEDDED_DASHBOARD"] = "1"
-    dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.py")
-    runpy.run_path(dashboard_path, run_name="__main__")
-    st.stop()
-
-# ==============================================================================
-# BANCO EXCLUSIVO DA BARBEARIA
-# ==============================================================================
-
-# --- CONEXÃO BANCO DE DADOS (BARBEARIA) ---
-# Este sistema usa EXCLUSIVAMENTE o banco configurado em DB_URL_APP.
-# O dashboard de Salão de Beleza usa DB_URL_SALAO, mantendo dados e ADMs separados.
-# IMPORTANTE: no Render, as Environment Variables são a fonte principal.
-# Só usamos st.secrets como fallback. Isso evita que uma chave vazia em
-# secrets.toml esconda uma DB_URL_APP corretamente configurada no Render.
-DB_URL = str(os.getenv("DB_URL_APP", "") or "").strip()
-if not DB_URL:
-    try:
-        DB_URL = str(st.secrets.get("DB_URL_APP", "") or "").strip()
-    except Exception:
-        DB_URL = ""
-# Compatibilidade temporária com instalações antigas da Barbearia.
-if not DB_URL:
-    DB_URL = str(os.getenv("DB_URL", "") or "").strip()
-
-if not DB_URL:
-    st.error("❌ ERRO CRÍTICO: DB_URL_APP não foi encontrada no ambiente do Render.")
-    st.info("No Render, abra Environment e confirme que a variável se chama exatamente DB_URL_APP e que possui uma URL PostgreSQL válida.")
+# --- CONEXÃO BANCO DE DADOS ---
+if "DB_URL" in st.secrets:
+    DB_URL = st.secrets["DB_URL"]
+else:
+    st.error("❌ ERRO CRÍTICO: Variável 'DB_URL' não encontrada nos Secrets.")
     st.stop()
 
 @st.cache_resource
@@ -960,27 +862,12 @@ if not st.session_state.autenticado:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
-    col_adm, col_vazia = st.columns([1, 8])
-    with col_adm:
-        with st.popover("⚙️ ADM", use_container_width=True):
-            st.markdown("### 🔐 Acesso Administrativo")
-            with st.form("form_login_admin_canto"):
-                admin_usuario_input = st.text_input("Usuário Admin", value="admin").strip().lower()
-                admin_senha_input = st.text_input("Senha Principal", type="password")
-                admin_senha2_input = st.text_input("Senha Secundária", type="password")
-                if st.form_submit_button("Entrar como ADM", type="primary", use_container_width=True):
-                    if (admin_usuario_input == "admin"
-                            and verificar_senha(admin_senha_input, admin_hash1)
-                            and verificar_senha(admin_senha2_input, admin_hash2)):
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_logado = "Administrador"
-                        st.session_state.eh_admin = True
-                        st.query_params["token_sessao"] = "app:admin_master_session"
-                        if "sistema" in st.query_params:
-                            del st.query_params["sistema"]
-                        st.rerun()
-                    else:
-                        st.error("Credenciais administrativas inválidas.")
+
+    col_vazia, col_btn_tema = st.columns([8, 1])
+    with col_btn_tema:
+        if st.button("🌑 Escuro" if not st.session_state.tema_escuro else "☀️ Claro", use_container_width=True):
+            st.session_state.tema_escuro = not st.session_state.tema_escuro
+            st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -996,31 +883,40 @@ if not st.session_state.autenticado:
                 </div>
         ''', unsafe_allow_html=True)
         
+        tipo_acesso = st.radio("Acesso como:", ["Salão", "Admin"], horizontal=True, label_visibility="collapsed")
+
         with st.form("form_login_moderno"):
             usuario_input = st.text_input("Usuário / Login").strip().lower()
             senha_input = st.text_input("Senha", type="password")
+            senha2_input = st.text_input("Senha Secundária Admin", type="password") if tipo_acesso == "Admin" else ""
             st.markdown("<br>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("Acessar Sistema", type="primary", use_container_width=True)
             if submit_login:
-                if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
-                    dados_user = usuarios_cadastrados[usuario_input]
-                    try:
-                        data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
-                    except Exception:
-                        data_venc = datetime.now(TZ).date() + timedelta(days=30)
-
-                    if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
-                        st.error("❌ Acesso bloqueado. Licença expirada.")
-                        st.stop()
-
-                    st.session_state.autenticado = True
-                    st.session_state.usuario_logado = usuario_input
-                    st.session_state.eh_admin = False
-                    st.query_params["token_sessao"] = f"app:user:{usuario_input}"
-                    st.query_params["sistema"] = "barbearia"
-                    st.rerun()
+                if tipo_acesso == "Admin":
+                    if usuario_input == "admin" and verificar_senha(senha_input, admin_hash1) and verificar_senha(senha2_input, admin_hash2):
+                        st.session_state.autenticado = True
+                        st.session_state.usuario_logado = "Administrador"
+                        st.session_state.eh_admin = True
+                        st.query_params["token_sessao"] = "admin_master_session"
+                        st.rerun()
+                    else: st.error("Credenciais inválidas.")
                 else:
-                    st.error("Usuário ou senha incorretos.")
+                    if usuario_input in usuarios_cadastrados and verificar_senha(senha_input, usuarios_cadastrados[usuario_input]["senha"]):
+                        dados_user = usuarios_cadastrados[usuario_input]
+                        try:
+                            data_venc = datetime.strptime(str(dados_user["vencimento"]), "%Y-%m-%d").date()
+                        except Exception:
+                            data_venc = datetime.now(TZ).date() + timedelta(days=30)
+
+                        if datetime.now(TZ).date() > data_venc or dados_user.get("status") == "Suspenso":
+                            st.error("❌ Acesso bloqueado. Licença expirada.")
+                            st.stop()
+                        st.session_state.autenticado = True
+                        st.session_state.usuario_logado = usuario_input
+                        st.session_state.eh_admin = False
+                        st.query_params["token_sessao"] = usuario_input
+                        st.rerun()
+                    else: st.error("Usuário ou senha incorretos.")
 
         st.markdown("<hr style='border-color: rgba(255,255,255,0.08); margin: 20px 0;'>", unsafe_allow_html=True)
 
@@ -1051,8 +947,6 @@ if st.session_state.eh_admin:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
-            if "sistema" in st.query_params:
-                del st.query_params["sistema"]
             st.rerun()
 
     tab_cad, tab_ger, tab_assinantes, tab_config = st.tabs(["➕ Cadastrar / Renovar", "⚙️ Salões Cadastrados", "📊 Painel de Assinantes", "🔧 Configurações Mestre"])
@@ -1209,8 +1103,6 @@ if st.session_state.eh_admin:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
-            if "sistema" in st.query_params:
-                del st.query_params["sistema"]
             st.rerun()
     st.stop()
 
@@ -1289,8 +1181,6 @@ with col_top_left:
             st.session_state.clear()
             if "token_sessao" in st.query_params:
                 del st.query_params["token_sessao"]
-            if "sistema" in st.query_params:
-                del st.query_params["sistema"]
             st.rerun()
 
 st.markdown(f'''
