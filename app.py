@@ -530,6 +530,10 @@ def carregar_fluxo_por_usuario(usuario):
             if rows:
                 df = pd.DataFrame(rows, columns=['id', 'Data', 'Tipo', 'Descrição', 'Valor'])
                 df['Data'] = pd.to_datetime(df['Data'])
+                # PostgreSQL/SQLAlchemy pode devolver NUMERIC como Decimal.
+                # Padronizamos Valor como float para evitar operações entre
+                # float e decimal.Decimal no restante do dashboard.
+                df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0).astype(float)
                 return df
     except Exception: pass
     return pd.DataFrame(columns=["id", "Data", "Tipo", "Descrição", "Valor"])
@@ -1119,6 +1123,10 @@ if "dados_carregados_sessao" not in st.session_state:
     st.session_state["dados_carregados_sessao"] = True
 
 df_fluxo_caixa = st.session_state["df_fluxo_caixa"]
+if not df_fluxo_caixa.empty and 'Valor' in df_fluxo_caixa.columns:
+    df_fluxo_caixa['Valor'] = pd.to_numeric(
+        df_fluxo_caixa['Valor'], errors='coerce'
+    ).fillna(0.0).astype(float)
 servicos = st.session_state["servicos"]
 df_agendamentos_all = st.session_state["df_agendamentos_all"]
 df_clientes_m = st.session_state["df_clientes_m"]
@@ -1261,8 +1269,13 @@ tab_dashboard, tab_servicos, tab_mensais, tab_agend, tab_historico = st.tabs(["�
 # ==============================================================================
 with tab_dashboard:
     def calc_perc(atual, anterior):
-        if anterior == 0: return 0 if atual == 0 else 100
-        return ((atual - anterior) / anterior) * 100
+        # Garante um único tipo numérico, inclusive quando algum valor
+        # vier do PostgreSQL como decimal.Decimal.
+        atual = float(atual or 0)
+        anterior = float(anterior or 0)
+        if anterior == 0:
+            return 0.0 if atual == 0 else 100.0
+        return ((atual - anterior) / anterior) * 100.0
 
     def render_perc(val, reverse_colors=False):
         if val == 0: return f'<span class="kpi-perc perc-neutral">0% vs mês anterior</span>'
