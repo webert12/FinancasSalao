@@ -1,30 +1,48 @@
 function qs(s){return document.querySelector(s)}
 function money(n){return Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function toast(msg,type='success'){const d=document.createElement('div');d.className='toast '+type;d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2800)}
-function api(url,opt={}){return fetch(url,{headers:{'Content-Type':'application/json'},...opt}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Erro');return j})}
+function todayISO(){return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'})}
+function toast(msg,type='success'){const d=document.createElement('div');d.className='toast '+type;d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)}
+function csrf(){return document.querySelector('meta[name="csrf-token"]')?.content||''}
+async function api(url,opt={}){const headers={'Content-Type':'application/json','X-CSRFToken':csrf(),...(opt.headers||{})};const r=await fetch(url,{...opt,headers});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Erro na operação');return j}
 
 document.addEventListener('DOMContentLoaded',()=>{
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');qs('#'+b.dataset.tab)?.classList.add('active');localStorage.setItem('fio_tab',b.dataset.tab)})
  const saved=localStorage.getItem('fio_tab'); if(saved) document.querySelector(`.tabs button[data-tab="${saved}"]`)?.click()
- document.querySelectorAll('.segmented button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.segmented button').forEach(x=>x.classList.remove('active'));b.classList.add('active');qs('#tipo').value=b.dataset.mode;qs('#adminSecond').classList.toggle('hidden',b.dataset.mode!=='admin')})
- const goal=qs('#goalInput'); if(goal){goal.oninput=updateGoal;updateGoal()}
- ['saleDate','expenseDate','creditDate'].forEach(id=>{const e=qs('#'+id);if(e)e.value=new Date().toISOString().slice(0,10)})
- const sale=qs('#saleService'); if(sale){sale.onchange=()=>qs('#salePrice').value=sale.selectedOptions[0].dataset.price; sale.dispatchEvent(new Event('change'))}
- const credit=qs('#creditService'); if(credit){credit.onchange=()=>qs('#creditValue').value=credit.selectedOptions[0].dataset.price; credit.dispatchEvent(new Event('change'))}
+ document.querySelectorAll('.segmented button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.segmented button').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(qs('#tipo'))qs('#tipo').value=b.dataset.mode;qs('#adminSecond')?.classList.toggle('hidden',b.dataset.mode!=='admin')})
+ ['saleDate','expenseDate','creditDate','aDate'].forEach(id=>{const e=qs('#'+id);if(e)e.value=todayISO()})
+ const sale=qs('#saleService'); if(sale){sale.onchange=()=>qs('#salePrice').value=sale.selectedOptions[0].dataset.price;sale.dispatchEvent(new Event('change'))}
+ const credit=qs('#creditService'); if(credit){credit.onchange=()=>qs('#creditValue').value=credit.selectedOptions[0].dataset.price;credit.dispatchEvent(new Event('change'))}
+ setupAppointmentForm()
+ setupAppointmentFilters()
 })
-function updateGoal(){const g=Number(qs('#goalInput').value||0), rec=Number(document.querySelector('.kpi:nth-child(2) strong')?.textContent.replace(/[^0-9,-]/g,'').replace(/\./g,'').replace(',','.')||0); if(!g)return;const p=Math.min(100,rec/g*100);qs('#goalPct').textContent=p.toFixed(1)+'%';qs('#goalBar').style.width=p+'%';qs('#goalText').textContent='Realizado: R$ '+money(rec)+' · '+(p>=100?'Meta atingida! 🎉':'Faltam R$ '+money(Math.max(0,g-rec)))}
-function openModal(id){qs('#'+id).classList.add('show')}
-function closeModal(id){qs('#'+id).classList.remove('show')}
-async function saveSale(){try{await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Entrada',descricao:'Atendimento: '+qs('#saleService').value,valor:Number(qs('#salePrice').value),data:qs('#saleDate').value})});toast('Atendimento registrado!');location.reload()}catch(e){toast(e.message,'error')}}
-async function saveExpense(){try{const v=Number(qs('#expenseValue').value);if(v<=0)throw Error('Informe um valor válido');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Saída',descricao:qs('#expenseDesc').value,valor:-v,data:qs('#expenseDate').value})});toast('Despesa lançada!');location.reload()}catch(e){toast(e.message,'error')}}
-async function saveCredit(){try{const name=qs('#creditName').value.trim();if(!name)throw Error('Informe o cliente');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Pendência',descricao:'Fiado de: '+name+' ('+qs('#creditService').value+')',valor:Number(qs('#creditValue').value),data:qs('#creditDate').value})});toast('Fiado registrado!');location.reload()}catch(e){toast(e.message,'error')}}
+
+function openModal(id){qs('#'+id)?.classList.add('show')}
+function closeModal(id){qs('#'+id)?.classList.remove('show')}
+
+async function saveGoal(){try{const goal=Number(qs('#goalInput').value);if(goal<0)throw Error('Meta inválida');await api('/api/goal',{method:'POST',body:JSON.stringify({goal})});toast('Meta salva!');location.reload()}catch(e){toast(e.message,'error')}}
+
+async function saveSale(){try{const v=Number(qs('#salePrice').value);if(v<0)throw Error('Informe um valor válido');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Entrada',descricao:'Atendimento: '+qs('#saleService').value,valor:v,data:qs('#saleDate').value})});toast('Atendimento registrado!');location.reload()}catch(e){toast(e.message,'error')}}
+async function saveExpense(){try{const v=Number(qs('#expenseValue').value);const desc=qs('#expenseDesc').value.trim();if(v<=0||!desc)throw Error('Informe descrição e valor válidos');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Saída',descricao:desc,valor:-v,data:qs('#expenseDate').value})});toast('Despesa lançada!');location.reload()}catch(e){toast(e.message,'error')}}
+async function saveCredit(){try{const name=qs('#creditName').value.trim();const v=Number(qs('#creditValue').value);if(!name||v<=0)throw Error('Informe cliente e valor');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Pendência',descricao:'Fiado de: '+name+' ('+qs('#creditService').value+')',valor:v,data:qs('#creditDate').value})});toast('Fiado registrado!');location.reload()}catch(e){toast(e.message,'error')}}
 async function deleteFlow(id){if(!confirm('Excluir esta movimentação?'))return;try{await api('/api/flow?id='+id,{method:'DELETE'});location.reload()}catch(e){toast(e.message,'error')}}
-async function appointment(id,confirmar){if(!confirm(confirmar?'Confirmar e faturar este atendimento?':'Cancelar este agendamento?'))return;try{await api('/api/appointments/'+id,{method:'POST'});toast(confirmar?'Atendimento faturado!':'Agendamento removido!');location.reload()}catch(e){toast(e.message,'error')}}
+async function payCredit(id){if(!confirm('Baixar este fiado como recebido?'))return;try{await api('/api/flow/'+id+'/pay',{method:'POST'});toast('Fiado baixado!');location.reload()}catch(e){toast(e.message,'error')}}
+
+async function appointment(id,confirmar){if(!confirm(confirmar?'Confirmar e faturar este atendimento?':'Cancelar este agendamento?'))return;try{await api('/api/appointments/'+id,{method:confirmar?'POST':'DELETE'});toast(confirmar?'Atendimento faturado!':'Agendamento cancelado!');location.reload()}catch(e){toast(e.message,'error')}}
+
 function editService(oldName,price){const name=prompt('Nome do serviço:',oldName==='__new__'?'':oldName);if(name===null)return;const p=prompt('Preço (R$):',price);if(p===null)return;api('/api/services',{method:'POST',body:JSON.stringify({old:oldName,name,price:Number(p)})}).then(()=>location.reload()).catch(e=>toast(e.message,'error'))}
 function deleteService(name){if(!confirm('Excluir '+name+'?'))return;api('/api/services?name='+encodeURIComponent(name),{method:'DELETE'}).then(()=>location.reload()).catch(e=>toast(e.message,'error'))}
+
 async function createMonthly(){try{if(!qs('#mName').value.trim())throw Error('Informe o nome');await api('/api/monthly',{method:'POST',body:JSON.stringify({action:'create',name:qs('#mName').value,phone:qs('#mPhone').value})});location.reload()}catch(e){toast(e.message,'error')}}
-async function addMonthlyService(){try{await api('/api/monthly',{method:'POST',body:JSON.stringify({action:'service',id:Number(qs('#mClient').value),qty:Number(qs('#mQty').value),price:Number(qs('#mPrice').value)})});location.reload()}catch(e){toast(e.message,'error')}}
+async function addMonthlyService(){try{const price=Number(qs('#mPrice').value),qty=Number(qs('#mQty').value);if(price<0||qty<1)throw Error('Dados inválidos');await api('/api/monthly',{method:'POST',body:JSON.stringify({action:'service',id:Number(qs('#mClient').value),qty,price})});location.reload()}catch(e){toast(e.message,'error')}}
 async function payMonthly(id,max){const v=prompt('Valor a receber (máx. R$ '+money(max)+'):',max);if(v===null)return;const n=Number(v);if(n<=0||n>max)return toast('Valor inválido','error');try{await api('/api/monthly',{method:'POST',body:JSON.stringify({action:'pay',id,value:n})});location.reload()}catch(e){toast(e.message,'error')}}
-function openPayModal(){const pending=[...document.querySelectorAll('.flow-row')].find(x=>x.textContent.includes('Pendência'));if(!pending){return toast('Nenhum fiado pendente','error')}const id=(pending.querySelector('[onclick*="deleteFlow"]')?.getAttribute('onclick')||'').match(/\d+/)?.[0];if(id)api('/api/flow/'+id+'/pay',{method:'POST'}).then(()=>location.reload()).catch(e=>toast(e.message,'error'))}
-function copyBooking(){const e=qs('#bookingLink');navigator.clipboard.writeText(e.value).then(()=>toast('Link copiado!'))}
-function setupBooking(salao){const d=qs('#bookingDate'),h=qs('#bookingHour');if(!d)return;async function load(){if(!d.value)return;h.innerHTML='<option>Carregando...</option>';try{const slots=await fetch('/api/booking/slots?salao='+encodeURIComponent(salao)+'&date='+d.value).then(r=>r.json());h.innerHTML=slots.length?slots.map(x=>`<option value="${x}">${x}</option>`).join(''):'<option value="">Sem horários disponíveis</option>'}catch{h.innerHTML='<option>Erro ao carregar</option>'}}d.addEventListener('change',load);if(d.value)load()}
+
+function copyBooking(){const e=qs('#bookingLink');navigator.clipboard.writeText(e.value).then(()=>toast('Link copiado!')).catch(()=>{e.select();document.execCommand('copy');toast('Link copiado!')})}
+async function shareBooking(){const url=qs('#bookingLink')?.value||window.APP?.bookingLink;if(navigator.share){try{await navigator.share({title:'Agendamento',text:'Agende seu horário online:',url})}catch(e){}}else{copyBooking()}}
+
+function setupBooking(salao){const d=qs('#bookingDate'),h=qs('#bookingHour'),btn=qs('#bookingSubmit');if(!d)return;async function load(){if(!d.value)return;h.innerHTML='<option>Carregando...</option>';if(btn)btn.disabled=true;try{const r=await fetch('/api/booking/slots?salao='+encodeURIComponent(salao)+'&date='+d.value);const slots=await r.json();h.innerHTML=slots.length?'<option value="">Selecione</option>'+slots.map(x=>`<option value="${x}">${x}</option>`).join(''):'<option value="">Sem horários disponíveis</option>'}catch{h.innerHTML='<option value="">Erro ao carregar</option>'}finally{if(btn)btn.disabled=false}}d.addEventListener('change',load);if(d.value)load()}
+
+function setupAppointmentForm(){const d=qs('#aDate'),h=qs('#aHour');if(!d||!h)return;async function load(){if(!d.value)return;h.innerHTML='<option>Carregando...</option>';try{const r=await fetch('/api/booking/slots?salao='+encodeURIComponent(window.APP?.user||'')+'&date='+d.value);const slots=await r.json();h.innerHTML=slots.length?'<option value="">Selecione</option>'+slots.map(x=>`<option value="${x}">${x}</option>`).join(''):'<option value="">Sem horários</option>'}catch{h.innerHTML='<option value="">Erro</option>'}}d.addEventListener('change',load)}
+
+async function createAppointment(){try{const data={nome:qs('#aName').value.trim(),telefone:qs('#aPhone').value,servico:qs('#aService').value,data:qs('#aDate').value,hora:qs('#aHour').value};if(!data.nome||!data.data||!data.hora)throw Error('Preencha os dados do agendamento');await api('/api/appointments',{method:'POST',body:JSON.stringify(data)});toast('Agendamento criado!');closeModal('appointmentModal');location.reload()}catch(e){toast(e.message,'error')}}
+
+function setupAppointmentFilters(){const buttons=document.querySelectorAll('[data-appt-filter]');if(!buttons.length)return;buttons.forEach(b=>b.onclick=()=>{buttons.forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.appointment').forEach(row=>{const show=b.dataset.apptFilter==='all'||(b.dataset.apptFilter==='today'&&row.dataset.date===todayISO().replaceAll('-','-'));row.style.display=show?'flex':'none'})})}
