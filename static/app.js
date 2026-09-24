@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  const credit=qs('#creditService'); if(credit){credit.onchange=()=>qs('#creditValue').value=credit.selectedOptions[0].dataset.price;credit.dispatchEvent(new Event('change'))}
  setupAppointmentForm()
  setupAppointmentFilters()
+ const paySelect=qs('#payCreditSelect'); if(paySelect){paySelect.addEventListener('change',updatePayCreditInfo); updatePayCreditInfo()}
 })
 
 function openModal(id){qs('#'+id)?.classList.add('show')}
@@ -29,8 +30,14 @@ async function payCredit(id){if(!confirm('Baixar este fiado como recebido?'))ret
 
 async function appointment(id,confirmar){if(!confirm(confirmar?'Confirmar e faturar este atendimento?':'Cancelar este agendamento?'))return;try{await api('/api/appointments/'+id,{method:confirmar?'POST':'DELETE'});toast(confirmar?'Atendimento faturado!':'Agendamento cancelado!');location.reload()}catch(e){toast(e.message,'error')}}
 
-function editService(oldName,price){const name=prompt('Nome do serviço:',oldName==='__new__'?'':oldName);if(name===null)return;const p=prompt('Preço (R$):',price);if(p===null)return;api('/api/services',{method:'POST',body:JSON.stringify({old:oldName,name,price:Number(p)})}).then(()=>location.reload()).catch(e=>toast(e.message,'error'))}
+let editingService='__new__';
+function editService(oldName,price){editingService=oldName;qs('#serviceEditorTitle').textContent=oldName==='__new__'?'Adicionar serviço':'Editar serviço';qs('#serviceName').value=oldName==='__new__'?'':oldName;qs('#servicePrice').value=oldName==='__new__'?'':price;qs('#serviceName').focus()}
+async function saveService(){try{const name=qs('#serviceName').value.trim(),price=Number(qs('#servicePrice').value);if(!name||price<0)throw Error('Informe nome e preço válidos');await api('/api/services',{method:'POST',body:JSON.stringify({old:editingService,name,price})});toast('Serviço salvo!');location.reload()}catch(e){toast(e.message,'error')}}
 function deleteService(name){if(!confirm('Excluir '+name+'?'))return;api('/api/services?name='+encodeURIComponent(name),{method:'DELETE'}).then(()=>location.reload()).catch(e=>toast(e.message,'error'))}
+
+function openPayModal(){const modal=qs('#payCreditModal');if(!modal)return;openModal('payCreditModal');updatePayCreditInfo()}
+function updatePayCreditInfo(){const s=qs('#payCreditSelect'),info=qs('#payCreditInfo');if(!s||!info)return;const v=Number(s.selectedOptions[0]?.dataset.value||0);info.textContent='Valor a receber: R$ '+money(v);}
+async function paySelectedCredit(){const s=qs('#payCreditSelect');if(!s||!s.value)return toast('Selecione um fiado.','error');const id=Number(s.value);if(!confirm('Confirmar recebimento deste fiado?'))return;try{await api('/api/flow/'+id+'/pay',{method:'POST'});toast('Fiado marcado como pago!');closeModal('payCreditModal');location.reload()}catch(e){toast(e.message,'error')}}
 
 async function createMonthly(){try{if(!qs('#mName').value.trim())throw Error('Informe o nome');await api('/api/monthly',{method:'POST',body:JSON.stringify({action:'create',name:qs('#mName').value,phone:qs('#mPhone').value})});location.reload()}catch(e){toast(e.message,'error')}}
 async function addMonthlyService(){try{const price=Number(qs('#mPrice').value),qty=Number(qs('#mQty').value);if(price<0||qty<1)throw Error('Dados inválidos');await api('/api/monthly',{method:'POST',body:JSON.stringify({action:'service',id:Number(qs('#mClient').value),qty,price})});location.reload()}catch(e){toast(e.message,'error')}}
