@@ -95,7 +95,15 @@ def init_db():
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp TEXT;",
         "CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);",
         "CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);",
-        "CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL);",
+        "CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL, status TEXT DEFAULT 'Pendente', valor NUMERIC DEFAULT 0, confirmado_em TIMESTAMP, concluido_em TIMESTAMP, financeiro_id INT);",
+        "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pendente';",
+        "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS valor NUMERIC DEFAULT 0;",
+        "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS confirmado_em TIMESTAMP;",
+        "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS concluido_em TIMESTAMP;",
+        "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS financeiro_id INT;",
+        "ALTER TABLE fluxo_caixa ADD COLUMN IF NOT EXISTS appointment_id INT;",
+        "UPDATE agendamentos SET status='Pendente' WHERE status IS NULL;",
+        "UPDATE agendamentos SET valor=COALESCE((SELECT preco FROM servicos s WHERE s.usuario_id=agendamentos.usuario_id AND s.nome=agendamentos.servico_nome),0) WHERE valor IS NULL OR valor=0;",
         "CREATE TABLE IF NOT EXISTS clientes_mensais (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome_cliente TEXT NOT NULL, telefone TEXT, servicos_feitos INT DEFAULT 0, valor_devido NUMERIC DEFAULT 0.0, status_divida TEXT DEFAULT 'Pendente');",
         "CREATE TABLE IF NOT EXISTS usuario_config (usuario_id TEXT PRIMARY KEY, meta_mensal NUMERIC DEFAULT 5000);",
         "CREATE TABLE IF NOT EXISTS login_rate (chave TEXT PRIMARY KEY, tentativas INT NOT NULL DEFAULT 0, janela_inicio TIMESTAMP NOT NULL);",
@@ -252,8 +260,8 @@ def get_appointments(user, only_upcoming=False):
     if only_upcoming:
         now = datetime.now(TZ)
         params.update({"today": now.strftime("%Y-%m-%d"), "hora": now.strftime("%H:%M")})
-    rows = db_exec(f"SELECT id,cliente_nome,cliente_contato,servico_nome,data,hora FROM agendamentos {where} ORDER BY data,hora", params, True)
-    return pd.DataFrame(rows, columns=["id", "Cliente", "Contato", "Serviço", "Data", "Horário"])
+    rows = db_exec(f"SELECT id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor FROM agendamentos {where} ORDER BY data,hora", params, True)
+    return pd.DataFrame(rows, columns=["id", "Cliente", "Contato", "Serviço", "Data", "Horário", "Status", "Valor"])
 
 
 def get_monthly(user):
@@ -310,6 +318,8 @@ def calc_dashboard(user):
     lucro_prev = entradas_prev - saidas_prev
     appts = get_appointments(user)
     appt_today = appts[appts.Data.astype(str) == today.strftime("%Y-%m-%d")] if not appts.empty else appts
+    pending_appts = int((appts["Status"] == "Pendente").sum()) if not appts.empty else 0
+    confirmed_appts = int((appts["Status"] == "Confirmado").sum()) if not appts.empty else 0
     monthly = get_monthly(user)
     clients = set(monthly.Cliente.dropna()) if not monthly.empty else set()
     clients.update(appts.Cliente.dropna() if not appts.empty else [])
@@ -321,6 +331,7 @@ def calc_dashboard(user):
         "ticket": entradas / len(cur[cur.Tipo == "Entrada"]) if not cur.empty and len(cur[cur.Tipo == "Entrada"]) else 0,
         "clientes": len(clients), "agendamentos_hoje": len(appt_today), "today": today.strftime("%d/%m"),
         "mes_passado": receita_prev, "goal": goal, "goal_progress": progress,
+        "agendamentos_pendentes": pending_appts, "agendamentos_confirmados": confirmed_appts,
     }
 
 
@@ -350,7 +361,7 @@ def backup_json(user):
         "meta_mensal": get_goal(user),
         "servicos": rows("servicos", ["id", "nome", "preco"]),
         "historico_financeiro": rows("fluxo_caixa", ["id", "data", "tipo", "descricao", "valor"]),
-        "agendamentos": rows("agendamentos", ["id", "cliente_nome", "cliente_contato", "servico_nome", "data", "hora"]),
+        "agendamentos": rows("agendamentos", ["id", "cliente_nome", "cliente_contato", "servico_nome", "data", "hora", "status", "valor"]),
         "clientes_mensais": rows("clientes_mensais", ["id", "nome_cliente", "telefone", "servicos_feitos", "valor_devido", "status_divida"]),
     }
     def ser(o):
@@ -625,23 +636,50 @@ def create_appointment():
             conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": lock_key})
             exists = conn.execute(text("SELECT 1 FROM agendamentos WHERE usuario_id=:u AND data=:d AND hora=:h"), {"u": user, "d": date, "h": hour}).fetchone()
             if exists: return jsonify({"error": "Esse horário já está ocupado"}), 409
-            conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora) VALUES(:u,:n,:c,:s,:d,:h)"), {"u": user, "n": name, "c": phone, "s": service, "d": date, "h": hour})
+            conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor) VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v)"), {"u": user, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": float(services[service])})
     except Exception:
         return jsonify({"error": "Não foi possível criar o agendamento"}), 500
     return jsonify({"ok": True})
 
 
-@app.route("/api/appointments/<int:aid>", methods=["DELETE", "POST"])
+@app.route("/api/appointments/<int:aid>", methods=["POST", "DELETE"])
 def appointment_action(aid):
-    if not require_login() or require_admin(): return jsonify({"error": "unauthorized"}), 401
+    if not require_login() or require_admin():
+        return jsonify({"error": "unauthorized"}), 401
     user = current_user()
-    row = db_exec("SELECT cliente_nome,servico_nome,cliente_contato,data,hora FROM agendamentos WHERE id=:id AND usuario_id=:u", {"id": aid, "u": user}, True)
-    if not row: return jsonify({"error": "Agendamento não encontrado"}), 404
-    if request.method == "POST":
-        service, price = row[0][1], get_services(user).get(row[0][1], 0)
-        insert_flow(user, "Entrada", f"Agendamento: {row[0][0]} ({service})", price, datetime.now(TZ).date())
-    db_exec("DELETE FROM agendamentos WHERE id=:id AND usuario_id=:u", {"id": aid, "u": user})
-    return jsonify({"ok": True})
+    row = db_exec("SELECT cliente_nome,servico_nome,cliente_contato,data,hora,status,valor FROM agendamentos WHERE id=:id AND usuario_id=:u", {"id": aid, "u": user}, True)
+    if not row:
+        return jsonify({"error": "Agendamento não encontrado"}), 404
+    client, service, phone, date, hour, status, stored_value = row[0]
+    status = status or "Pendente"
+    price = float(stored_value or get_services(user).get(service, 0))
+    if request.method == "DELETE":
+        db_exec("UPDATE agendamentos SET status='Cancelado' WHERE id=:id AND usuario_id=:u", {"id": aid, "u": user})
+        return jsonify({"ok": True, "status": "Cancelado"})
+
+    data = request.get_json(silent=True) or request.form
+    action = str(data.get("action", "confirm")).strip().lower()
+    now = datetime.now(TZ)
+    if action == "confirm":
+        if status != "Pendente":
+            return jsonify({"error": "Este agendamento já foi processado."}), 409
+        db_exec("UPDATE agendamentos SET status='Confirmado',confirmado_em=:now,valor=:v WHERE id=:id AND usuario_id=:u", {"now": now, "v": price, "id": aid, "u": user})
+        return jsonify({"ok": True, "status": "Confirmado"})
+    if action in {"complete", "fiado"}:
+        if status != "Confirmado":
+            return jsonify({"error": "Confirme o agendamento antes de concluir o atendimento."}), 409
+        tipo = "Entrada" if action == "complete" else "Pendência"
+        prefix = "Atendimento agendado" if action == "complete" else "Fiado - atendimento agendado"
+        desc = f"{prefix}: {client} ({service}) [Agendamento #{aid}]"
+        with engine.begin() as conn:
+            result = conn.execute(text("INSERT INTO fluxo_caixa(usuario_id,data,tipo,descricao,valor,appointment_id) VALUES(:u,:d,:t,:desc,:v,:aid) RETURNING id"), {"u": user, "d": now.date().isoformat(), "t": tipo, "desc": desc, "v": price, "aid": aid})
+            flow_id = result.scalar()
+            conn.execute(text("UPDATE agendamentos SET status='Concluído',concluido_em=:now,valor=:v,financeiro_id=:fid WHERE id=:id AND usuario_id=:u"), {"now": now, "v": price, "fid": flow_id, "id": aid, "u": user})
+        return jsonify({"ok": True, "status": "Concluído", "tipo": tipo, "financeiro_id": flow_id})
+    if action == "cancel":
+        db_exec("UPDATE agendamentos SET status='Cancelado' WHERE id=:id AND usuario_id=:u", {"id": aid, "u": user})
+        return jsonify({"ok": True, "status": "Cancelado"})
+    return jsonify({"error": "Ação inválida"}), 400
 
 
 @app.route("/api/booking/slots")
@@ -688,7 +726,7 @@ def booking():
                     if exists:
                         flash("Esse horário acabou de ser ocupado. Escolha outro.", "error")
                     else:
-                        conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora) VALUES(:u,:n,:c,:s,:d,:h)"), {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour})
+                        conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor) VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v)"), {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": float(services[service])})
                         price = float(services[service])
                         date_display = datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
                         price_display = f"R$ {price:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
