@@ -8,10 +8,12 @@ services:
       - key: DB_URL
         sync: false
       - key: FLASK_SECRET_KEY
-        generateValue: true
+        sync: false
       - key: SECURITY_SALT
         sync: false
       - key: SUPPORT_PHONE
         sync: false
       - key: RENDER_BASE_URL
-        value: https://agendamentos-doy4.onrender.com
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
