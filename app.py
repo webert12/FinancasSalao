@@ -503,10 +503,12 @@ def dashboard():
     user = current_user()
     d = calc_dashboard(user)
     appts = get_appointments(user, only_upcoming=True)
+    flow_records = get_flow(user).to_dict("records")
+    pending_credits = [r for r in flow_records if r.get("Tipo") == "Pendência"]
     return render_template(
         "dashboard.html", user=user, name=user.replace("_", " ").replace("-", " ").title(),
         services=get_services(user), dash=d, appointments=appts.to_dict("records"),
-        monthly=get_monthly(user).to_dict("records"), flow=get_flow(user).to_dict("records"),
+        monthly=get_monthly(user).to_dict("records"), flow=flow_records, pending_credits=pending_credits,
         chart=daily_chart(user), booking_link=booking_url(user),
     )
 
@@ -687,7 +689,24 @@ def booking():
                         flash("Esse horário acabou de ser ocupado. Escolha outro.", "error")
                     else:
                         conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora) VALUES(:u,:n,:c,:s,:d,:h)"), {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour})
-                        success = {"nome": name, "servico": service, "data": date, "hora": hour, "phone": phone, "salao": salao}
+                        price = float(services[service])
+                        date_display = datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
+                        price_display = f"R$ {price:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        owner_phone = normalize_phone(u.get("whatsapp", ""))
+                        owner_message = (
+                            "Olá! Acabei de realizar um agendamento pelo site.\n\n"
+                            f"👤 *Cliente:* {name}\n"
+                            f"📅 *Data:* {date_display}\n"
+                            f"⏰ *Horário:* {hour}\n"
+                            f"💈 *Serviço(s):* {service}\n"
+                            f"💵 *Valor Total:* {price_display}"
+                        )
+                        success = {
+                            "nome": name, "servico": service, "data": date, "data_display": date_display,
+                            "hora": hour, "phone": phone, "salao": salao, "valor": price,
+                            "valor_display": price_display, "owner_whatsapp": owner_phone,
+                            "owner_message": owner_message,
+                        }
             except Exception:
                 flash("Não foi possível reservar este horário agora. Tente novamente.", "error")
     return render_template("booking.html", unavailable=False, salao=salao, name=salao.replace("_", " ").title(), services=services, success=success, today=datetime.now(TZ).date().isoformat())
