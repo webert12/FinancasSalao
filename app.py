@@ -148,10 +148,20 @@ def send_whatsapp_notification(phone, message):
     if not number:
         app.logger.warning("WhatsApp não enviado: salão sem número cadastrado")
         return False
-    endpoint = WHATSAPP_BOT_URL
+    endpoint = WHATSAPP_BOT_URL.rstrip()
     if not endpoint:
         app.logger.error("WhatsApp não enviado: WA_API_URL não configurada")
         return False
+    # Aceita tanto o domínio público do túnel quanto a URL completa da rota.
+    # O server.js do Termux recebe POST apenas em /enviar; POST / retorna 404.
+    parsed_endpoint = urllib.parse.urlsplit(endpoint)
+    if parsed_endpoint.path in ("", "/"):
+        endpoint = urllib.parse.urlunsplit((
+            parsed_endpoint.scheme, parsed_endpoint.netloc, "/enviar",
+            parsed_endpoint.query, parsed_endpoint.fragment
+        ))
+    elif not parsed_endpoint.path.rstrip("/").endswith("/enviar"):
+        endpoint = endpoint.rstrip("/") + "/enviar"
     payload = json.dumps({"telefone": number, "mensagem": message}, ensure_ascii=False).encode("utf-8")
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
     # Token opcional; o server.js atual aceita JSON sem autenticação.
