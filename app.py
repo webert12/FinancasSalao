@@ -1,5 +1,6 @@
 import os
 import re
+import logging
 import json
 import hmac
 import hashlib
@@ -102,6 +103,7 @@ def init_db():
         "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS concluido_em TIMESTAMP;",
         "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS financeiro_id INT;",
         "ALTER TABLE fluxo_caixa ADD COLUMN IF NOT EXISTS appointment_id INT;",
+        "ALTER TABLE fluxo_caixa ADD COLUMN IF NOT EXISTS hora TEXT;",
         "UPDATE agendamentos SET status='Pendente' WHERE status IS NULL;",
         "UPDATE agendamentos SET valor=COALESCE((SELECT preco FROM servicos s WHERE s.usuario_id=agendamentos.usuario_id AND s.nome=agendamentos.servico_nome),0) WHERE valor IS NULL OR valor=0;",
         "CREATE TABLE IF NOT EXISTS clientes_mensais (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome_cliente TEXT NOT NULL, telefone TEXT, servicos_feitos INT DEFAULT 0, valor_devido NUMERIC DEFAULT 0.0, status_divida TEXT DEFAULT 'Pendente');",
@@ -243,8 +245,8 @@ def get_services(user):
 
 
 def get_flow(user):
-    rows = db_exec("SELECT id,data,tipo,descricao,valor FROM fluxo_caixa WHERE usuario_id=:u ORDER BY data DESC,id DESC", {"u": user}, True)
-    df = pd.DataFrame(rows, columns=["id", "Data", "Tipo", "Descrição", "Valor"])
+    rows = db_exec("SELECT id,data,tipo,descricao,valor,hora FROM fluxo_caixa WHERE usuario_id=:u ORDER BY data DESC,hora DESC NULLS LAST,id DESC", {"u": user}, True)
+    df = pd.DataFrame(rows, columns=["id", "Data", "Tipo", "Descrição", "Valor", "Horário"])
     if df.empty:
         return df
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
@@ -279,12 +281,16 @@ def set_goal(user, goal):
                ON CONFLICT(usuario_id) DO UPDATE SET meta_mensal=EXCLUDED.meta_mensal""", {"u": user, "g": float(goal)})
 
 
-def insert_flow(user, tipo, descricao, valor, data):
+def insert_flow(user, tipo, descricao, valor, data=None):
+    now = datetime.now(TZ)
+    data = data or now.date()
     data_str = data.strftime("%Y-%m-%d") if hasattr(data, "strftime") else str(data)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", data_str):
+        data_str = now.date().isoformat()
     if tipo not in {"Entrada", "Saída", "Pendência"}:
         raise ValueError("Tipo de movimentação inválido")
-    db_exec("INSERT INTO fluxo_caixa(usuario_id,data,tipo,descricao,valor) VALUES(:u,:d,:t,:desc,:v)",
-            {"u": user, "d": data_str, "t": tipo, "desc": str(descricao).strip()[:250], "v": float(valor)})
+    db_exec("INSERT INTO fluxo_caixa(usuario_id,data,hora,tipo,descricao,valor) VALUES(:u,:d,:h,:t,:desc,:v)",
+            {"u": user, "d": data_str, "h": now.strftime("%H:%M:%S"), "t": tipo, "desc": str(descricao).strip()[:250], "v": float(valor)})
 
 
 def percent_change(current, previous):
@@ -406,13 +412,28 @@ def login_allowed(key, limit=8, window_minutes=10):
 
 
 def register_failed_login(key):
+    """Registra tentativa inválida sem depender de um SELECT FOR UPDATE em linha ausente."""
     now = datetime.utcnow()
     with engine.begin() as conn:
-        row = conn.execute(text("SELECT tentativas, janela_inicio FROM login_rate WHERE chave=:k FOR UPDATE"), {"k": key}).fetchone()
-        if not row or now - row[1] > timedelta(minutes=10):
-            conn.execute(text("INSERT INTO login_rate(chave,tentativas,janela_inicio) VALUES(:k,1,:now) ON CONFLICT(chave) DO UPDATE SET tentativas=1,janela_inicio=:now"), {"k": key, "now": now})
+        row = conn.execute(
+            text("SELECT tentativas, janela_inicio FROM login_rate WHERE chave=:k"),
+            {"k": key},
+        ).fetchone()
+        if row is None:
+            conn.execute(
+                text("INSERT INTO login_rate(chave,tentativas,janela_inicio) VALUES(:k,1,:now) ON CONFLICT(chave) DO UPDATE SET tentativas=login_rate.tentativas+1"),
+                {"k": key, "now": now},
+            )
+        elif now - row[1] > timedelta(minutes=10):
+            conn.execute(
+                text("UPDATE login_rate SET tentativas=1, janela_inicio=:now WHERE chave=:k"),
+                {"k": key, "now": now},
+            )
         else:
-            conn.execute(text("UPDATE login_rate SET tentativas=tentativas+1 WHERE chave=:k"), {"k": key})
+            conn.execute(
+                text("UPDATE login_rate SET tentativas=tentativas+1 WHERE chave=:k"),
+                {"k": key},
+            )
 
 
 def clear_login_rate(key):
@@ -587,7 +608,8 @@ def pay_credit(rid):
     user = current_user()
     row = db_exec("SELECT descricao,valor FROM fluxo_caixa WHERE id=:id AND usuario_id=:u AND tipo='Pendência'", {"id": rid, "u": user}, True)
     if not row: return jsonify({"error": "Fiado não encontrado"}), 404
-    db_exec("UPDATE fluxo_caixa SET tipo='Entrada',data=:d,descricao=:desc WHERE id=:id AND usuario_id=:u", {"d": datetime.now(TZ).strftime('%Y-%m-%d'), "desc": str(row[0][0]).replace('Fiado de:', 'Recebido Fiado:') + ' [PAGO]', "id": rid, "u": user})
+    now = datetime.now(TZ)
+    db_exec("UPDATE fluxo_caixa SET tipo='Entrada',data=:d,hora=:h,descricao=:desc WHERE id=:id AND usuario_id=:u", {"d": now.strftime("%Y-%m-%d"), "h": now.strftime("%H:%M:%S"), "desc": str(row[0][0]).replace("Fiado de:", "Recebido Fiado:") + " [PAGO]", "id": rid, "u": user})
     return jsonify({"ok": True})
 
 
@@ -672,7 +694,7 @@ def appointment_action(aid):
         prefix = "Atendimento agendado" if action == "complete" else "Fiado - atendimento agendado"
         desc = f"{prefix}: {client} ({service}) [Agendamento #{aid}]"
         with engine.begin() as conn:
-            result = conn.execute(text("INSERT INTO fluxo_caixa(usuario_id,data,tipo,descricao,valor,appointment_id) VALUES(:u,:d,:t,:desc,:v,:aid) RETURNING id"), {"u": user, "d": now.date().isoformat(), "t": tipo, "desc": desc, "v": price, "aid": aid})
+            result = conn.execute(text("INSERT INTO fluxo_caixa(usuario_id,data,hora,tipo,descricao,valor,appointment_id) VALUES(:u,:d,:h,:t,:desc,:v,:aid) RETURNING id"), {"u": user, "d": now.date().isoformat(), "h": now.strftime("%H:%M:%S"), "t": tipo, "desc": desc, "v": price, "aid": aid})
             flow_id = result.scalar()
             conn.execute(text("UPDATE agendamentos SET status='Concluído',concluido_em=:now,valor=:v,financeiro_id=:fid WHERE id=:id AND usuario_id=:u"), {"now": now, "v": price, "fid": flow_id, "id": aid, "u": user})
         return jsonify({"ok": True, "status": "Concluído", "tipo": tipo, "financeiro_id": flow_id})
@@ -839,9 +861,25 @@ def not_found(err):
 
 @app.errorhandler(500)
 def server_error(err):
+    # O detalhe técnico fica apenas nos logs privados do Render, nunca na tela pública.
+    original = getattr(err, "original_exception", None)
+    if original is not None:
+        app.logger.error(
+            "Erro interno na rota %s (%s %s)",
+            request.endpoint, request.method, request.path,
+            exc_info=(type(original), original, original.__traceback__),
+        )
+    else:
+        app.logger.exception(
+            "Erro interno na rota %s (%s %s)",
+            request.endpoint, request.method, request.path,
+        )
     if request.path.startswith("/api/"):
-        return jsonify({"error": "Erro interno. Tente novamente."}), 500
-    return "Ocorreu um erro interno. Tente novamente.", 500
+        return jsonify({"error": "Erro interno. Consulte os logs privados do servidor."}), 500
+    flash("Não foi possível concluir a operação. Tente novamente. Se persistir, consulte os logs do servidor.", "error")
+    if request.path in {"/login", "/admin", "/"}:
+        return redirect(url_for("index")), 303
+    return "Ocorreu um erro interno. Consulte os logs do servidor para identificar a causa.", 500
 
 
 if __name__ == "__main__":
