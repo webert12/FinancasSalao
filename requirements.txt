@@ -3,6 +3,6 @@ Gunicorn
 pandas
 plotly
 SQLAlchemy
-psycopg2-binary
+psycopg[binary]>=3.2,<4
 reportlab
 cryptography
