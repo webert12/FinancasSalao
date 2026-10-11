@@ -1,6 +1,6 @@
 function qs(s){return document.querySelector(s)}
 function money(n){return Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function todayISO(){return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'})}
+function todayISO(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);return `${p.year}-${p.month}-${p.day}`}
 function toast(msg,type='success'){const d=document.createElement('div');d.className='toast '+type;d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)}
 function csrf(){return document.querySelector('meta[name="csrf-token"]')?.content||''}
 async function api(url,opt={}){const headers={'Content-Type':'application/json','X-CSRFToken':csrf(),...(opt.headers||{})};const r=await fetch(url,{...opt,headers});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Erro na operação');return j}
@@ -18,7 +18,16 @@ document.addEventListener('DOMContentLoaded',()=>{
  const paySelect=qs('#payCreditSelect'); if(paySelect){paySelect.addEventListener('change',updatePayCreditInfo); updatePayCreditInfo()}
 })
 
-function openModal(id){qs('#'+id)?.classList.add('show')}
+function openModal(id){
+ const today=todayISO();
+ const dateMap={serviceModal:'saleDate',expenseModal:'expenseDate',creditModal:'creditDate',appointmentModal:'aDate'};
+ const dateInput=qs('#'+(dateMap[id]||''));
+ if(dateInput && !dateInput.value) dateInput.value=today;
+ if(id==='serviceModal'){const sel=qs('#saleService');if(sel?.selectedOptions[0])qs('#salePrice').value=sel.selectedOptions[0].dataset.price||'0'}
+ if(id==='expenseModal' && qs('#expenseValue'))qs('#expenseValue').value='';
+ if(id==='creditModal'){const sel=qs('#creditService');if(sel?.selectedOptions[0])qs('#creditValue').value=sel.selectedOptions[0].dataset.price||'0'}
+ qs('#'+id)?.classList.add('show')
+}
 function closeModal(id){qs('#'+id)?.classList.remove('show')}
 
 async function saveGoal(){try{const goal=Number(qs('#goalInput').value);if(goal<0)throw Error('Meta inválida');await api('/api/goal',{method:'POST',body:JSON.stringify({goal})});toast('Meta salva!');location.reload()}catch(e){toast(e.message,'error')}}
