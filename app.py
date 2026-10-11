@@ -7,6 +7,8 @@ import hashlib
 import decimal
 import secrets
 import urllib.parse
+import urllib.request
+import urllib.error
 from io import BytesIO
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -27,6 +29,9 @@ SALT = os.getenv("SECURITY_SALT", "")
 SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "")
 SUPPORT_PHONE = re.sub(r"\D", "", os.getenv("SUPPORT_PHONE", ""))
 RENDER_BASE_URL = os.getenv("RENDER_BASE_URL", "").strip().rstrip("/")
+# Endpoint público do servidor Baileys no Termux. Pode ser substituído no Render.
+WHATSAPP_BOT_URL = os.getenv("WA_API_URL", "https://fioecaixa.serveusercontent.com/enviar").strip()
+WHATSAPP_BOT_TOKEN = os.getenv("WA_API_TOKEN", "").strip()
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
 
 if not DB_URL:
@@ -135,6 +140,37 @@ def app_base_url():
 
 def booking_url(user):
     return f"{app_base_url()}/agendar?salao={urllib.parse.quote(user)}"
+
+
+def send_whatsapp_notification(phone, message):
+    """Envia a notificação ao bot Baileys no Termux, sem bloquear o salvamento."""
+    number = normalize_phone(phone)
+    if not number:
+        app.logger.warning("WhatsApp não enviado: salão sem número cadastrado")
+        return False
+    endpoint = WHATSAPP_BOT_URL
+    if not endpoint:
+        app.logger.error("WhatsApp não enviado: WA_API_URL não configurada")
+        return False
+    payload = json.dumps({"telefone": number, "mensagem": message}, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    # Token opcional; o server.js atual aceita JSON sem autenticação.
+    if WHATSAPP_BOT_TOKEN:
+        headers["Authorization"] = f"Bearer {WHATSAPP_BOT_TOKEN}"
+    req = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=8) as response:
+            body = response.read(1000).decode("utf-8", errors="replace")
+            if 200 <= response.status < 300:
+                app.logger.info("Notificação WhatsApp enviada pelo bot: telefone final=%s", number[-4:])
+                return True
+            app.logger.error("Bot WhatsApp respondeu HTTP %s: %s", response.status, body)
+    except urllib.error.HTTPError as exc:
+        body = exc.read(1000).decode("utf-8", errors="replace")
+        app.logger.error("Falha HTTP do bot WhatsApp (%s): %s", exc.code, body)
+    except Exception:
+        app.logger.exception("Não foi possível alcançar o bot WhatsApp em %s", endpoint)
+    return False
 
 
 def whatsapp_url(phone, message=None):
@@ -539,7 +575,7 @@ def dashboard():
         return redirect(url_for("index"))
     user = current_user()
     d = calc_dashboard(user)
-    appts = get_appointments(user, only_upcoming=True)
+    appts = get_appointments(user, only_upcoming=False)
     flow_records = get_flow(user).to_dict("records")
     pending_credits = [r for r in flow_records if r.get("Tipo") == "Pendência"]
     return render_template(
@@ -753,7 +789,13 @@ def booking():
                     if exists:
                         flash("Esse horário acabou de ser ocupado. Escolha outro.", "error")
                     else:
-                        conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor) VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v)"), {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": float(services[service])})
+                        saved = conn.execute(text("""INSERT INTO agendamentos
+                            (usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor)
+                            VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v) RETURNING id"""),
+                            {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": float(services[service])}).scalar_one_or_none()
+                        if not saved:
+                            raise RuntimeError("O banco não retornou o ID do agendamento salvo")
+                        app.logger.info("Agendamento online salvo: id=%s salao=%s data=%s hora=%s", saved, salao, date, hour)
                         price = float(services[service])
                         date_display = datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
                         price_display = f"R$ {price:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -772,8 +814,14 @@ def booking():
                             "valor_display": price_display, "owner_whatsapp": owner_phone,
                             "owner_message": owner_message,
                         }
+                # A reserva já foi confirmada no commit do PostgreSQL antes de chamar o WhatsApp.
+                if success and owner_phone:
+                    send_whatsapp_notification(owner_phone, owner_message)
+                elif success:
+                    app.logger.warning("Agendamento %s salvo, mas salão %s não tem WhatsApp cadastrado", saved, salao)
             except Exception:
-                flash("Não foi possível reservar este horário agora. Tente novamente.", "error")
+                app.logger.exception("Falha ao gravar agendamento online (salao=%s, data=%s, hora=%s)", salao, date, hour)
+                flash("Não foi possível salvar o agendamento no banco. Nenhuma confirmação foi registrada; tente novamente.", "error")
     return render_template("booking.html", unavailable=False, salao=salao, name=salao.replace("_", " ").title(), services=services, success=success, today=datetime.now(TZ).date().isoformat())
 
 
