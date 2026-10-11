@@ -92,6 +92,11 @@ def init_db():
     statements = [
         "CREATE TABLE IF NOT EXISTS admin_config (id INT PRIMARY KEY, hash1 TEXT NOT NULL, hash2 TEXT NOT NULL, url_sistema TEXT);",
         "ALTER TABLE admin_config ADD COLUMN IF NOT EXISTS url_sistema TEXT;",
+        # Older deployments may already have this table without a PRIMARY KEY/UNIQUE
+        # constraint on id. Remove duplicate IDs before creating the unique index
+        # required by ON CONFLICT(id). Keep one row per ID; this table is config-only.
+        "DELETE FROM admin_config a USING admin_config b WHERE a.id=b.id AND a.ctid < b.ctid;",
+        "CREATE UNIQUE INDEX IF NOT EXISTS admin_config_id_uidx ON admin_config(id);",
         "CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT, whatsapp TEXT);",
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp TEXT;",
         "CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);",
