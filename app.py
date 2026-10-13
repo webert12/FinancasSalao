@@ -685,6 +685,18 @@ def api_goal():
     return jsonify({"ok": True, "goal": goal})
 
 
+@app.route("/api/service-price")
+def api_service_price():
+    """Retorna o preço cadastrado para o serviço selecionado pelo usuário logado."""
+    if not require_login() or require_admin():
+        return jsonify({"error": "unauthorized"}), 401
+    name = str(request.args.get("name", "")).strip()
+    services = get_services(current_user())
+    if not name or name not in services:
+        return jsonify({"error": "Serviço não encontrado"}), 404
+    return jsonify({"ok": True, "service": name, "price": float(services[name])})
+
+
 @app.route("/api/services", methods=["POST", "DELETE"])
 def api_services():
     if not require_login() or require_admin(): return jsonify({"error": "unauthorized"}), 401
@@ -749,9 +761,28 @@ def api_monthly():
         if not name: return jsonify({"error": "Informe o nome"}), 400
         db_exec("INSERT INTO clientes_mensais(usuario_id,nome_cliente,telefone) VALUES(:u,:n,:t)", {"u": user, "n": name, "t": phone})
     elif action == "service":
-        try: rid, qty, price = int(d["id"]), int(d.get("qty", 1)), float(d.get("price", 0))
-        except (KeyError, TypeError, ValueError): return jsonify({"error": "Dados inválidos"}), 400
-        if qty < 1 or price < 0: return jsonify({"error": "Quantidade/valor inválidos"}), 400
+        try:
+            rid, qty = int(d["id"]), int(d.get("qty", 1))
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"error": "Dados inválidos"}), 400
+        # Quando a tela envia o nome do serviço escolhido, usa sempre o preço
+        # cadastrado em Serviços, em vez de reaproveitar um valor fixo no formulário.
+        service_name = str(d.get("service", d.get("servico", ""))).strip()
+        if service_name:
+            services = get_services(user)
+            if service_name not in services:
+                return jsonify({"error": "Serviço não encontrado no cadastro de preços"}), 400
+            price = float(services[service_name])
+        else:
+            try:
+                price = float(d.get("price", 0))
+            except (TypeError, ValueError):
+                return jsonify({"error": "Valor inválido"}), 400
+        if qty < 1 or price < 0:
+            return jsonify({"error": "Quantidade/valor inválidos"}), 400
+        client_exists = db_exec("SELECT id FROM clientes_mensais WHERE id=:id AND usuario_id=:u", {"id": rid, "u": user}, True)
+        if not client_exists:
+            return jsonify({"error": "Cliente não encontrado"}), 404
         db_exec("UPDATE clientes_mensais SET servicos_feitos=servicos_feitos+:q,valor_devido=valor_devido+:v,status_divida='Pendente' WHERE id=:id AND usuario_id=:u", {"q": qty, "v": qty * price, "id": rid, "u": user})
     elif action == "pay":
         try: rid, value = int(d["id"]), float(d["value"])
