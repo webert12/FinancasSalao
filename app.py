@@ -51,7 +51,18 @@ app.config.update(
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 
-engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=5, max_overflow=10, pool_recycle=1800)
+# O PostgreSQL do Render pode estar atrás de um pooler em transaction mode.
+# O psycopg 3 prepara statements automaticamente após algumas execuções; isso pode
+# gerar DuplicatePreparedStatement (_pg3_*) no pooler. Desativamos esse recurso
+# para manter as conexões compatíveis com o pooler, sem alterar os dados.
+engine = create_engine(
+    DB_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=1800,
+    connect_args={"prepare_threshold": None},
+)
 
 # Preços iniciais sugeridos para uma barbearia de bairro no Brasil (referência 2026).
 # Cada profissional pode editar os valores na aba Serviços; não são preços obrigatórios.
