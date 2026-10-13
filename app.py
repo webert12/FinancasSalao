@@ -51,6 +51,88 @@ app.config.update(
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 
+
+@app.after_request
+def sync_service_price_in_dashboard(response):
+    """Mantém o campo Valor sincronizado com o preço cadastrado ao escolher um serviço.
+
+    O painel é um template separado (dashboard.html), que não acompanha este app.py.
+    Por isso, o pequeno script é anexado às respostas HTML do painel sem exigir uma
+    alteração manual do template.
+    """
+    try:
+        if response.status_code != 200 or not response.mimetype == "text/html":
+            return response
+        html = response.get_data(as_text=True)
+        if "</body>" not in html.lower():
+            return response
+        script = r"""<script id="fioecaixa-service-price-sync">
+(function(){
+  if (window.__fioCaixaPriceSyncInstalled) return;
+  window.__fioCaixaPriceSyncInstalled = true;
+  function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();}
+  function isServiceSelect(el){
+    if(!el || el.tagName!=='SELECT') return false;
+    var hint=norm([el.name,el.id,el.getAttribute('aria-label'),el.getAttribute('data-label')].join(' '));
+    var optionText=norm(Array.from(el.options||[]).map(function(o){return o.text;}).join(' '));
+    return /servico|service|atendimento/.test(hint) || (/servico|service|atendimento/.test(optionText) && el.options.length>1);
+  }
+  function nearbyRoot(el){
+    var n=el;
+    for(var i=0;i<7 && n;i++,n=n.parentElement){
+      if(n.matches && n.matches('form,[role=dialog],dialog,.modal,.modal-content,.card,.panel')) return n;
+    }
+    return el.parentElement || document;
+  }
+  function valueInput(root){
+    var inputs=Array.from(root.querySelectorAll('input:not([type=hidden]),select,textarea'));
+    var candidates=inputs.filter(function(x){
+      if(x.disabled || x.readOnly || x===root) return false;
+      var hint=norm([x.name,x.id,x.getAttribute('placeholder'),x.getAttribute('aria-label')].join(' '));
+      var labels=Array.from(root.querySelectorAll('label')).filter(function(l){return l.htmlFor===x.id || l.contains(x);}).map(function(l){return l.textContent;}).join(' ');
+      hint+=' '+norm(labels);
+      return /valor|preco|price|value/.test(hint) && !/total|devido|pago|desconto/.test(hint);
+    });
+    return candidates[0] || null;
+  }
+  function setValue(input, price){
+    if(!input) return;
+    var value=Number(price); if(!Number.isFinite(value)) return;
+    var formatted=value.toFixed(2);
+    input.value=formatted;
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  async function update(select){
+    var opt=select.options[select.selectedIndex];
+    var service=(opt && (opt.dataset.service || opt.textContent) || select.value || '').trim();
+    if(!service || /^(selecione|escolha|selecione um servico|escolha um servico)$/i.test(norm(service))) return;
+    var root=nearbyRoot(select);
+    var input=valueInput(root);
+    if(!input){
+      // Alguns formulários colocam o seletor e o valor em blocos irmãos.
+      var form=select.closest('form') || select.closest('[role=dialog]') || document;
+      input=valueInput(form);
+    }
+    try{
+      var res=await fetch('/api/service-price?name='+encodeURIComponent(service),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if(!res.ok) return;
+      var data=await res.json();
+      if(data && data.ok && input) setValue(input,data.price);
+    }catch(e){ /* Mantém o formulário utilizável caso a consulta falhe. */ }
+  }
+  document.addEventListener('change',function(e){if(isServiceSelect(e.target)) update(e.target);},true);
+  document.addEventListener('input',function(e){if(isServiceSelect(e.target)) update(e.target);},true);
+  document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('select').forEach(function(s){if(isServiceSelect(s) && s.value) update(s);});});
+})();
+</script>"""
+        import re as _re
+        html = _re.sub(r"</body\s*>", script + "</body>", html, count=1, flags=_re.IGNORECASE)
+        response.set_data(html)
+    except Exception:
+        app.logger.exception("Não foi possível anexar a sincronização automática de preços")
+    return response
+
 # O PostgreSQL do Render pode estar atrás de um pooler em transaction mode.
 # O psycopg 3 prepara statements automaticamente após algumas execuções; isso pode
 # gerar DuplicatePreparedStatement (_pg3_*) no pooler. Desativamos esse recurso
