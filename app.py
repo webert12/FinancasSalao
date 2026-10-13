@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, send_file, flash, abort
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file, flash, abort
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -51,65 +51,12 @@ app.config.update(
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 
-# O PostgreSQL do Render pode estar atrás de um pooler em transaction mode.
-# O psycopg 3 prepara statements automaticamente após algumas execuções; isso pode
-# gerar DuplicatePreparedStatement (_pg3_*) no pooler. Desativamos esse recurso
-# para manter as conexões compatíveis com o pooler, sem alterar os dados.
-engine = create_engine(
-    DB_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-    pool_recycle=1800,
-    connect_args={"prepare_threshold": None},
-)
+engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=5, max_overflow=10, pool_recycle=1800)
 
-# Preços iniciais sugeridos para uma barbearia de bairro no Brasil (referência 2026).
-# Cada profissional pode editar os valores na aba Serviços; não são preços obrigatórios.
 DEFAULT_SERVICES = {
     "Corte de Cabelo": 30.0,
-    "Corte Social": 30.0,
-    "Corte Degradê / Fade": 40.0,
-    "Corte Taper Fade": 40.0,
-    "Corte na Tesoura": 40.0,
-    "Corte Navalhado": 40.0,
-    "Corte Máquina": 25.0,
-    "Corte Infantil": 25.0,
-    "Raspar a Cabeça": 25.0,
-    "Pezinho / Acabamento": 10.0,
-    "Risco / Desenho no Cabelo": 15.0,
-    "Penteado / Finalização": 20.0,
     "Barba": 30.0,
-    "Barba na Máquina": 20.0,
-    "Barba Completa na Navalha": 30.0,
-    "Barba com Toalha Quente": 40.0,
-    "Design de Barba": 35.0,
-    "Cavanhaque": 15.0,
-    "Pezinho da Barba": 10.0,
-    "Sobrancelha": 15.0,
-    "Sobrancelha na Navalha": 15.0,
-    "Sobrancelha na Pinça": 20.0,
-    "Depilação do Nariz": 15.0,
-    "Depilação da Orelha": 15.0,
-    "Limpeza de Pele": 50.0,
-    "Esfoliação Facial": 30.0,
-    "Hidratação Capilar": 40.0,
-    "Pigmentação Capilar": 45.0,
-    "Pigmentação de Barba": 35.0,
-    "Matização": 45.0,
-    "Luzes / Mechas": 120.0,
-    "Platinado": 180.0,
-    "Coloração / Tintura": 70.0,
-    "Relaxamento Capilar": 70.0,
-    "Alisamento Americano": 70.0,
-    "Selagem Capilar": 90.0,
-    "Progressiva": 100.0,
     "Combo Cabelo e Barba": 50.0,
-    "Combo Corte + Sobrancelha": 40.0,
-    "Combo Corte + Barba + Sobrancelha": 65.0,
-    "Combo Corte + Barba + Toalha Quente": 75.0,
-    "Combo Completo Premium": 90.0,
-    "Pacote Noivo / Dia do Noivo": 180.0,
     "Mensalidade": 100.0,
 }
 ALLOWED_HOURS = [f"{h:02d}:{m:02d}" for h in range(8, 21) for m in (0, 30)]
@@ -158,7 +105,6 @@ def init_db():
         "CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT, whatsapp TEXT);",
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp TEXT;",
         "CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);",
-        "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;",
         "CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);",
         "CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL, status TEXT DEFAULT 'Pendente', valor NUMERIC DEFAULT 0, confirmado_em TIMESTAMP, concluido_em TIMESTAMP, financeiro_id INT);",
         "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pendente';",
@@ -345,25 +291,8 @@ def user_valid(user):
 
 
 def get_services(user):
-    # Insere os serviços sugeridos que ainda não existem para esse salão.
-    # Valores que o usuário já cadastrou/editou são preservados; serviços inativados
-    # pelo barbeiro não são recriados automaticamente.
-    with engine.begin() as conn:
-        existing = conn.execute(
-            text("SELECT nome FROM servicos WHERE usuario_id=:u"), {"u": user}
-        ).fetchall()
-        existing_names = {str(row[0]) for row in existing}
-        for name, price in DEFAULT_SERVICES.items():
-            if name not in existing_names:
-                conn.execute(
-                    text("INSERT INTO servicos(usuario_id,nome,preco,ativo) VALUES(:u,:n,:p,TRUE)"),
-                    {"u": user, "n": name, "p": price},
-                )
-    rows = db_exec(
-        "SELECT nome, preco FROM servicos WHERE usuario_id=:u AND ativo=TRUE ORDER BY nome",
-        {"u": user}, True,
-    )
-    return {r[0]: float(r[1]) for r in rows}
+    rows = db_exec("SELECT nome, preco FROM servicos WHERE usuario_id=:u ORDER BY nome", {"u": user}, True)
+    return {r[0]: float(r[1]) for r in rows} if rows else dict(DEFAULT_SERVICES)
 
 
 def get_flow(user):
@@ -697,17 +626,12 @@ def api_services():
         old = str(data.get("old", "")).strip()
         if not name or price < 0: return jsonify({"error": "Informe nome e preço válidos"}), 400
         if old and old != "__new__":
-            db_exec("UPDATE servicos SET nome=:n,preco=:p,ativo=TRUE WHERE usuario_id=:u AND nome=:o", {"n": name, "p": price, "u": user, "o": old})
+            db_exec("UPDATE servicos SET nome=:n,preco=:p WHERE usuario_id=:u AND nome=:o", {"n": name, "p": price, "u": user, "o": old})
         else:
-            existing = db_exec("SELECT id FROM servicos WHERE usuario_id=:u AND nome=:n ORDER BY id LIMIT 1", {"u": user, "n": name}, True)
-            if existing:
-                db_exec("UPDATE servicos SET preco=:p,ativo=TRUE WHERE usuario_id=:u AND nome=:n", {"p": price, "u": user, "n": name})
-            else:
-                db_exec("INSERT INTO servicos(usuario_id,nome,preco,ativo) VALUES(:u,:n,:p,TRUE)", {"u": user, "n": name, "p": price})
+            db_exec("INSERT INTO servicos(usuario_id,nome,preco) VALUES(:u,:n,:p)", {"u": user, "n": name, "p": price})
     else:
         name = request.args.get("name", "")
-        # Inativação preserva o histórico e evita que um padrão removido reapareça.
-        db_exec("UPDATE servicos SET ativo=FALSE WHERE usuario_id=:u AND nome=:n", {"u": user, "n": name})
+        db_exec("DELETE FROM servicos WHERE usuario_id=:u AND nome=:n", {"u": user, "n": name})
     return jsonify({"ok": True, "services": get_services(user)})
 
 
@@ -783,7 +707,7 @@ def create_appointment():
         with engine.begin() as conn:
             lock_key = int(hashlib.sha256(f"{user}|{date}|{hour}".encode()).hexdigest()[:15], 16) % (2**63 - 1)
             conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": lock_key})
-            exists = conn.execute(text("SELECT 1 FROM agendamentos WHERE usuario_id=:u AND data=:d AND hora=:h AND COALESCE(status, 'Pendente') <> 'Cancelado'"), {"u": user, "d": date, "h": hour}).fetchone()
+            exists = conn.execute(text("SELECT 1 FROM agendamentos WHERE usuario_id=:u AND data=:d AND hora=:h"), {"u": user, "d": date, "h": hour}).fetchone()
             if exists: return jsonify({"error": "Esse horário já está ocupado"}), 409
             conn.execute(text("INSERT INTO agendamentos(usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor) VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v)"), {"u": user, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": float(services[service])})
     except Exception:
@@ -831,175 +755,58 @@ def appointment_action(aid):
     return jsonify({"error": "Ação inválida"}), 400
 
 
-BOOKING_TEMPLATE = r"""
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b1220">
-<title>Agendar horário | Fio&Caixa</title>
-<style>
-:root{color-scheme:dark;--bg:#08111f;--panel:#101b2d;--panel2:#142238;--line:#263750;--text:#edf4ff;--muted:#9aacc5;--blue:#3b82f6;--blue2:#2563eb}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0%,#142a49 0,transparent 34%),var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.45}
-.wrap{width:min(1040px,100%);margin:0 auto;padding:24px 16px 48px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}.logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#60a5fa,#2563eb);font-size:23px;font-weight:900;color:white}.brand h1{font-size:20px;margin:0;font-weight:800}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}
-.hero{margin-bottom:22px}.eyebrow{color:#93c5fd;text-transform:uppercase;letter-spacing:1.8px;font-size:11px;font-weight:800}.hero h2{font-size:clamp(26px,5vw,38px);line-height:1.12;margin:8px 0}.hero p{color:var(--muted);margin:0;max-width:650px}
-.layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:18px;align-items:start}.panel{background:linear-gradient(180deg,#111e31,#0d1727);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 18px 45px #0002}.panel h3{font-size:16px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
-.monthbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 14px}.monthbar strong{font-size:15px;text-transform:capitalize}.iconbtn{border:1px solid var(--line);background:var(--panel2);color:var(--text);width:38px;height:38px;border-radius:11px;font-size:20px;cursor:pointer}.iconbtn:disabled{opacity:.3;cursor:not-allowed}
-.week,.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.week span{text-align:center;color:var(--muted);font-size:11px;padding:7px 0}.day{min-width:0;aspect-ratio:1;border:1px solid transparent;background:#15243a;color:var(--text);border-radius:11px;cursor:pointer;font-size:13px}.day:hover:not(:disabled){border-color:#60a5fa;background:#1b3454}.day:disabled{opacity:.25;cursor:not-allowed}.day.selected{background:var(--blue);border-color:#93c5fd;color:white;font-weight:800}.day.today{box-shadow:inset 0 0 0 1px #60a5fa}.day.empty{background:transparent;cursor:default}
-.selected-date{display:flex;gap:10px;align-items:center;margin:16px 0 0;padding:12px;background:#15243a;border-radius:12px;color:#dbeafe;font-size:13px}.selected-date .calico{font-size:21px}.selected-date strong{display:block}.slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}.slot{border:1px solid #31445f;border-radius:10px;background:#142238;color:#eaf2ff;padding:11px 4px;cursor:pointer;font-weight:700;font-size:13px}.slot:hover{border-color:#60a5fa}.slot.selected{background:var(--blue2);border-color:#93c5fd}.hint{font-size:12px;color:var(--muted);margin:12px 0 0}.empty-state{padding:18px 10px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed #31445f;border-radius:12px}
-.field{margin-bottom:15px}.field label{display:block;font-size:12px;font-weight:750;color:#d6e4f7;margin-bottom:7px}.field input{width:100%;min-height:45px;background:#091321;border:1px solid #30415a;border-radius:11px;color:var(--text);padding:11px 12px;font:inherit;font-size:14px;outline:none}.field input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #3b82f622}
- .service-picker{margin:12px 0 17px}.service-picker summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;padding:14px;border:1px solid #355071;border-radius:13px;background:#12233a;color:#eaf2ff;font-weight:800;font-size:14px;cursor:pointer}.service-picker summary::-webkit-details-marker{display:none}.service-picker summary:after{content:'＋';font-size:20px;color:#93c5fd}.service-picker[open] summary{border-color:#60a5fa;border-radius:13px 13px 0 0}.service-picker[open] summary:after{content:'−'}.service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;border:1px solid #2c3e57;border-top:0;border-radius:0 0 13px 13px;background:#0a1525}.service-option{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:9px;min-height:88px;padding:13px;border:1px solid #2c3e57;border-radius:12px;background:#101e31;cursor:pointer;transition:border-color .15s,background .15s}.service-option:hover{border-color:#60a5fa;background:#142a46}.service-option:has(input:checked){border-color:#60a5fa;background:#17365a;box-shadow:inset 0 0 0 1px #60a5fa}.service-option input{position:absolute;opacity:0;pointer-events:none}.service-name{font-size:13px;font-weight:750;line-height:1.35}.price{font-size:14px;font-weight:850;color:#86efac;white-space:nowrap}.service-selected{font-size:12px;color:#93c5fd;margin:8px 2px 0}.service-selected strong{color:#eaf2ff}@media(max-width:380px){.service-grid{grid-template-columns:1fr}}
-.summary{border:1px solid #2b4260;background:#0a1728;border-radius:13px;padding:13px;margin:16px 0}.summaryline{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;margin:5px 0}.summaryline strong{color:var(--text);text-align:right}.summaryline.total{border-top:1px solid #2b4260;padding-top:10px;margin-top:10px;font-size:14px}.summaryline.total strong{color:#86efac;font-size:17px}
-.submit{display:block;width:100%;border:0;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:14px 16px;font-weight:850;font-size:14px;cursor:pointer;text-align:center;box-shadow:0 8px 24px #2563eb33}.submit:hover{filter:brightness(1.08)}.submit:disabled{opacity:.5;cursor:not-allowed}
-.flash{padding:12px 14px;border-radius:12px;margin:0 0 16px;font-size:13px}.flash.error{background:#451a24;border:1px solid #9f3346;color:#fecdd3}.flash.success{background:#123324;border:1px solid #26734b;color:#bbf7d0}.success-card,.unavailable{max-width:680px;margin:20px auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:26px;text-align:center}.success-mark{margin:0 auto 14px;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:#14532d;color:#bbf7d0;font-size:28px}.success-card h2,.unavailable h2{margin:8px 0}.success-card p,.unavailable p{color:var(--muted)}.success-detail{background:#0a1728;border-radius:12px;padding:14px;text-align:left;margin:18px 0}.success-detail div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:13px}.success-detail span{color:var(--muted)}.footer{text-align:center;color:#6f829d;font-size:11px;margin-top:22px}
-@media(max-width:760px){.wrap{padding:18px 12px 34px}.layout{grid-template-columns:1fr}.panel{padding:16px}.slots{grid-template-columns:repeat(3,minmax(0,1fr))}.hero h2{font-size:30px}}
-</style></head><body><div class="wrap">
-<header class="brand"><div class="logo">F</div><div><h1>Fio&Caixa</h1><p>Gestão & Agendamento</p></div></header>
-{% if unavailable %}
-<section class="unavailable"><div class="success-mark">!</div><h2>Agendamento indisponível</h2><p>Este salão não está disponível para agendamentos online no momento. Confira o link ou entre em contato diretamente com o estabelecimento.</p></section>
-{% elif success %}
-<section class="success-card"><div class="success-mark">✓</div><div class="eyebrow">Solicitação registrada</div><h2>Obrigado, {{ success.nome|e }}!</h2><p>Seu horário foi solicitado com sucesso. O salão recebeu o registro e poderá confirmar o atendimento.</p>
-<div class="success-detail"><div><span>Estabelecimento</span><strong>{{ name|e }}</strong></div><div><span>Serviço</span><strong>{{ success.servico|e }}</strong></div><div><span>Data</span><strong>{{ success.data_display }}</strong></div><div><span>Horário</span><strong>{{ success.hora }}</strong></div><div><span>Valor</span><strong>{{ success.valor_display }}</strong></div><div><span>Status</span><strong style="color:#fcd34d">Pendente de confirmação</strong></div></div>
-{% if success.owner_whatsapp %}<a class="submit" style="text-decoration:none" href="{{ ('https://wa.me/' ~ success.owner_whatsapp ~ '?text=' ~ success.owner_message|urlencode) }}" target="_blank" rel="noopener">Entrar em contato pelo WhatsApp</a>{% endif %}</section>
-{% else %}
-<section class="hero"><div class="eyebrow">Reserve seu horário</div><h2>Seu próximo cuidado começa aqui.</h2><p>Escolha o serviço, selecione o melhor dia e horário e envie sua solicitação ao salão.</p></section>
-{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endwith %}
-<form method="post" id="bookingForm"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="salao" value="{{ salao }}"><input type="hidden" name="data" id="dateInput" value="{{ form_data.get('data', today) }}"><input type="hidden" name="hora" id="timeInput" value="{{ form_data.get('hora', '') }}">
-<div class="layout"><section class="panel"><h3>1. Escolha o dia</h3><p class="sub">Selecione uma data disponível no calendário.</p>
-<div class="monthbar"><button type="button" class="iconbtn" id="prevMonth" aria-label="Mês anterior">‹</button><strong id="monthLabel"></strong><button type="button" class="iconbtn" id="nextMonth" aria-label="Próximo mês">›</button></div>
-<div class="week"><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span><span>DOM</span></div><div class="days" id="calendarDays"></div>
-<div class="selected-date"><span class="calico">📅</span><div><strong id="selectedDateLabel">Selecione uma data</strong><span>Horários no fuso de Brasília</span></div></div>
-<h3 style="margin-top:22px">2. Escolha o horário</h3><p class="sub">Os horários ocupados não aparecem na lista.</p><div id="slots" class="slots"><div class="empty-state" style="grid-column:1/-1">Selecione um dia para consultar os horários.</div></div><p class="hint">Os horários são atualizados a partir dos agendamentos registrados pelo salão.</p></section>
-<section class="panel"><h3>3. Serviço e seus dados</h3><p class="sub">Confira o preço e informe como podemos identificar você.</p>
-<details class="service-picker" id="servicePicker"><summary><span id="servicePickerLabel">Toque para escolher um serviço</span></summary><div class="service-grid">{% for service, price in services.items() %}<label class="service-option"><input type="radio" name="servico" value="{{ service }}" data-price="{{ '%.2f'|format(price) }}" {% if form_data.get('servico') == service %}checked{% endif %} required><span class="service-name">{{ service }}</span><span class="price">{{ ('R$ %.2f'|format(price)).replace('.', ',') }}</span></label>{% endfor %}</div></details><p class="service-selected" id="serviceSelectedLabel">Nenhum serviço selecionado.</p>
-<div class="field"><label for="nome">Seu nome completo</label><input id="nome" name="nome" type="text" maxlength="100" autocomplete="name" placeholder="Ex.: Maria Oliveira" value="{{ form_data.get('nome','') }}" required></div>
-<div class="field"><label for="telefone">WhatsApp com DDD</label><input id="telefone" name="telefone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="Ex.: (31) 99999-9999" value="{{ form_data.get('telefone','') }}" required></div>
-<div class="summary"><div class="summaryline"><span>Serviço</span><strong id="summaryService">—</strong></div><div class="summaryline"><span>Data</span><strong id="summaryDate">—</strong></div><div class="summaryline"><span>Horário</span><strong id="summaryTime">Selecione um horário</strong></div><div class="summaryline total"><span>Valor do serviço</span><strong id="summaryPrice">—</strong></div></div>
-<button class="submit" id="submitBtn" type="submit">Solicitar agendamento</button><p class="hint">Seu agendamento será registrado como pendente até a confirmação do salão.</p></section></div></form>
-{% endif %}<div class="footer">Fio&Caixa · Agendamento online</div></div>
-{% if not unavailable and not success %}<script>
-(() => {
- const salon={{ salao|tojson }}, todayText={{ today|tojson }}, initialDate={{ form_data.get('data', today)|tojson }}, initialTime={{ form_data.get('hora', '')|tojson }};
- const parseDate=s=>{const p=String(s||todayText).split('-').map(Number);return new Date(p[0],(p[1]||1)-1,p[2]||1)};
- const today=parseDate(todayText), maxDate=new Date(today.getFullYear(),today.getMonth(),today.getDate()+90);
- let selectedDate=parseDate(initialDate), selectedTime=initialTime, visibleMonth=new Date(selectedDate.getFullYear(),selectedDate.getMonth(),1);
- const daysBox=document.getElementById('calendarDays'), monthLabel=document.getElementById('monthLabel'), dateInput=document.getElementById('dateInput'), timeInput=document.getElementById('timeInput'), slotsBox=document.getElementById('slots'), submitBtn=document.getElementById('submitBtn');
- const ptDate=new Intl.DateTimeFormat('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}), money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
- const dateKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
- const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
- function renderCalendar(){
-  daysBox.innerHTML='';monthLabel.textContent=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric'}).format(visibleMonth);
-  document.getElementById('prevMonth').disabled=visibleMonth.getFullYear()===today.getFullYear()&&visibleMonth.getMonth()===today.getMonth();
-  document.getElementById('nextMonth').disabled=visibleMonth.getFullYear()===maxDate.getFullYear()&&visibleMonth.getMonth()===maxDate.getMonth();
-  const first=new Date(visibleMonth.getFullYear(),visibleMonth.getMonth(),1), offset=(first.getDay()+6)%7;
-  for(let i=0;i<offset;i++){const blank=document.createElement('div');blank.className='day empty';daysBox.appendChild(blank)}
-  const count=new Date(visibleMonth.getFullYear(),visibleMonth.getMonth()+1,0).getDate();
-  for(let day=1;day<=count;day++){const date=new Date(visibleMonth.getFullYear(),visibleMonth.getMonth(),day),btn=document.createElement('button');btn.type='button';btn.className='day';btn.textContent=day;
-   btn.disabled=date<new Date(today.getFullYear(),today.getMonth(),today.getDate())||date>maxDate;
-   if(sameDay(date,today))btn.classList.add('today');if(sameDay(date,selectedDate))btn.classList.add('selected');
-   btn.setAttribute('aria-label',ptDate.format(date));btn.addEventListener('click',()=>chooseDate(date));daysBox.appendChild(btn)}
- }
- function chooseDate(date){selectedDate=new Date(date.getFullYear(),date.getMonth(),date.getDate());visibleMonth=new Date(date.getFullYear(),date.getMonth(),1);selectedTime='';timeInput.value='';dateInput.value=dateKey(selectedDate);renderCalendar();updateSummary();loadSlots()}
- async function loadSlots(){
-  slotsBox.innerHTML='<div class="empty-state" style="grid-column:1/-1">Consultando horários disponíveis…</div>';
-  try{const response=await fetch(`/api/booking/slots?salao=${encodeURIComponent(salon)}&date=${encodeURIComponent(dateKey(selectedDate))}`,{headers:{'Accept':'application/json'}});if(!response.ok)throw new Error('Falha ao consultar');const slots=await response.json();slotsBox.innerHTML='';
-   if(!slots.length){slotsBox.innerHTML='<div class="empty-state" style="grid-column:1/-1">Não há horários livres neste dia. Escolha outra data.</div>';selectedTime='';timeInput.value='';updateSummary();return}
-   slots.forEach(time=>{const btn=document.createElement('button');btn.type='button';btn.className='slot';btn.textContent=time;if(time===selectedTime)btn.classList.add('selected');btn.addEventListener('click',()=>{selectedTime=time;timeInput.value=time;slotsBox.querySelectorAll('.slot').forEach(el=>el.classList.toggle('selected',el===btn));updateSummary()});slotsBox.appendChild(btn)});
-   if(selectedTime&&!slots.includes(selectedTime)){selectedTime='';timeInput.value='';updateSummary()}
-  }catch(e){slotsBox.innerHTML='<div class="empty-state" style="grid-column:1/-1">Não foi possível carregar os horários. Atualize a página e tente novamente.</div>'}
- }
- function updateSummary(){const service=document.querySelector('input[name="servico"]:checked');document.getElementById('selectedDateLabel').textContent=ptDate.format(selectedDate);document.getElementById('summaryService').textContent=service?service.value:'—';document.getElementById('summaryDate').textContent=selectedDate.toLocaleDateString('pt-BR');document.getElementById('summaryTime').textContent=selectedTime||'Selecione um horário';document.getElementById('summaryPrice').textContent=service?money(service.dataset.price):'—';document.getElementById('servicePickerLabel').textContent=service?'Serviço escolhido: '+service.value:'Toque para escolher um serviço';document.getElementById('serviceSelectedLabel').innerHTML=service?'Selecionado: <strong>'+service.value+'</strong> · '+money(service.dataset.price):'Nenhum serviço selecionado.';submitBtn.disabled=!(service&&selectedTime&&dateInput.value)}
- document.getElementById('prevMonth').addEventListener('click',()=>{if(!document.getElementById('prevMonth').disabled){visibleMonth=new Date(visibleMonth.getFullYear(),visibleMonth.getMonth()-1,1);renderCalendar()}});
- document.getElementById('nextMonth').addEventListener('click',()=>{if(!document.getElementById('nextMonth').disabled){visibleMonth=new Date(visibleMonth.getFullYear(),visibleMonth.getMonth()+1,1);renderCalendar()}});
- document.querySelectorAll('input[name="servico"]').forEach(el=>el.addEventListener('change',updateSummary));
- document.getElementById('bookingForm').addEventListener('submit',e=>{if(!dateInput.value||!timeInput.value||!document.querySelector('input[name="servico"]:checked')){e.preventDefault();alert('Selecione uma data, um horário e um serviço antes de continuar')}else{submitBtn.disabled=true;submitBtn.textContent='Enviando solicitação…'}});
- if(selectedDate<new Date(today.getFullYear(),today.getMonth(),today.getDate())||selectedDate>maxDate)selectedDate=new Date(today);
- dateInput.value=dateKey(selectedDate);renderCalendar();updateSummary();loadSlots();
-})();
-</script>{% endif %}</body></html>
-"""
-
-
 @app.route("/api/booking/slots")
 def booking_slots():
-    salao = request.args.get("salao", "").strip().lower() or (current_user() if require_login() and not require_admin() else "")
-    date = request.args.get("date", "")
+    salao = request.args.get("salao", "").strip().lower() or (current_user() if require_login() and not require_admin() else ""); date = request.args.get("date", "")
     u = users().get(salao)
-    if not u or not user_valid(u):
-        return jsonify([])
+    if not u or not user_valid(u): return jsonify([])
     try:
         day = datetime.strptime(date, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
+    except ValueError:
         return jsonify([])
     today = datetime.now(TZ).date()
-    if day < today or day > today + timedelta(days=90):
-        return jsonify([])
-    rows = db_exec(
-        """SELECT hora FROM agendamentos
-           WHERE usuario_id=:u AND data=:d
-             AND COALESCE(status, 'Pendente') <> 'Cancelado'""",
-        {"u": salao, "d": date}, True
-    )
-    booked = {str(row[0])[:5] for row in rows}
-    slots = [hour for hour in ALLOWED_HOURS if hour not in booked]
+    if day < today or day > today + timedelta(days=90): return jsonify([])
+    booked = {r[0] for r in db_exec("SELECT hora FROM agendamentos WHERE usuario_id=:u AND data=:d", {"u": salao, "d": date}, True)}
+    slots = [h for h in ALLOWED_HOURS if h not in booked]
     if day == today:
         now_hm = datetime.now(TZ).strftime("%H:%M")
-        slots = [hour for hour in slots if hour > now_hm]
+        slots = [h for h in slots if h > now_hm]
     return jsonify(slots)
 
 
 @app.route("/agendar", methods=["GET", "POST"])
 def booking():
     salao = urllib.parse.unquote(request.args.get("salao") or request.form.get("salao") or "").strip().lower()
-    today = datetime.now(TZ).date().isoformat()
-    form_data = {
-        "nome": str(request.form.get("nome", "")),
-        "telefone": str(request.form.get("telefone", "")),
-        "servico": str(request.form.get("servico", "")),
-        "data": str(request.form.get("data", today)),
-        "hora": str(request.form.get("hora", "")),
-    }
     u = users().get(salao)
     if not u or not user_valid(u):
-        return render_template_string(BOOKING_TEMPLATE, unavailable=True, salao=salao, today=today, form_data=form_data)
-    services = get_services(salao)
-    success = None
+        return render_template("booking.html", unavailable=True, salao=salao)
+    services = get_services(salao); success = None
     if request.method == "POST":
         name = str(request.form.get("nome", "")).strip()[:100]
         phone = normalize_phone(request.form.get("telefone", ""))[:20]
-        service = str(request.form.get("servico", "")).strip()
-        date = str(request.form.get("data", ""))
-        hour = str(request.form.get("hora", ""))
+        service = request.form.get("servico", ""); date = request.form.get("data", ""); hour = request.form.get("hora", "")
         dt = valid_date_time(date, hour)
-        if len(name) < 2 or len(phone) < 8 or service not in services or not dt:
-            flash("Confira seu nome, WhatsApp, serviço, data e horário.", "error")
+        if not name or len(phone) < 8 or service not in services or not dt:
+            flash("Preencha os dados corretamente.", "error")
         elif dt <= datetime.now(TZ):
             flash("Escolha um horário futuro.", "error")
-        elif dt.date() > datetime.now(TZ).date() + timedelta(days=90):
-            flash("Escolha uma data dentro dos próximos 90 dias.", "error")
         else:
             try:
                 with engine.begin() as conn:
                     lock_key = int(hashlib.sha256(f"{salao}|{date}|{hour}".encode()).hexdigest()[:15], 16) % (2**63 - 1)
                     conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": lock_key})
-                    exists = conn.execute(
-                        text("""SELECT 1 FROM agendamentos
-                                WHERE usuario_id=:u AND data=:d AND hora=:h
-                                  AND COALESCE(status, 'Pendente') <> 'Cancelado'"""),
-                        {"u": salao, "d": date, "h": hour},
-                    ).fetchone()
+                    exists = conn.execute(text("SELECT 1 FROM agendamentos WHERE usuario_id=:u AND data=:d AND hora=:h"), {"u": salao, "d": date, "h": hour}).fetchone()
                     if exists:
                         flash("Esse horário acabou de ser ocupado. Escolha outro.", "error")
                     else:
-                        price = float(services[service])
-                        saved = conn.execute(
-                            text("""INSERT INTO agendamentos
-                                (usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor)
-                                VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v) RETURNING id"""),
-                            {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": price},
-                        ).scalar_one_or_none()
+                        saved = conn.execute(text("""INSERT INTO agendamentos
+                            (usuario_id,cliente_nome,cliente_contato,servico_nome,data,hora,status,valor)
+                            VALUES(:u,:n,:c,:s,:d,:h,'Pendente',:v) RETURNING id"""),
+                            {"u": salao, "n": name, "c": phone, "s": service, "d": date, "h": hour, "v": float(services[service])}).scalar_one_or_none()
                         if not saved:
                             raise RuntimeError("O banco não retornou o ID do agendamento salvo")
                         app.logger.info("Agendamento online salvo: id=%s salao=%s data=%s hora=%s", saved, salao, date, hour)
+                        price = float(services[service])
                         date_display = datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
                         price_display = f"R$ {price:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         owner_phone = normalize_phone(u.get("whatsapp", ""))
@@ -1008,15 +815,16 @@ def booking():
                             f"👤 *Cliente:* {name}\n"
                             f"📅 *Data:* {date_display}\n"
                             f"⏰ *Horário:* {hour}\n"
-                            f"💈 *Serviço:* {service}\n"
+                            f"💈 *Serviço(s):* {service}\n"
                             f"💵 *Valor Total:* {price_display}"
                         )
                         success = {
-                            "nome": name, "servico": service, "data": date,
-                            "data_display": date_display, "hora": hour, "phone": phone,
-                            "salao": salao, "valor": price, "valor_display": price_display,
-                            "owner_whatsapp": owner_phone, "owner_message": owner_message,
+                            "nome": name, "servico": service, "data": date, "data_display": date_display,
+                            "hora": hour, "phone": phone, "salao": salao, "valor": price,
+                            "valor_display": price_display, "owner_whatsapp": owner_phone,
+                            "owner_message": owner_message,
                         }
+                # A reserva já foi confirmada no commit do PostgreSQL antes de chamar o WhatsApp.
                 if success and owner_phone:
                     send_whatsapp_notification(owner_phone, owner_message)
                 elif success:
@@ -1024,12 +832,7 @@ def booking():
             except Exception:
                 app.logger.exception("Falha ao gravar agendamento online (salao=%s, data=%s, hora=%s)", salao, date, hour)
                 flash("Não foi possível salvar o agendamento no banco. Nenhuma confirmação foi registrada; tente novamente.", "error")
-    services = get_services(salao)
-    return render_template_string(
-        BOOKING_TEMPLATE, unavailable=False, salao=salao,
-        name=salao.replace("_", " ").replace("-", " ").title(),
-        services=services, success=success, today=today, form_data=form_data,
-    )
+    return render_template("booking.html", unavailable=False, salao=salao, name=salao.replace("_", " ").title(), services=services, success=success, today=datetime.now(TZ).date().isoformat())
 
 
 @app.route("/backup.json")
