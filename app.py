@@ -53,10 +53,52 @@ app.config.update(
 
 engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=5, max_overflow=10, pool_recycle=1800)
 
+# Preços iniciais sugeridos para uma barbearia de bairro no Brasil (referência 2026).
+# Cada profissional pode editar os valores na aba Serviços; não são preços obrigatórios.
 DEFAULT_SERVICES = {
     "Corte de Cabelo": 30.0,
+    "Corte Social": 30.0,
+    "Corte Degradê / Fade": 40.0,
+    "Corte Taper Fade": 40.0,
+    "Corte na Tesoura": 40.0,
+    "Corte Navalhado": 40.0,
+    "Corte Máquina": 25.0,
+    "Corte Infantil": 25.0,
+    "Raspar a Cabeça": 25.0,
+    "Pezinho / Acabamento": 10.0,
+    "Risco / Desenho no Cabelo": 15.0,
+    "Penteado / Finalização": 20.0,
     "Barba": 30.0,
+    "Barba na Máquina": 20.0,
+    "Barba Completa na Navalha": 30.0,
+    "Barba com Toalha Quente": 40.0,
+    "Design de Barba": 35.0,
+    "Cavanhaque": 15.0,
+    "Pezinho da Barba": 10.0,
+    "Sobrancelha": 15.0,
+    "Sobrancelha na Navalha": 15.0,
+    "Sobrancelha na Pinça": 20.0,
+    "Depilação do Nariz": 15.0,
+    "Depilação da Orelha": 15.0,
+    "Limpeza de Pele": 50.0,
+    "Esfoliação Facial": 30.0,
+    "Hidratação Capilar": 40.0,
+    "Pigmentação Capilar": 45.0,
+    "Pigmentação de Barba": 35.0,
+    "Matização": 45.0,
+    "Luzes / Mechas": 120.0,
+    "Platinado": 180.0,
+    "Coloração / Tintura": 70.0,
+    "Relaxamento Capilar": 70.0,
+    "Alisamento Americano": 70.0,
+    "Selagem Capilar": 90.0,
+    "Progressiva": 100.0,
     "Combo Cabelo e Barba": 50.0,
+    "Combo Corte + Sobrancelha": 40.0,
+    "Combo Corte + Barba + Sobrancelha": 65.0,
+    "Combo Corte + Barba + Toalha Quente": 75.0,
+    "Combo Completo Premium": 90.0,
+    "Pacote Noivo / Dia do Noivo": 180.0,
     "Mensalidade": 100.0,
 }
 ALLOWED_HOURS = [f"{h:02d}:{m:02d}" for h in range(8, 21) for m in (0, 30)]
@@ -105,6 +147,7 @@ def init_db():
         "CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, senha TEXT NOT NULL, email TEXT, tipo TEXT, vencimento TEXT, status TEXT, whatsapp TEXT);",
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp TEXT;",
         "CREATE TABLE IF NOT EXISTS servicos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, nome TEXT NOT NULL, preco NUMERIC NOT NULL);",
+        "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;",
         "CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, data TEXT NOT NULL, tipo TEXT NOT NULL, descricao TEXT NOT NULL, valor NUMERIC NOT NULL);",
         "CREATE TABLE IF NOT EXISTS agendamentos (id SERIAL PRIMARY KEY, usuario_id TEXT NOT NULL, cliente_nome TEXT NOT NULL, cliente_contato TEXT, servico_nome TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL, status TEXT DEFAULT 'Pendente', valor NUMERIC DEFAULT 0, confirmado_em TIMESTAMP, concluido_em TIMESTAMP, financeiro_id INT);",
         "ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pendente';",
@@ -291,8 +334,25 @@ def user_valid(user):
 
 
 def get_services(user):
-    rows = db_exec("SELECT nome, preco FROM servicos WHERE usuario_id=:u ORDER BY nome", {"u": user}, True)
-    return {r[0]: float(r[1]) for r in rows} if rows else dict(DEFAULT_SERVICES)
+    # Insere os serviços sugeridos que ainda não existem para esse salão.
+    # Valores que o usuário já cadastrou/editou são preservados; serviços inativados
+    # pelo barbeiro não são recriados automaticamente.
+    with engine.begin() as conn:
+        existing = conn.execute(
+            text("SELECT nome FROM servicos WHERE usuario_id=:u"), {"u": user}
+        ).fetchall()
+        existing_names = {str(row[0]) for row in existing}
+        for name, price in DEFAULT_SERVICES.items():
+            if name not in existing_names:
+                conn.execute(
+                    text("INSERT INTO servicos(usuario_id,nome,preco,ativo) VALUES(:u,:n,:p,TRUE)"),
+                    {"u": user, "n": name, "p": price},
+                )
+    rows = db_exec(
+        "SELECT nome, preco FROM servicos WHERE usuario_id=:u AND ativo=TRUE ORDER BY nome",
+        {"u": user}, True,
+    )
+    return {r[0]: float(r[1]) for r in rows}
 
 
 def get_flow(user):
@@ -626,12 +686,17 @@ def api_services():
         old = str(data.get("old", "")).strip()
         if not name or price < 0: return jsonify({"error": "Informe nome e preço válidos"}), 400
         if old and old != "__new__":
-            db_exec("UPDATE servicos SET nome=:n,preco=:p WHERE usuario_id=:u AND nome=:o", {"n": name, "p": price, "u": user, "o": old})
+            db_exec("UPDATE servicos SET nome=:n,preco=:p,ativo=TRUE WHERE usuario_id=:u AND nome=:o", {"n": name, "p": price, "u": user, "o": old})
         else:
-            db_exec("INSERT INTO servicos(usuario_id,nome,preco) VALUES(:u,:n,:p)", {"u": user, "n": name, "p": price})
+            existing = db_exec("SELECT id FROM servicos WHERE usuario_id=:u AND nome=:n ORDER BY id LIMIT 1", {"u": user, "n": name}, True)
+            if existing:
+                db_exec("UPDATE servicos SET preco=:p,ativo=TRUE WHERE usuario_id=:u AND nome=:n", {"p": price, "u": user, "n": name})
+            else:
+                db_exec("INSERT INTO servicos(usuario_id,nome,preco,ativo) VALUES(:u,:n,:p,TRUE)", {"u": user, "n": name, "p": price})
     else:
         name = request.args.get("name", "")
-        db_exec("DELETE FROM servicos WHERE usuario_id=:u AND nome=:n", {"u": user, "n": name})
+        # Inativação preserva o histórico e evita que um padrão removido reapareça.
+        db_exec("UPDATE servicos SET ativo=FALSE WHERE usuario_id=:u AND nome=:n", {"u": user, "n": name})
     return jsonify({"ok": True, "services": get_services(user)})
 
 
