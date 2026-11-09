@@ -52,87 +52,6 @@ app.config.update(
 )
 
 
-@app.after_request
-def sync_service_price_in_dashboard(response):
-    """Mantém o campo Valor sincronizado com o preço cadastrado ao escolher um serviço.
-
-    O painel é um template separado (dashboard.html), que não acompanha este app.py.
-    Por isso, o pequeno script é anexado às respostas HTML do painel sem exigir uma
-    alteração manual do template.
-    """
-    try:
-        if response.status_code != 200 or not response.mimetype == "text/html":
-            return response
-        html = response.get_data(as_text=True)
-        if "</body>" not in html.lower():
-            return response
-        script = r"""<script id="fioecaixa-service-price-sync">
-(function(){
-  if (window.__fioCaixaPriceSyncInstalled) return;
-  window.__fioCaixaPriceSyncInstalled = true;
-  function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();}
-  function isServiceSelect(el){
-    if(!el || el.tagName!=='SELECT') return false;
-    var hint=norm([el.name,el.id,el.getAttribute('aria-label'),el.getAttribute('data-label')].join(' '));
-    var optionText=norm(Array.from(el.options||[]).map(function(o){return o.text;}).join(' '));
-    return /servico|service|atendimento/.test(hint) || (/servico|service|atendimento/.test(optionText) && el.options.length>1);
-  }
-  function nearbyRoot(el){
-    var n=el;
-    for(var i=0;i<7 && n;i++,n=n.parentElement){
-      if(n.matches && n.matches('form,[role=dialog],dialog,.modal,.modal-content,.card,.panel')) return n;
-    }
-    return el.parentElement || document;
-  }
-  function valueInput(root){
-    var inputs=Array.from(root.querySelectorAll('input:not([type=hidden]),select,textarea'));
-    var candidates=inputs.filter(function(x){
-      if(x.disabled || x.readOnly || x===root) return false;
-      var hint=norm([x.name,x.id,x.getAttribute('placeholder'),x.getAttribute('aria-label')].join(' '));
-      var labels=Array.from(root.querySelectorAll('label')).filter(function(l){return l.htmlFor===x.id || l.contains(x);}).map(function(l){return l.textContent;}).join(' ');
-      hint+=' '+norm(labels);
-      return /valor|preco|price|value/.test(hint) && !/total|devido|pago|desconto/.test(hint);
-    });
-    return candidates[0] || null;
-  }
-  function setValue(input, price){
-    if(!input) return;
-    var value=Number(price); if(!Number.isFinite(value)) return;
-    var formatted=value.toFixed(2);
-    input.value=formatted;
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-    input.dispatchEvent(new Event('change',{bubbles:true}));
-  }
-  async function update(select){
-    var opt=select.options[select.selectedIndex];
-    var service=(opt && (opt.dataset.service || opt.textContent) || select.value || '').trim();
-    if(!service || /^(selecione|escolha|selecione um servico|escolha um servico)$/i.test(norm(service))) return;
-    var root=nearbyRoot(select);
-    var input=valueInput(root);
-    if(!input){
-      // Alguns formulários colocam o seletor e o valor em blocos irmãos.
-      var form=select.closest('form') || select.closest('[role=dialog]') || document;
-      input=valueInput(form);
-    }
-    try{
-      var res=await fetch('/api/service-price?name='+encodeURIComponent(service),{credentials:'same-origin',headers:{'Accept':'application/json'}});
-      if(!res.ok) return;
-      var data=await res.json();
-      if(data && data.ok && input) setValue(input,data.price);
-    }catch(e){ /* Mantém o formulário utilizável caso a consulta falhe. */ }
-  }
-  document.addEventListener('change',function(e){if(isServiceSelect(e.target)) update(e.target);},true);
-  document.addEventListener('input',function(e){if(isServiceSelect(e.target)) update(e.target);},true);
-  document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('select').forEach(function(s){if(isServiceSelect(s) && s.value) update(s);});});
-})();
-</script>"""
-        import re as _re
-        html = _re.sub(r"</body\s*>", script + "</body>", html, count=1, flags=_re.IGNORECASE)
-        response.set_data(html)
-    except Exception:
-        app.logger.exception("Não foi possível anexar a sincronização automática de preços")
-    return response
-
 # O PostgreSQL do Render pode estar atrás de um pooler em transaction mode.
 # O psycopg 3 prepara statements automaticamente após algumas execuções; isso pode
 # gerar DuplicatePreparedStatement (_pg3_*) no pooler. Desativamos esse recurso
@@ -370,7 +289,7 @@ def csrf_guard():
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         # O cadastro público também recebe um token de sessão e, portanto, continua protegido.
         validate_csrf()
-    if current_user() and not require_admin() and request.endpoint not in {"logout", "login", "setup", "booking", "booking_slots", "static"}:
+    if current_user() and not require_admin() and request.endpoint not in {"logout", "login", "setup", "booking", "booking_slots", "static", "booking_manifest", "booking_worker", "android_assetlinks"}:
         u = users().get(current_user())
         if not user_valid(u):
             session.clear()
@@ -960,7 +879,12 @@ BOOKING_TEMPLATE = r"""
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b1220">
 <title>Agendar horário | Fio&Caixa</title>
+<link rel="manifest" href="{{ url_for('booking_manifest', salao=salao) }}">
+<link rel="apple-touch-icon" href="/static/booking-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script src="/static/booking-install.js?v=2" defer></script>
 <style>
+#installBooking[hidden],#installBookingBox[hidden]{display:none!important}
 :root{color-scheme:dark;--bg:#08111f;--panel:#101b2d;--panel2:#142238;--line:#263750;--text:#edf4ff;--muted:#9aacc5;--blue:#3b82f6;--blue2:#2563eb}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0%,#142a49 0,transparent 34%),var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.45}
 .wrap{width:min(1040px,100%);margin:0 auto;padding:24px 16px 48px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}.logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#60a5fa,#2563eb);font-size:23px;font-weight:900;color:white}.brand h1{font-size:20px;margin:0;font-weight:800}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}
@@ -986,6 +910,10 @@ BOOKING_TEMPLATE = r"""
 {% else %}
 <section class="hero"><div class="eyebrow">Reserve seu horário</div><h2>Seu próximo cuidado começa aqui.</h2><p>Escolha o serviço, selecione o melhor dia e horário e envie sua solicitação ao salão.</p></section>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endwith %}
+<div id="installBookingBox" style="margin-bottom:18px">
+<button type="button" id="installBooking" class="submit" hidden>Instalar agendamento</button>
+<p id="installBookingHelp" class="hint">Para acessar como aplicativo, abra o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”, quando disponível.</p>
+</div>
 <form method="post" id="bookingForm"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="salao" value="{{ salao }}"><input type="hidden" name="data" id="dateInput" value="{{ form_data.get('data', today) }}"><input type="hidden" name="hora" id="timeInput" value="{{ form_data.get('hora', '') }}">
 <div class="layout"><section class="panel"><h3>1. Escolha o dia</h3><p class="sub">Selecione uma data disponível no calendário.</p>
 <div class="monthbar"><button type="button" class="iconbtn" id="prevMonth" aria-label="Mês anterior">‹</button><strong id="monthLabel"></strong><button type="button" class="iconbtn" id="nextMonth" aria-label="Próximo mês">›</button></div>
@@ -1040,6 +968,42 @@ BOOKING_TEMPLATE = r"""
 })();
 </script>{% endif %}</body></html>
 """
+
+
+@app.route("/.well-known/assetlinks.json")
+def android_assetlinks():
+    fingerprints = [value.strip().upper() for value in os.getenv("ANDROID_APP_SHA256", "").split(",") if value.strip()]
+    fingerprints = [value for value in fingerprints if re.fullmatch(r"(?:[0-9A-F]{2}:){31}[0-9A-F]{2}", value)]
+    payload = [] if not fingerprints else [{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {"namespace": "android_app", "package_name": "br.com.financassalao.app",
+                   "sha256_cert_fingerprints": fingerprints}
+    }]
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
+
+
+@app.route("/agendamento.webmanifest")
+def booking_manifest():
+    salao = request.args.get("salao", "").strip().lower()
+    start = "/agendar?" + urllib.parse.urlencode({"salao": salao})
+    response = jsonify({
+        "id": start, "name": "Agendamento do salão", "short_name": "Agendar",
+        "start_url": start, "scope": "/agendar", "display": "standalone",
+        "background_color": "#08111f", "theme_color": "#0b1220",
+        "icons": [{"src": "/static/booking-192.png", "sizes": "192x192", "type": "image/png"},
+                  {"src": "/static/booking-512.png", "sizes": "512x512", "type": "image/png"}]
+    })
+    response.mimetype = "application/manifest+json"
+    return response
+
+
+@app.route("/agendamento-sw.js")
+def booking_worker():
+    response = app.send_static_file("booking-sw.js")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/api/booking/slots")

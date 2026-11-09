@@ -1,3 +1,13 @@
+// Each selector updates only its paired input; no asynchronous page-wide writes.
+function syncServicePrice(selectId, inputId) {
+ const select=qs('#'+selectId), input=qs('#'+inputId);
+ if(!select || !input)return;
+ const option=select.selectedOptions[0];
+ const raw=option?.dataset.price;
+ const price=raw===undefined || raw==='' ? NaN : Number(raw);
+ input.value=Number.isFinite(price) && price>=0 ? price.toFixed(2) : '';
+}
+
 function qs(s){return document.querySelector(s)}
 function money(n){return Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function todayISO(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);return `${p.year}-${p.month}-${p.day}`}
@@ -9,9 +19,9 @@ document.addEventListener('DOMContentLoaded',()=>{
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');qs('#'+b.dataset.tab)?.classList.add('active');localStorage.setItem('fio_tab',b.dataset.tab)})
  const saved=localStorage.getItem('fio_tab'); if(saved) document.querySelector(`.tabs button[data-tab="${saved}"]`)?.click()
  document.querySelectorAll('.segmented button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.segmented button').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(qs('#tipo'))qs('#tipo').value=b.dataset.mode;qs('#adminSecond')?.classList.toggle('hidden',b.dataset.mode!=='admin')})
- ['saleDate','expenseDate','creditDate','aDate'].forEach(id=>{const e=qs('#'+id);if(e)e.value=todayISO()})
- const sale=qs('#saleService'); if(sale){sale.onchange=()=>qs('#salePrice').value=sale.selectedOptions[0].dataset.price;sale.dispatchEvent(new Event('change'))}
- const credit=qs('#creditService'); if(credit){credit.onchange=()=>qs('#creditValue').value=credit.selectedOptions[0].dataset.price;credit.dispatchEvent(new Event('change'))}
+ ;['saleDate','expenseDate','creditDate','aDate'].forEach(id=>{const e=qs('#'+id);if(e)e.value=todayISO()})
+ const sale=qs('#saleService'); if(sale){sale.addEventListener('change',()=>syncServicePrice('saleService','salePrice'));syncServicePrice('saleService','salePrice')}
+ const credit=qs('#creditService'); if(credit){credit.addEventListener('change',()=>syncServicePrice('creditService','creditValue'));syncServicePrice('creditService','creditValue')}
  setupAppointmentForm()
  setupAppointmentFilters()
  setupProfessionalCalendar()
@@ -21,18 +31,18 @@ document.addEventListener('DOMContentLoaded',()=>{
 function openModal(id){
  const today=todayISO();
  const dateMap={serviceModal:'saleDate',expenseModal:'expenseDate',creditModal:'creditDate',appointmentModal:'aDate'};
- const dateInput=qs('#'+(dateMap[id]||''));
+ const dateInput=dateMap[id] ? qs('#'+dateMap[id]) : null;
  if(dateInput && !dateInput.value) dateInput.value=today;
- if(id==='serviceModal'){const sel=qs('#saleService');if(sel?.selectedOptions[0])qs('#salePrice').value=sel.selectedOptions[0].dataset.price||'0'}
+ if(id==='serviceModal')syncServicePrice('saleService','salePrice');
  if(id==='expenseModal' && qs('#expenseValue'))qs('#expenseValue').value='';
- if(id==='creditModal'){const sel=qs('#creditService');if(sel?.selectedOptions[0])qs('#creditValue').value=sel.selectedOptions[0].dataset.price||'0'}
+ if(id==='creditModal')syncServicePrice('creditService','creditValue');
  qs('#'+id)?.classList.add('show')
 }
 function closeModal(id){qs('#'+id)?.classList.remove('show')}
 
 async function saveGoal(){try{const goal=Number(qs('#goalInput').value);if(goal<0)throw Error('Meta inválida');await api('/api/goal',{method:'POST',body:JSON.stringify({goal})});toast('Meta salva!');location.reload()}catch(e){toast(e.message,'error')}}
 
-async function saveSale(){try{const v=Number(qs('#salePrice').value);if(v<0)throw Error('Informe um valor válido');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Entrada',descricao:'Atendimento: '+qs('#saleService').value,valor:v,data:qs('#saleDate').value})});toast('Atendimento registrado!');location.reload()}catch(e){toast(e.message,'error')}}
+async function saveSale(){try{const v=Number(qs('#salePrice').value);if(!qs('#saleService').value || !qs('#salePrice').value || !Number.isFinite(v) || v<=0)throw Error('Selecione um serviço e informe um valor maior que zero');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Entrada',descricao:'Atendimento: '+qs('#saleService').value,valor:v,data:qs('#saleDate').value})});toast('Atendimento registrado!');location.reload()}catch(e){toast(e.message,'error')}}
 async function saveExpense(){try{const v=Number(qs('#expenseValue').value);const desc=qs('#expenseDesc').value.trim();if(v<=0||!desc)throw Error('Informe descrição e valor válidos');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Saída',descricao:desc,valor:-v,data:qs('#expenseDate').value})});toast('Despesa lançada!');location.reload()}catch(e){toast(e.message,'error')}}
 async function saveCredit(){try{const name=qs('#creditName').value.trim();const v=Number(qs('#creditValue').value);if(!name||v<=0)throw Error('Informe cliente e valor');await api('/api/flow',{method:'POST',body:JSON.stringify({tipo:'Pendência',descricao:'Fiado de: '+name+' ('+qs('#creditService').value+')',valor:v,data:qs('#creditDate').value})});toast('Fiado registrado!');location.reload()}catch(e){toast(e.message,'error')}}
 async function deleteFlow(id){if(!confirm('Excluir esta movimentação?'))return;try{await api('/api/flow?id='+id,{method:'DELETE'});location.reload()}catch(e){toast(e.message,'error')}}
